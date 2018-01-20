@@ -124,10 +124,15 @@ def write_inf_txt(inf_str, title):
 	write_to_txtf_in_root(inf_str, txt_path)
 
 
-def create_tsubook_info(url):
-    logger.debug("Starting job!")
+def get_tsubook_info(url):
     html = get_tsu_url(url)
     dic = extract_info(html)
+    return dic
+
+
+def create_tsubook_info(url):
+    logger.debug("Starting job!")
+    dic = get_tsubook_info(url)
     inf_str = create_info_str(dic, url)
     write_inf_txt(inf_str, dic["Title"])
     logger.info(f"Info file written for \"{dic['Title']}\"")

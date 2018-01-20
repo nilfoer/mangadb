@@ -1,8 +1,13 @@
+import time
 import os
 import csv
 import sqlite3
 
+import pyperclip
+
 from tsu_info_getter import *
+
+ROOTDIR = os.path.dirname(os.path.realpath(__file__))
 
 logger = logging.getLogger("manga-db")
 logger.setLevel(logging.DEBUG)
@@ -55,35 +60,62 @@ def load_or_create_sql_db(filename):
 
     return conn, c
 
-def watch_clip_get_info_after():
-    found = None
-    # predicate = is_tsu_book_url, callback = create_tsubook_info
-    watcher = ClipboardWatcher(is_tsu_book_url, None, ROOTDIR, 0.1)
+
+def enter_manga_lists():
+    lists = ["to-read", "downloaded", "femdom", "good", "good futa", "monster",
+             "straight shota", "trap", "vanilla"]
+    while True:
+        result = []
+        inp = input("Enter name of lists the manga should be in separated by commas:\n")
+        for lname in inp.split(","):
+            if lname.strip() in lists:
+                result.append(lname)
+            else:
+                logger.error("Couldn't recognize list name \"%s\", please re-enter list names", lname)
+                break
+        else:
+            return result
+ 
+def watch_clip_db_get_info_after(predicate=is_tsu_book_url):
+    conn, c = load_or_create_sql_db("manga_db.sqlite")
+    found = []
+    stopping = False
     try:
-            logger.info("Watching clipboard...")
-            watcher.run()
+        logger.info("Watching clipboard...")
+        recent_value = ""
+        while not stopping:
+                tmp_value = pyperclip.paste()
+                if tmp_value != recent_value:
+                        recent_value = tmp_value
+                        # if predicate is met
+                        if predicate(recent_value):
+                                # call callback
+                                logger.info("Found manga url: \"%s\"", recent_value)
+                                manga_lists = enter_manga_lists()
+                                found.append((recent_value, manga_lists))
+                time.sleep(0.1)
     except KeyboardInterrupt:
-            found = watcher.get_found()
-            watcher.stop()
-            logger.info("Stopped watching clipboard!")
+        logger.info("Stopped watching clipboard!")
+
     return found
 
 
 def main():
     optnr = input("OPTIONS: [1] Watch clipboard for manga urls, get and write info afterwards")
     if optnr == "1":
-        l = watch_clip_get_info_after()
+        l = watch_clip_db_get_info_after()
         logger.info("Started working on list with %i items", len(l))
         # TODO rework this, so we export current list on crash
         # but even needed? since no processing is done until we start working list here
         try:
                 while l:
                         item = l.pop(0)
-                        create_tsubook_info(item)
+                        dic = create_tsubook_info(item)
+                        update_manga_db_entry(conn, dic)
                         time.sleep(0.3)
         except Exception:
                 # item is alrdy removed even though it failed on it
                 logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", item, "\n".join(l))
                 raise
 if __name__ == "__main__":
-    main()
+    print(enter_manga_lists())#main()
