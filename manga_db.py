@@ -102,6 +102,11 @@ def enter_manga_lists(i):
             return None
 
 
+# match book id as grp1
+re_tsu_book_id = re.compile(r".+tsumino.com/\w+/\w+/(\d+)")
+dic_key_helper = ( ("Collection", "collection"), ("Group", "groups"), ("Artist", "artist"),
+                   ("Parody", "parody"), ("Character", "character"), ("Uploader", "uploader") )
+
 def prepare_dict_for_db(url, lists, dic):
     eng_title = re.match(eng_title_re, dic["Title"])
     eng_title = eng_title.group(1) if eng_title else dic["Title"]
@@ -133,7 +138,7 @@ def prepare_dict_for_db(url, lists, dic):
             # datetime.datetime.strptime("2016 December 10", "%Y %B %d").date()
             # datetime.date(2016, 12, 10)
             "upload_date": datetime.datetime.strptime(dic["Uploaded"], "%Y %B %d").date(),
-            "uploader": dic["Uploader"][0],
+            "uploader": None,  # sometimes no uploader specified
             "pages": int(dic["Pages"]),
             "rating": float(dic["Rating"].split()[0]),
             "rating_full": dic["Rating"],
@@ -162,10 +167,6 @@ def prepare_dict_for_db(url, lists, dic):
     return db_dic
 
  
-# match book id as grp1
-re_tsu_book_id = re.compile(r".+tsumino.com/\w+/\w+/(\d+)")
-dic_key_helper = ( ("Collection", "collection"), ("Group", "groups"), ("Artist", "artist"),
-                   ("Parody", "parody"), ("Character", "character") )
 def add_manga_db_entry_from_dict(db_con, url, lists, dic):
     add_dic = prepare_dict_for_db(url, lists, dic)
 
@@ -353,3 +354,4 @@ if __name__ == "__main__":
     main()
 
 # TODO
+# my_rating
