@@ -61,24 +61,25 @@ def load_or_create_sql_db(filename):
     # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
     c.execute("CREATE TABLE IF NOT EXISTS Tsumino (id INTEGER PRIMARY KEY ASC, title TEXT UNIQUE, "
               "title_eng TEXT, url TEXT UNIQUE, id_onpage INTEGER UNIQUE, upload_date DATE, "
-              "uploader TEXT, pages INTEGER, rating REAL, rating_full TEXT, category TEXT, "
-              "collection TEXT, groups TEXT, artist TEXT, parody TEXT, character TEXT, tags TEXT, "
-              "lists TEXT, last_change DATE, downloaded INTEGER)")
+              "uploader TEXT, pages INTEGER, rating REAL, rating_full TEXT, my_rating REAL, "
+              "category TEXT, collection TEXT, groups TEXT, artist TEXT, parody TEXT, "
+              "character TEXT, tags TEXT, lists TEXT, last_change DATE, downloaded INTEGER)")
     # commit changes
     conn.commit()
 
     return conn, c
 
 
-def enter_manga_lists():
-    lists = ["to-read", "downloaded", "femdom", "good", "good futa", "monster",
-             "straight shota", "trap", "vanilla", "best"]
-    # create list with lines where one line contains 3 elements from list with corresponding indexes as string
-    # use two fstrings to first format index and value and then pad the resulting string to the same length
-    # is there a way just using one f string? -> no not without using variables, which doesnt work here (at least i dont think so)
-    descr = [" ".join([f"{f'[{i+n}] {lists[i+n]}':20}" for n in range(3 if (len(lists)-i) >= 3 else len(lists)-i)]) for i in range(0, len(lists), 3)]
-    # or pad index and value independently?
-    # descr = [" ".join([f"[{i+n:>2}] {lists[i+n]:15}" for n in range(3 if (len(lists)-i) >= 3 else len(lists)-i)]) for i in range(0, len(lists), 3)]
+lists = ["to-read", "downloaded", "femdom", "good", "good futa", "monster",
+         "straight shota", "trap", "vanilla", "best"]
+# create list with lines where one line contains 3 elements from list with corresponding indexes as string
+# use two fstrings to first format index and value and then pad the resulting string to the same length
+# is there a way just using one f string? -> no not without using variables, which doesnt work here (at least i dont think so)
+descr = [" ".join([f"{f'[{i+n}] {lists[i+n]}':20}" for n in range(3 if (len(lists)-i) >= 3 else len(lists)-i)]) for i in range(0, len(lists), 3)]
+# or pad index and value independently?
+# descr = [" ".join([f"[{i+n:>2}] {lists[i+n]:15}" for n in range(3 if (len(lists)-i) >= 3 else len(lists)-i)]) for i in range(0, len(lists), 3)]
+def enter_manga_lists(i):
+    # TODO find way to make sure its visible but not printed every time
     print("\n".join(descr))
 
     while True:
@@ -99,12 +100,8 @@ def enter_manga_lists():
             # no input -> dont add to any lists
             return None
 
- 
-# match book id as grp1
-re_tsu_book_id = re.compile(r".+tsumino.com/\w+/\w+/(\d+)")
-dic_key_helper = ( ("Collection", "collection"), ("Group", "groups"), ("Artist", "artist"),
-                   ("Parody", "parody"), ("Character", "character") )
-def update_manga_db_entry_from_dict(db_con, url, lists, dic):
+
+def prepare_dict_for_db(url, lists, dic):
     eng_title = re.match(eng_title_re, dic["Title"])
     eng_title = eng_title.group(1) if eng_title else dic["Title"]
     # assume group 1 is always present (which it should be, contrary to above where it alrdy might be only english so it wont find a match)
@@ -116,7 +113,7 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
         downloaded = 0
     # prepare new update dictionary first or use same keys as in tsu_info dict?
     # use seperate update dict so we dont get screwed if keys change
-    update_dic = {
+    db_dic = {
             "title": dic["Title"],
             "title_eng": eng_title,
             "url": url,
@@ -136,7 +133,7 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
             # datetime.date(2016, 12, 10)
             "upload_date": datetime.datetime.strptime(dic["Uploaded"], "%Y %B %d").date(),
             "uploader": dic["Uploader"][0],
-            "pages": dic["Pages"],
+            "pages": int(dic["Pages"]),
             "rating": float(dic["Rating"].split()[0]),
             "rating_full": dic["Rating"],
             # might be list -> join on ", " if just one entry no comma added
@@ -156,11 +153,20 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     for key_tsu, key_upd in dic_key_helper:
         try:
             if isinstance(dic[key_tsu], list):
-                update_dic[key_upd] = ", ".join(dic[key_tsu])
+                db_dic[key_upd] = ", ".join(dic[key_tsu])
             else:
-                update_dic[key_upd] = dic[key_tsu]
+                db_dic[key_upd] = dic[key_tsu]
         except KeyError:
             continue
+    return db_dic
+
+ 
+# match book id as grp1
+re_tsu_book_id = re.compile(r".+tsumino.com/\w+/\w+/(\d+)")
+dic_key_helper = ( ("Collection", "collection"), ("Group", "groups"), ("Artist", "artist"),
+                   ("Parody", "parody"), ("Character", "character") )
+def add_manga_db_entry_from_dict(db_con, url, lists, dic):
+    add_dic = prepare_dict_for_db(url, lists, dic)
 
     db_con.execute("INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, uploader, "
               "pages, rating, rating_full, category, collection, groups, "
@@ -168,8 +174,49 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
               "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
               ":pages, :rating, :rating_full, :category, :collection, "
               ":groups, :artist, :parody, :character, :tags, :lists, :last_change, "
-              ":downloaded)", update_dic)
-    logger.info("Added/Updated book with url \"%s\" to/in database!", url)
+              ":downloaded)", add_dic)
+    logger.info("Added book with url \"%s\" to database!", url)
+    db_con.commit()
+
+
+def update_manga_db_entry_from_dict(db_con, url, lists, dic):
+    book_id = int(re.match(re_tsu_book_id, url).group(1))
+    upd_lists = None
+    if lists:
+        upd_l = input(f"Also update lists for book \"{dic['Title']}\" to previously entered ({lists}) lists? y/n\n")
+        if upd_l == "y":
+            upd_lists = lists
+    # this is executed in all cases except lists evaluating to True and selecting y when asked if you want to update the lists
+    if upd_lists is None:
+        c = db_con.execute("SELECT lists FROM Tsumino WHERE id_onpage = ?", (book_id,))
+        # lists from db is string "list1, list2, .."
+        upd_lists = c.fetchone()[0].split(", ")
+
+    update_dic = prepare_dict_for_db(url, upd_lists, dic)
+
+    # seems like book id on tsumino just gets replaced with newer uncensored or fixed version -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
+    # => WARN to redownload book
+    c = db_con.execute("SELECT uploader, upload_date, pages, tags FROM Tsumino WHERE id_onpage = ?", (book_id,))
+    res_tuple = c.fetchone()
+    field_change_str = []
+    for res_tuple_i, key in ((0, "uploader"), (1, "upload_date"), (2, "pages"), (3, "tags")):
+        if res_tuple[res_tuple_i] != update_dic[key]:
+            print(res_tuple[res_tuple_i], update_dic[key], type(res_tuple[res_tuple_i]), type(update_dic[key]))
+            field_change_str.append(f"Field \"{key}\" changed from \"{res_tuple[res_tuple_i]}\" to \"{update_dic[key]}\"!")
+    if field_change_str:
+        field_change_str = '\n'.join(field_change_str)
+        logger.warning(f"Please re-download \"{url}\", since the change of following fields suggest that someone has uploaded a new version:\n{field_change_str}")
+
+
+    # dont update: title = :title, title_eng = :title_eng, 
+    c.execute("""UPDATE Tsumino SET url = :url,
+                      upload_date = :upload_date, uploader = :uploader, pages = :pages, 
+                      rating = :rating, rating_full = :rating_full, category = :category, 
+                      collection = :collection, groups = :groups, artist = :artist, 
+                      parody = :parody, character = :character, tags = :tags, lists = :lists, 
+                      last_change = :last_change, downloaded = :downloaded 
+                      WHERE id_onpage = :id_onpage""", update_dic)
+    logger.info("Updated book with url \"%s\" in database!", url)
     db_con.commit()
 
 
@@ -187,23 +234,50 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
                         if predicate(recent_value):
                                 logger.info("Found manga url: \"%s\"", recent_value)
                                 if int(re.match(re_tsu_book_id, recent_value).group(1)) in db_book_ids:
+                                    logger.info("Book was found in db! Values will be updated!")
                                     upd = True
                                 else:
                                     upd = False
 
                                 if fixed_lists is None:
                                     # strip urls of trailing "-" since there is a dash appended to the url when exiting from reading a manga on tsumino (compared to when entering from main site)
-                                    # TODO print lists when upd True, dont change lists if none are entered (keep old ones)
                                     manga_lists = enter_manga_lists()
                                     found.append((recent_value.rstrip("-"), manga_lists, upd))
                                 else:
                                     found.append((recent_value.rstrip("-"), fixed_lists, upd))
-                                # TODO filter duplicates afterwards only keeping latest entries in list so we can just copy link again to fix wrong lists etc.
                 time.sleep(0.1)
     except KeyboardInterrupt:
         logger.info("Stopped watching clipboard!")
 
     return found
+
+
+def filter_duplicate_at_index_of_list_items(i, li):
+    # filter duplicates based on element at pos i in tuples only keeping latest entries in list
+    # filter_elements = [t[i] for t in tuple_list]
+    # i could either use get_index_of_last_match to get index of last occurrence of match in filter_elements and in for loop check if were at that pos True->append False->continue (if count in filter_elements > 1)
+    # -> would mean iterating/searching over list (1 + (len(tuple_list) + len(tuple_list)) * len(tuple_list)
+    # or reverse tuple_list, and keep track of items at pos i that were alrdy seen/added
+    # tuple_list[i] alrdy seen -> continue
+    items_at_i = set()
+    result = []
+    for tup in reversed(li):
+        if tup[i] in items_at_i:
+            continue
+        else:
+            result.append(tup)
+            items_at_i.add(tup[i])
+    # order not preserved, reversing again would be closer to old order
+    return result
+
+
+def get_index_of_last_match(obj, li):
+    """Get index of last item matching obj in list"""
+    # start end step, start inclusive - end not
+    for i in range(len(li)-1, -1, -1):
+        if obj == li[i]:
+            return i
+
 
 def export_csv_from_sql(filename, db_con):
     """
@@ -231,6 +305,16 @@ def export_csv_from_sql(filename, db_con):
         # write the all the rows to the file
         csvwriter.writerows(rows)
 
+def test_filter_duplicate_at_index_of_list_items():
+    l = [   ("abc", 0, 0),
+            ("def", 1, 1),
+            ("abc", 2, 2,),
+            ("ghi", 3, 3,),
+            ("def", 4, 4,),
+            ("jkl", 5, 5,)]
+    res = filter_duplicate_at_index_of_list_items(0, l)
+    return res == [('jkl', 5, 5), ('def', 4, 4), ('ghi', 3, 3), ('abc', 2, 2)]
+
 def main():
     optnr = input("OPTIONS: [1] Watch clipboard for manga urls, get and write info afterwards\n")
     if optnr == "1":
@@ -246,21 +330,25 @@ def main():
         logger.info("Started working on list with %i items", len(l))
         try:
             while l:
-                url, lists = l.pop(0)
+                url, lists, upd = l.pop(0)
                 logger.debug("Starting job!")
                 if write_infotxt:
                     dic = create_tsubook_info(url)
                 else:
                     dic = get_tsubook_info(url)
-                update_manga_db_entry_from_dict(conn, url, lists, dic)
+
+                if upd:
+                    update_manga_db_entry_from_dict(conn, url, lists, dic)
+                else:
+                    add_manga_db_entry_from_dict(conn, url, lists, dic)
                 time.sleep(0.3)
         except Exception:
                 # current item is alrdy removed even though it failed on it
-                logger.error("Job was interrupted, the following entries were not processed:\n(%s, %s)\n%s", url, lists, "\n".join((f"({u}, {li})" for u,li in l)))
+                # join() expects list of str -> convert them first with (str(i) for i in tup)
+                logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", ", ".join((url, str(lists), str(upd))), "\n".join((', '.join(str(i) for i in tup) for tup in l)))
                 raise
         export_csv_from_sql("manga-db.csv", conn)
 if __name__ == "__main__":
     main()
 
 # TODO
-# even better to just use id in tsumino.com/Book/Info/30203/pure-trap-fakku -> id == 30203
