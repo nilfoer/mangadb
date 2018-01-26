@@ -79,8 +79,9 @@ descr = [" ".join([f"{f'[{i+n}] {lists[i+n]}':20}" for n in range(3 if (len(list
 # or pad index and value independently?
 # descr = [" ".join([f"[{i+n:>2}] {lists[i+n]:15}" for n in range(3 if (len(lists)-i) >= 3 else len(lists)-i)]) for i in range(0, len(lists), 3)]
 def enter_manga_lists(i):
-    # TODO find way to make sure its visible but not printed every time
-    print("\n".join(descr))
+    # only print available lists every fifth time
+    if i%5 == 0:
+        print("\n".join(descr))
 
     while True:
         result = []
@@ -241,7 +242,7 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
 
                                 if fixed_lists is None:
                                     # strip urls of trailing "-" since there is a dash appended to the url when exiting from reading a manga on tsumino (compared to when entering from main site)
-                                    manga_lists = enter_manga_lists()
+                                    manga_lists = enter_manga_lists(len(found))
                                     found.append((recent_value.rstrip("-"), manga_lists, upd))
                                 else:
                                     found.append((recent_value.rstrip("-"), fixed_lists, upd))
@@ -320,7 +321,7 @@ def main():
     if optnr == "1":
         write_infotxt = bool(input("Write info txt files?"))
         print("You can now configure the lists that all following entries should be added to!")
-        fixed_list_opt = enter_manga_lists()
+        fixed_list_opt = enter_manga_lists(0)
 
         conn, c = load_or_create_sql_db("manga_db.sqlite")
         c.execute("SELECT id_onpage FROM Tsumino")
