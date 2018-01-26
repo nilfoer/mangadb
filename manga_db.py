@@ -173,7 +173,7 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     db_con.commit()
 
 
-def watch_clip_db_get_info_after(fixed_lists=None, predicate=is_tsu_book_url):
+def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu_book_url):
     found = []
     stopping = False
     try:
@@ -185,14 +185,19 @@ def watch_clip_db_get_info_after(fixed_lists=None, predicate=is_tsu_book_url):
                         recent_value = tmp_value
                         # if predicate is met
                         if predicate(recent_value):
-                                # call callback
                                 logger.info("Found manga url: \"%s\"", recent_value)
+                                if int(re.match(re_tsu_book_id, recent_value).group(1)) in db_book_ids:
+                                    upd = True
+                                else:
+                                    upd = False
+
                                 if fixed_lists is None:
                                     # strip urls of trailing "-" since there is a dash appended to the url when exiting from reading a manga on tsumino (compared to when entering from main site)
+                                    # TODO print lists when upd True, dont change lists if none are entered (keep old ones)
                                     manga_lists = enter_manga_lists()
-                                    found.append((recent_value.rstrip("-"), manga_lists))
+                                    found.append((recent_value.rstrip("-"), manga_lists, upd))
                                 else:
-                                    found.append((recent_value.rstrip("-"), fixed_lists))
+                                    found.append((recent_value.rstrip("-"), fixed_lists, upd))
                                 # TODO filter duplicates afterwards only keeping latest entries in list so we can just copy link again to fix wrong lists etc.
                 time.sleep(0.1)
     except KeyboardInterrupt:
@@ -230,16 +235,15 @@ def main():
     optnr = input("OPTIONS: [1] Watch clipboard for manga urls, get and write info afterwards\n")
     if optnr == "1":
         write_infotxt = bool(input("Write info txt files?"))
-        # TODO
         print("You can now configure the lists that all following entries should be added to!")
         fixed_list_opt = enter_manga_lists()
 
         conn, c = load_or_create_sql_db("manga_db.sqlite")
+        c.execute("SELECT id_onpage FROM Tsumino")
+        ids_in_db = set([tupe[0] for tupe in c.fetchall()])
 
-        l = watch_clip_db_get_info_after(fixed_lists=fixed_list_opt)
+        l = watch_clip_db_get_info_after(ids_in_db, fixed_lists=fixed_list_opt)
         logger.info("Started working on list with %i items", len(l))
-        # TODO rework this, so we export current list on crash
-        # but even needed? since no processing is done until we start working list here
         try:
             while l:
                 url, lists = l.pop(0)
