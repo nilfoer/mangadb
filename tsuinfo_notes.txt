@@ -1,0 +1,3 @@
+bookmarks also dont work, since the html doesnt stay the same
+when visiting from main page: 	http://www.tsumino.com/Book/Info/36176/astolfo-risei-jouhatsu-choukyou-
+when exiting from reader: 		http://www.tsumino.com/Book/Info/36176/astolfo-risei-jouhatsu-choukyou

@@ -34,3 +34,5 @@ tests/test_res/
 *.un~
 *.*~
 .vscode/
+manga*db.csv
+manga*db.sqlite

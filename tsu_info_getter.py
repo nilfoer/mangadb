@@ -390,7 +390,7 @@ if __name__ == "__main__":
                 try:
                         while l:
                                 item = l.pop(0)
-                                create_tsubook_info(item)
+                                print(create_tsubook_info(item))
                                 time.sleep(0.3)
                 except Exception:
                         # item is alrdy removed even though it failed on it
