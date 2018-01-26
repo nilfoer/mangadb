@@ -108,7 +108,7 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     eng_title = re.match(eng_title_re, dic["Title"])
     eng_title = eng_title.group(1) if eng_title else dic["Title"]
     # assume group 1 is always present (which it should be, contrary to above where it alrdy might be only english so it wont find a match)
-    book_id = re.match(re_tsu_book_id, url).group(1)
+    book_id = int(re.match(re_tsu_book_id, url).group(1))
 
     if lists:
         downloaded = 1 if "downloaded" in lists else 0
