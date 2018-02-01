@@ -1,3 +1,17 @@
 bookmarks also dont work, since the html doesnt stay the same
 when visiting from main page: 	http://www.tsumino.com/Book/Info/36176/astolfo-risei-jouhatsu-choukyou-
 when exiting from reader: 		http://www.tsumino.com/Book/Info/36176/astolfo-risei-jouhatsu-choukyou
+
+DL http://www.tsumino.com/Book/Info/36623/melo-melo-melon-pan-melomelo-melon-bread-
+--> link: www.tsumino.com/Download/Process?token=J72DzE4fQaizgA4gw%2FlQP5GUh4F2aEt21Do4DsDrF4gYim2x5r9Q9yjr38ofa5BV
+gilt >30min, aber def. <90min, auch ohne login (cookies)
+
+DL http://www.tsumino.com/Book/Info/36445/boku-no-shiawase-na-shumi-kouhen-
+---> http://www.tsumino.com/Download/Process?token=gpxr1ZlDVzp1xlAwB95zNcNdtla9im2oFf0tRPGR63lyho0JnS5WdNLuon6j49As
+
+token -> JWT (JSON Web Token)?
+info -> https://stackoverflow.com/questions/29452031/how-to-handle-file-downloads-with-jwt-based-authentication
+- https://superuser.com/questions/27243/how-to-find-out-the-real-download-url-on-download-sites-that-use-redirects
+https://stackoverflow.com/questions/24501358/how-to-set-a-header-for-a-http-get-request-and-trigger-file-download
+
+prob -> tsumino as logged in user -> reCaptcha -> token -> tsumino -> dl token generated -> dl

@@ -36,3 +36,7 @@ tests/test_res/
 .vscode/
 manga*db.csv
 manga*db.sqlite
+thumbs/
+PIL/
+Pillow*/
+research/

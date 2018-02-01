@@ -102,8 +102,6 @@ def enter_manga_lists(i):
             return None
 
 
-# match book id as grp1
-re_tsu_book_id = re.compile(r".+tsumino.com/\w+/\w+/(\d+)")
 dic_key_helper = ( ("Collection", "collection"), ("Group", "groups"), ("Artist", "artist"),
                    ("Parody", "parody"), ("Character", "character"), ("Uploader", "uploader") )
 
@@ -111,7 +109,7 @@ def prepare_dict_for_db(url, lists, dic):
     eng_title = re.match(eng_title_re, dic["Title"])
     eng_title = eng_title.group(1) if eng_title else dic["Title"]
     # assume group 1 is always present (which it should be, contrary to above where it alrdy might be only english so it wont find a match)
-    book_id = int(re.match(re_tsu_book_id, url).group(1))
+    book_id = book_id_from_url(url)
 
     if lists:
         downloaded = 1 if "downloaded" in lists else 0
@@ -151,6 +149,8 @@ def prepare_dict_for_db(url, lists, dic):
             "character": None,
             "tags": ", ".join(dic["Tag"]),
             # TODO have lists as seperate tables ADDITIONALY?
+            # -> yes + mb tags at well -> look at pyload/core/database/backend.py for example
+            # prob just save id(of our db) and book_id in additional tables -> access infos in normal table using id or book_id
             "lists": ", ".join(lists) if lists else None,
             "last_change": datetime.date.today(),
             "downloaded": downloaded
@@ -182,7 +182,7 @@ def add_manga_db_entry_from_dict(db_con, url, lists, dic):
 
 
 def update_manga_db_entry_from_dict(db_con, url, lists, dic):
-    book_id = int(re.match(re_tsu_book_id, url).group(1))
+    book_id = book_id_from_url(url)
     upd_lists = None
     if lists:
         upd_l = input(f"Also update lists for book \"{dic['Title']}\" to previously entered ({lists}) lists? y/n\n")
@@ -200,10 +200,11 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     # => WARN to redownload book
     c = db_con.execute("SELECT uploader, upload_date, pages, tags FROM Tsumino WHERE id_onpage = ?", (book_id,))
     res_tuple = c.fetchone()
+
     field_change_str = []
+    # build line str of changed fields
     for res_tuple_i, key in ((0, "uploader"), (1, "upload_date"), (2, "pages"), (3, "tags")):
         if res_tuple[res_tuple_i] != update_dic[key]:
-            print(res_tuple[res_tuple_i], update_dic[key], type(res_tuple[res_tuple_i]), type(update_dic[key]))
             field_change_str.append(f"Field \"{key}\" changed from \"{res_tuple[res_tuple_i]}\" to \"{update_dic[key]}\"!")
     if field_change_str:
         field_change_str = '\n'.join(field_change_str)
@@ -235,7 +236,7 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
                         # if predicate is met
                         if predicate(recent_value):
                                 logger.info("Found manga url: \"%s\"", recent_value)
-                                if int(re.match(re_tsu_book_id, recent_value).group(1)) in db_book_ids:
+                                if book_id_from_url(recent_value) in db_book_ids:
                                     logger.info("Book was found in db! Values will be updated!")
                                     upd = True
                                 else:
@@ -317,41 +318,80 @@ def test_filter_duplicate_at_index_of_list_items():
     res = filter_duplicate_at_index_of_list_items(0, l)
     return res == [('jkl', 5, 5), ('def', 4, 4), ('ghi', 3, 3), ('abc', 2, 2)]
 
+
+# match book id as grp1
+re_tsu_book_id = re.compile(r".+tsumino.com/\w+/\w+/(\d+)")
+def book_id_from_url(url):
+    try:
+        return int(re.match(re_tsu_book_id, url).group(1))
+    except IndexError:
+        logger.warning("No book id could be extracted from \"%s\"!", url)
+        # reraise or continue and check if bookid returned in usage code?
+        raise
+
+
+def rate_manga(db_con, url, rating):
+    book_id = book_id_from_url(url)
+    with db_con:
+        db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id_onpage = ?", (rating, book_id))
+    logger.info("Successfully updated rating of book with id \"%s\" to \"%s\"", book_id, rating)
+
+
+
+def process_job_list(db_con, jobs)
+    logger.info("Started working on list with %i items", len(jobs))
+    try:
+        while jobs:
+            url, lists, upd = jobs.pop(0)
+            logger.debug("Starting job!")
+            if write_infotxt:
+                dic = create_tsubook_info(url)
+            else:
+                dic = get_tsubook_info(url)
+
+            if upd:
+                update_manga_db_entry_from_dict(db_con, url, lists, dic)
+            else:
+                add_manga_db_entry_from_dict(db_con, url, lists, dic)
+            time.sleep(0.3)
+    except Exception:
+            # current item is alrdy removed even though it failed on it
+            # join() expects list of str -> convert them first with (str(i) for i in tup)
+            logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", ", ".join((url, str(lists), str(upd))), "\n".join((', '.join(str(i) for i in tup) for tup in jobs)))
+            raise
+
+
+cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv")
 def main():
-    optnr = input("OPTIONS: [1] Watch clipboard for manga urls, get and write info afterwards\n")
-    if optnr == "1":
-        write_infotxt = bool(input("Write info txt files?"))
-        print("You can now configure the lists that all following entries should be added to!")
-        fixed_list_opt = enter_manga_lists(0)
-
+    # sys.argv[0] is path to file (manga_db.py)
+    cmdline = sys.argv[1:]
+    if cmdline[0] == "help":
+        print("""OPTIONS:    [watch] Watch clipboard for manga urls, get and write info afterwards
+            [rate] url rating; Update rating for book with supplied url
+            [exportcsv] Export csv-file of SQLite-DB""")
+    elif cmdline[0] in cmdline_cmds:
+        # valid cmd -> load db
         conn, c = load_or_create_sql_db("manga_db.sqlite")
-        c.execute("SELECT id_onpage FROM Tsumino")
-        ids_in_db = set([tupe[0] for tupe in c.fetchall()])
 
-        l = watch_clip_db_get_info_after(ids_in_db, fixed_lists=fixed_list_opt)
-        logger.info("Started working on list with %i items", len(l))
-        try:
-            while l:
-                url, lists, upd = l.pop(0)
-                logger.debug("Starting job!")
-                if write_infotxt:
-                    dic = create_tsubook_info(url)
-                else:
-                    dic = get_tsubook_info(url)
+        if cmdline[0] == "test":
+            test_filter_duplicate_at_index_of_list_items()
+        elif cmdline[0] == "rate":
+            rate_manga(conn, *cmdline[1:])
+        elif cmdline[0] == "exportcsv":
+            export_csv_from_sql("manga_db.csv", conn)
+        elif cmdline[0] == "watch":
+            write_infotxt = bool(input("Write info txt files?"))
+            print("You can now configure the lists that all following entries should be added to!")
+            fixed_list_opt = enter_manga_lists(0)
 
-                if upd:
-                    update_manga_db_entry_from_dict(conn, url, lists, dic)
-                else:
-                    add_manga_db_entry_from_dict(conn, url, lists, dic)
-                time.sleep(0.3)
-        except Exception:
-                # current item is alrdy removed even though it failed on it
-                # join() expects list of str -> convert them first with (str(i) for i in tup)
-                logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", ", ".join((url, str(lists), str(upd))), "\n".join((', '.join(str(i) for i in tup) for tup in l)))
-                raise
-        export_csv_from_sql("manga-db.csv", conn)
+            c.execute("SELECT id_onpage FROM Tsumino")
+            ids_in_db = set([tupe[0] for tupe in c.fetchall()])
+
+            l = watch_clip_db_get_info_after(ids_in_db, fixed_lists=fixed_list_opt)
+            process_job_list(conn, l)
+    else:
+        print(f"\"{cmdline[0]}\" is not a valid command! Valid commands are: {', '.join(cmdline_cmds)}")
 if __name__ == "__main__":
     main()
 
 # TODO
-# my_rating
