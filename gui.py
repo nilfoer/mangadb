@@ -10,22 +10,23 @@ class MangaDBGUI(Frame):
         self.output_frame = None
 
         # configure the rows and columns to have a non-zero weight so that they will take up the extra space when expanding
-        for x in range(10):
+        for x in range(5):
             Grid.columnconfigure(self, x, weight=1, pad=3)
 
-        for y in range(10):
+        for y in range(5):
             Grid.rowconfigure(self, y, weight=1, pad=3)
-        self.search_descr = Label(self, text="Search for tags, seperate them with commas:")
+        self.search_descr = Label(self, text="Search for tags, seperate them with commas:", justify=LEFT)
         # sticky -> alignment in N S W E
         self.search_descr.grid(row=0, pady=1, padx=1)
         self.search_field = Entry(self)
         # exec func search_for_tags when Return is pressed
         self.search_field.bind("<Return>", self.search_for_tags)
-        self.search_field.grid(row=1, sticky=W+E, padx=2, pady=1)
+        # margin -> use grid with padx, pady; (inner) padding -> create widget with padx, pady
+        self.search_field.grid(row=1, sticky=W+E, padx=5, pady=1)
 
-        # command=lambda e=search_field: print(e.get()) lambda e=search_field: search_for_tags(e))
+        # command=lambda e=search_field: print(e.get()) lambda: search_for_tags(e))
         self.search_btn = Button(self, text="Search!", command=self.search_for_tags)
-        self.search_btn.grid(row=1, column=1, padx=3, pady=1)
+        self.search_btn.grid(row=1, column=1, padx=1, pady=1)
 
         self.destr_btn = Button(self, text="Reset!", command=self.destroy_output)
         self.destr_btn.grid(row=4, column=0, columnspan=2)
@@ -48,6 +49,8 @@ class SearchResultOutput(Frame):
     def __init__(self, row, col, grid_dimensions, data=None, master=None):
         super().__init__(master)
         self.grid(row=row, column=col, columnspan=2, sticky=N+S+E+W)
+        Grid.rowconfigure(self, 0, weight=1)
+        Grid.columnconfigure(self, 0, weight=1)
         self.img_grid_frame = None
         self.colmax, self.rowmax = grid_dimensions
         # track index in data of first grid item displayed
@@ -83,8 +86,8 @@ class SearchResultOutput(Frame):
         # destroy old output first -> otherwise kept in mem
         if self.img_grid_frame:
             self.img_grid_frame.destroy()
-        self.img_grid_frame = Frame(self)
-        self.img_grid_frame.grid(row=0, column=0, columnspan=self.colmax, sticky=N+S+E+W)
+        self.img_grid_frame = Frame(self, relief=SUNKEN, bg="white", borderwidth=1, padx=5, pady=5)
+        self.img_grid_frame.grid(row=0, column=0, columnspan=self.colmax, sticky=N+S+E+W, padx=5, pady=5)
         # create grid with grid_dimensions with title+image (-> rows*2)
         # convert i-th item to row i//3*2
         row_start = self.current_i//3*2
@@ -106,11 +109,12 @@ class SearchResultOutput(Frame):
                 # 400, 562; 200, 281; width*1.405=height
                 img = img.resize((150, 211), Image.ANTIALIAS) #The (250, 250) is (height, width)
                 tkimage = ImageTk.PhotoImage(img)
-                l = Label(self.img_grid_frame, image=tkimage)
+                l = Label(self.img_grid_frame, image=tkimage, bg="white")
                 # Note: When a PhotoImage object is garbage-collected by Python (e.g. when you return from a function which stored an image in a local variable), the image is cleared even if it’s being displayed by a Tkinter widget.
                 # To avoid this, the program must keep an extra reference to the image object. A simple way to do this is to assign the image to a widget attribute, like this:
                 l.image=tkimage
-                t = Label(self.img_grid_frame, text=self.data[index])#"Title!")
+                # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
+                t = Label(self.img_grid_frame, text=self.data[index], bg="white", wraplength=150, justify=CENTER)#"Title!")
                 l.grid(row=row_index+1, column=col_index, sticky=N+S+E+W)  
                 t.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
         # print childs of

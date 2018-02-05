@@ -15,3 +15,170 @@ info -> https://stackoverflow.com/questions/29452031/how-to-handle-file-download
 https://stackoverflow.com/questions/24501358/how-to-set-a-header-for-a-http-get-request-and-trigger-file-download
 
 prob -> tsumino as logged in user -> reCaptcha -> token -> tsumino -> dl token generated -> dl
+
+__________________________________________________________________________________________________________
+
+#SQL(ite) Database Design for Tagging System
+
+Tagging ist eine many-to-many (auch "m:n") Relation, da (hier) ein Buch mehrere Tags und ein Tag von mehreren Büchern verwendet
+werden kann.
+(Sonst gibt es noch one-to-one(1:1), also wenn (hier) ein Buch auch nur ein Tag und ein Tag auch nur ein Buch haben könnte,
+ dann existiert noch one-to-many (1:m), also wenn (hier) ein Buch mehrere Tags haben könnte, diese aber nur von diesem einem
+ Buch verwendet werden können)
+
+#Eine Tabelle (MySQLicious)
+Die einfachste Lösung wäre alles in eine Tabelle zu packen
+
+__books__
+id 	title		tags
+0	Mama Para	Straight Sex, Vanilla, ...
+1	Kei Land	Exhibitionism, Ahegao, ..
+
+Das wäre auch noch performant (bei mir eigtl. sowieso nicht relevant, da nur ein Nutzer bei lokaler SQLite DB, aber ich mache das ja 
+für den Lerneffekt), wenn die Tag-Anzahl begreenzt wäre auf z.B. 5 Tags (hat so stackoverflow eine lange Zeit benutzt)
+
+Für das Suchen nach Tags müsste man dann entweder das Pattern-Matching von SQLite verwenden mit "LIKE '%, Straight Sex,%'"
+(% -> wildcard for 0 or more chars, _ -> any one char) oder alles in den RAM laden (id und tags) und dann im Code selber
+die Tags filtern.
+
+MySQL-Query for Inersection (AND)
+	SELECT - 
+	FROM `books` 
+	WHERE tags LIKE "%, Straight Sex,%" 
+	AND tags LIKE "%, Vanilla,%"
+
+==> wird schnell unperformant und Fragen wie "Was ist der populärste Tag? Was bedeutet dieser Tag? etc." lassen sich nicht oder
+nur umständlich bentworten
+==> dafür einfache queries
+
+Versößt bei Tags gegen 1NF (zusammengesetzte, mengenwertige oder geschachtelte Wertebereiche (also relationenwertige Attributwertebereiche) nicht erlaubt) bei Normalisierung von Datenbanken
+-> """Wikipedia: Unter Normalisierung eines relationalen Datenschemas (Tabellenstruktur) versteht man die Aufteilung von 
+Attributen (Tabellenspalten) in mehrere Relationen (Tabellen) gemäß den Normalisierungsregeln (s. u.), so dass eine Form 
+entsteht, die keine vermeidbaren Redundanzen mehr enthält.
+
+Ein konzeptionelles Schema, das Datenredundanzen enthält, kann dazu führen, dass bei Änderungen der damit realisierten Datenbank 
+die mehrfach enthaltenen Daten nicht konsistent, sondern nur teilweise und unvollständig geändert werden, womit sie obsolet oder 
+widersprüchlich werden können. Man spricht von auftretenden Anomalien. Zudem belegt mehrfache Speicherung derselben Daten unnötig 
+Speicherplatz. Um Redundanz zu verhindern, normalisiert man solche Tabellen.
+
+Es gibt verschiedene Ausmaße, in denen ein Datenbankschema gegen Anomalien gefeit sein kann. Je nachdem spricht man davon, dass 
+es in erster, zweiter, dritter usw. Normalform vorliege. Diese Normalformen sind durch bestimmte formale Anforderungen an das 
+Schema definiert."""
+
+##Zwei Tabellen (Scuttle)
+Zusätzliche Tabelle die jeweils die bookid(FOREIGN KEY) und einen tag enthält:
+(f) -> foreign key
+
+__books__
+id 	title
+0	Mama Para
+1	Kei Land
+
+__tags__
+id	bookid(f)	tag
+0	0			Straight Sex
+1	0			Vanilla
+2	0			...
+3   1			Exhibitionism
+4	1			Ahegao
+5	1			...
+
+Oder man nimmt nicht id sondern ein Composite-Key aus bookid und tag als PRIMARY KEY
+->
+Code in SQLite für composite key:
+	CREATE TABLE something (
+	  column1 INTEGER NOT NULL,
+	  column2 INTEGER NOT NULL,
+	  value,
+	  PRIMARY KEY ( column1, column2)
+	);
+	
+Doesn't Primary Key impose a NOT NULL?
+-> In standard SQL, yes. In SQLite, NULL is allowed in primary keys. This answer emphasizes that if you want more standard 
+behavior, you need to add the NOT NULL yourself. My answer is just the very basic syntax for a multi-column primary key
+
+Hier schon deutlich einfacher populärstes Tag rauszufinden etc., aber man wiederholt natürlich Daten (hier nur den Tag-Namen).
+Sobald man zusätzliche Spalten wie Tagbeschreibungen etc. aufnehmen möchte steigt die Menge der redundanten (wiederholten/mehrfachen)
+Daten natürlich stark an.
++ Man kann mehr Tags verwenden, als bei Variante 1.
+
+MySQL-Query for Inersection (AND) --> src: http://howto.philippkeller.com/2005/04/24/Tags-Database-schemas/
+	SELECT b.*
+	FROM books b, tags c
+	WHERE c.bookid = b.id
+	AND (c.tag IN ('Straight Sex', 'Femdom', 'Ahegao'))
+	GROUP BY b.id
+	HAVING COUNT( b.id )=3
+
+First, all bookmark-tag combinations are searched, where the tag is 'Straight Sex', 'Femdom' and 'Ahegao' 
+(c.category IN ('bookmark', 'webservice', 'semweb')), then just the bookmarks that have got all three tags searched 
+for are taken into account (HAVING COUNT(b.bId)=3)
+
+##Drei Tabellen (Toxi)
+
+Benutzt eine Bridge(/Junction/Intersection/Mapping/...)-Table um das m:m-Problem zu lösen.
+(f) -> foreign key
+
+__books__
+id 	title
+0	Mama Para
+1	Kei Land
+
+__tagmap__
+(id)	bookid(f)	tag_id(f)
+0		0			0
+1		0			1
+2		0			...
+3		1			2
+4		1			3
+5		1			...
+^ OR use (bookid, tag_id) as composite key
+
+__tag__
+tag_id	name
+0		Straight Sex
+1		Vanilla
+2   	Exhibitionism
+3		Ahegao
+
+Am stärksten normalisiert (3NF) von den drei Varianten.
+
+MySQL-Query für Inersection(AND):
+	SELECT b.*
+	FROM tagmap bt, books b, tag t
+	WHERE bt.tag_id = t.tag_id
+	AND (t.name IN ('Straight Sex', 'Femdom', 'Ahegao'))
+	AND b.id = bt.bookid
+	GROUP BY b.id
+	HAVING COUNT( b.id )=3
+	
+Einfach zusätzliche Infos für Tags hinzuzufügen.
+
+Beim Löschen oder Verändern von Einträgen in books muss darauf geachtet werden, dass auch tagmap und tags entsprechend angepasst
+werden -> sonst tag-orphans (Waisen, niemand zugehörig)
+
+"""
+If you want to have more complicated queries like (bookmarks OR bookmark) AND (webservice or WS) AND NOT (semweb or semanticweb) 
+the queries tend to become very complicated. In these cases I suggest the following query/computation process:
+
+1. Run a query for each tag appearing in your “tag-query”:
+	SELECT b.id FROM tagmap bt, bookmark b, tag t 
+	WHERE bt.tag_id = t.tag_id AND b.id = bt.bookmark_id AND t.name = "semweb"
+2. Put each id-set from the result into an array (that is: in your favourite coding language). You could cache this arrays if you want..
+3. Constrain the arrays with union or intersection or whatever.
+
+In this way, you can also do queries like (del.icio.us|delicious)+(semweb|semantic_web)-search. This type of queries (that is: 
+the brackets) cannot be done by using the denormalized MySQLicious solution.
+"""
+
+Aber INSERTs sind deutlich langsamer je mehr Tabellene man benutzt, aber:
+"I guess it doesn’t really make sense to base your decision, which schema to take on the time for an insert: Bookmark inserts are 
+about 100 times as fast as the intersection queries"
+	- src: http://howto.philippkeller.com/2005/06/19/Tagsystems-performance-tests/
+
+Obwohl bei mir auch Variante 1 oder 2 reichen würden, entscheide ich mich (für den Lerneffekt, da eigtl. kompliziertester Aufbau)
+für Variante 3
+
+	
+
+

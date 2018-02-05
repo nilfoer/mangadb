@@ -59,11 +59,16 @@ def load_or_create_sql_db(filename):
     # create table if it doesnt exist
     # group reserved keyword -> use groups for col name
     # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
-    c.execute("CREATE TABLE IF NOT EXISTS Tsumino (id INTEGER PRIMARY KEY ASC, title TEXT UNIQUE, "
-              "title_eng TEXT, url TEXT UNIQUE, id_onpage INTEGER UNIQUE, upload_date DATE, "
-              "uploader TEXT, pages INTEGER, rating REAL, rating_full TEXT, my_rating REAL, "
-              "category TEXT, collection TEXT, groups TEXT, artist TEXT, parody TEXT, "
-              "character TEXT, tags TEXT, lists TEXT, last_change DATE, downloaded INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS Tsumino (id INTEGER AUTO_INCREMENT PRIMARY KEY ASC, " 
+              "title TEXT UNIQUE NOT NULL, title_eng TEXT NOT NULL, url TEXT UNIQUE NOT NULL, "
+              "id_onpage INTEGER UNIQUE NOT NULL, upload_date DATE NOT NULL, uploader TEXT, "
+              "pages INTEGER NOT NULL, rating REAL NOT NULL, rating_full TEXT NOT NULL, "
+              "my_rating REAL, category TEXT, collection TEXT, groups TEXT, artist TEXT, "
+              "parody TEXT, character TEXT, tags TEXT NOT NULL, lists TEXT, "
+              "last_change DATE NOT NULL, downloaded INTEGER)")
+
+    # create index for id_onpage so we SQLite can access it with O(log n) instead of O(n) complexit when using WHERE id_onpage = ? (same exists for PRIMARY KEY)
+    c.execute("CREATE UNIQUE INDEX book_ids ON Tsumino (id_onpage)")
     # commit changes
     conn.commit()
 
