@@ -59,24 +59,66 @@ def load_or_create_sql_db(filename):
     # create table if it doesnt exist
     # group reserved keyword -> use groups for col name
     # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
-    c.execute("CREATE TABLE IF NOT EXISTS Tsumino (id INTEGER AUTO_INCREMENT PRIMARY KEY ASC, " 
-              "title TEXT UNIQUE NOT NULL, title_eng TEXT NOT NULL, url TEXT UNIQUE NOT NULL, "
-              "id_onpage INTEGER UNIQUE NOT NULL, upload_date DATE NOT NULL, uploader TEXT, "
-              "pages INTEGER NOT NULL, rating REAL NOT NULL, rating_full TEXT NOT NULL, "
-              "my_rating REAL, category TEXT, collection TEXT, groups TEXT, artist TEXT, "
-              "parody TEXT, character TEXT, tags TEXT NOT NULL, lists TEXT, "
-              "last_change DATE NOT NULL, downloaded INTEGER)")
+    c.execute("""CREATE TABLE IF NOT EXISTS Tsumino (
+                 id INTEGER PRIMARY KEY ASC,
+                 title TEXT UNIQUE NOT NULL, 
+                 title_eng TEXT NOT NULL, 
+                 url TEXT UNIQUE NOT NULL, 
+                 id_onpage INTEGER UNIQUE NOT NULL,
+                 upload_date DATE NOT NULL, 
+                 uploader TEXT, 
+                 pages INTEGER NOT NULL, 
+                 rating REAL NOT NULL,
+                 rating_full TEXT NOT NULL, 
+                 my_rating REAL, 
+                 category TEXT, 
+                 collection TEXT, 
+                 groups TEXT, 
+                 artist TEXT, 
+                 parody TEXT, 
+                 character TEXT, 
+                 last_change DATE NOT NULL,
+                 downloaded INTEGER)""")
 
     # create index for id_onpage so we SQLite can access it with O(log n) instead of O(n) complexit when using WHERE id_onpage = ? (same exists for PRIMARY KEY)
-    c.execute("CREATE UNIQUE INDEX book_ids ON Tsumino (id_onpage)")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS book_id_onpage ON Tsumino (id_onpage)")
+
+    # was using AUTO_INCREMENT here but it wasnt working (tag_id remained NULL)
+    # SQLite recommends that you should not use AUTOINCREMENT attribute because:
+    # The AUTOINCREMENT keyword imposes extra CPU, memory, disk space, and disk I/O overhead and should be avoided if not strictly needed. It is usually not needed.
+    # (comment Moe: --> PRIMARY KEY implies AUTOINCREMENT)
+    # In addition, the way SQLite assigns a value for the AUTOINCREMENT column is slightly different from the way it used for rowid column. -> wont reuse unused ints when max nr(9223372036854775807; signed 64bit) is used -> error db full
+    c.execute("""CREATE TABLE IF NOT EXISTS Tags(
+                 tag_id INTEGER PRIMARY KEY ASC,
+                 name TEXT UNIQUE NOT NULL,
+                 list_bool INTEGER NOT NULL)""")
+
+    # foreign key book_id is linked to id column in Tsumino table
+    # also possible to set actions on UPDATE/DELETE
+    # FOREIGN KEY (foreign_key_columns)
+    # REFERENCES parent_table(parent_key_columns)
+    # ON UPDATE action 
+    # ON DELETE action;
+    # this is a bridge/intersection/junction/mapping-table
+    # primary key is a composite key containing both book_id and tag_id
+    # FOREIGN KEY.. PRIMARY KEY (..) etc. muss nach columns kommen sonst syntax error
+    # NOT NULL for book_id, tag_id must be stated even though theyre primary keys since
+    # in SQLite they can be 0 (contrary to normal SQL)
+    c.execute("""CREATE TABLE IF NOT EXISTS BookTags(
+                 book_id INTEGER NOT NULL, 
+                 tag_id INTEGER NOT NULL,
+                 FOREIGN KEY (book_id) REFERENCES Tsumino(id),
+                 FOREIGN KEY (tag_id) REFERENCES Tags(tag_id),
+                 PRIMARY KEY (book_id, tag_id))""")
+
     # commit changes
     conn.commit()
 
     return conn, c
 
 
-lists = ["to-read", "downloaded", "femdom", "good", "good futa", "monster",
-         "straight shota", "trap", "vanilla", "best"]
+lists = ["li_to-read", "li_downloaded", "li_femdom", "li_good", "li_good futa", "li_monster",
+         "li_straight shota", "li_trap", "li_vanilla", "li_best"]
 # create list with lines where one line contains 3 elements from list with corresponding indexes as string
 # use two fstrings to first format index and value and then pad the resulting string to the same length
 # is there a way just using one f string? -> no not without using variables, which doesnt work here (at least i dont think so)
@@ -110,16 +152,12 @@ def enter_manga_lists(i):
 dic_key_helper = ( ("Collection", "collection"), ("Group", "groups"), ("Artist", "artist"),
                    ("Parody", "parody"), ("Character", "character"), ("Uploader", "uploader") )
 
-def prepare_dict_for_db(url, lists, dic):
+def prepare_dict_for_db(url, dic):
     eng_title = re.match(eng_title_re, dic["Title"])
     eng_title = eng_title.group(1) if eng_title else dic["Title"]
-    # assume group 1 is always present (which it should be, contrary to above where it alrdy might be only english so it wont find a match)
+    # book_id_from_url assumes group 1 is always present (which it should be, contrary to above where it alrdy might be only english so it wont find a match)
     book_id = book_id_from_url(url)
 
-    if lists:
-        downloaded = 1 if "downloaded" in lists else 0
-    else:
-        downloaded = 0
     # prepare new update dictionary first or use same keys as in tsu_info dict?
     # use seperate update dict so we dont get screwed if keys change
     db_dic = {
@@ -152,13 +190,8 @@ def prepare_dict_for_db(url, lists, dic):
             "artist": None,
             "parody": None,
             "character": None,
-            "tags": ", ".join(dic["Tag"]),
-            # TODO have lists as seperate tables ADDITIONALY?
-            # -> yes + mb tags at well -> look at pyload/core/database/backend.py for example
-            # prob just save id(of our db) and book_id in additional tables -> access infos in normal table using id or book_id
-            "lists": ", ".join(lists) if lists else None,
             "last_change": datetime.date.today(),
-            "downloaded": downloaded
+            "downloaded": None 
             }
     # update values of keys that are not always present on book age/in dic
     for key_tsu, key_upd in dic_key_helper:
@@ -172,60 +205,126 @@ def prepare_dict_for_db(url, lists, dic):
     return db_dic
 
  
-def add_manga_db_entry_from_dict(db_con, url, lists, dic):
-    add_dic = prepare_dict_for_db(url, lists, dic)
+def add_tags(db_con, tags):
+    """Leaves committing changes to upper scope"""
+    tags = [(tag, 1 if tag.startswith("li_") else 0) for tag in tags]
+    # executemany accepts a list of tuples (one ? in sqlite code for every member of the tuples)
+    # INSERT OR IGNORE -> ignore violation of unique constraint of column -> one has to be unique otherwise new rows inserted
+    # It is then possible to tell the database that you want to silently ignore records that would violate such a constraint
+    # theres also INSERT OR REPLACE -> replace if unique constraint violated
+    c = db_con.executemany("INSERT OR IGNORE INTO Tags(name, list_bool) VALUES(?, ?)", tags)
+    # also possible:
+    # INSERT INTO memos(id,text) 
+    # SELECT 5, 'text to insert' <-- values you want to insert
+    # WHERE NOT EXISTS(SELECT 1 FROM memos WHERE id = 5 AND text = 'text to insert')
 
-    db_con.execute("INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, uploader, "
-              "pages, rating, rating_full, category, collection, groups, "
-              "artist, parody, character, tags, lists, last_change, downloaded) "
-              "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
-              ":pages, :rating, :rating_full, :category, :collection, "
-              ":groups, :artist, :parody, :character, :tags, :lists, :last_change, "
-              ":downloaded)", add_dic)
-    logger.info("Added book with url \"%s\" to database!", url)
-    db_con.commit()
+    return c
+
+def add_tags_to_book(db_con, bid, tags):
+    """Leaves committing changes to upper scope"""
+    c = add_tags(db_con, tags)
+
+    # create list with [(bid, tag), (bid, tag)...
+    bid_tags = zip([bid]*len(tags), tags)
+    # we can specify normal values in a select statment (that will also get used e.g. 5 as bid)
+    # here using ? which will get replaced by bookid from tuple
+    # then select value of tag_id column in Tags table where the name matches the current tag
+    c.executemany("""INSERT OR IGNORE INTO BookTags(book_id, tag_id)
+                     SELECT ?, Tags.tag_id FROM Tags
+                     WHERE Tags.name = ?""", bid_tags)
+    # ^^taken from example: INSERT INTO Book_Author (Book_ISBN, Author_ID)SELECT Book.Book_ISBN, Book.Author_ID FROM Book GROUP BY Book.Book_ISBN, Book.Author_ID
+    # --> GROUP BY to get distinct (no duplicate) values
+    # ==> but better to use SELECT DISTINCT!!
+    # The DISTINCT clause is an optional clause of the SELECT statement. The DISTINCT clause allows you to remove the duplicate rows in the result set
+    return c
+
+
+def add_manga_db_entry_from_dict(db_con, url, lists, dic):
+    add_dic = prepare_dict_for_db(url, dic)
+
+    if lists:
+        add_dic["downloaded"] = 1 if "li_downloaded" in lists else 0
+    else:
+        add_dic["downloaded"] = 0
+
+    with db_con:
+        c = db_con.execute("INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, "
+                  "uploader, pages, rating, rating_full, category, collection, groups, "
+                  "artist, parody, character, last_change, downloaded) "
+                  "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
+                  ":pages, :rating, :rating_full, :category, :collection, "
+                  ":groups, :artist, :parody, :character, :last_change, "
+                  ":downloaded)", add_dic)
+
+        # workaround to make concatenation work
+        if lists is None:
+            lists = []
+        # use cursor.lastrowid to get id of last insert in Tsumino table
+        add_tags_to_book(db_con, c.lastrowid, lists + dic["Tag"])
+
+        logger.info("Added book with url \"%s\" to database!", url)
 
 
 def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     book_id = book_id_from_url(url)
-    upd_lists = None
-    if lists:
-        upd_l = input(f"Also update lists for book \"{dic['Title']}\" to previously entered ({lists}) lists? y/n\n")
-        if upd_l == "y":
-            upd_lists = lists
-    # this is executed in all cases except lists evaluating to True and selecting y when asked if you want to update the lists
-    if upd_lists is None:
-        c = db_con.execute("SELECT lists FROM Tsumino WHERE id_onpage = ?", (book_id,))
-        # lists from db is string "list1, list2, .."
-        upd_lists = c.fetchone()[0].split(", ")
 
-    update_dic = prepare_dict_for_db(url, upd_lists, dic)
+    add_l = input(f"Also add previously entered lists ({lists}) for book \"{dic['Title']}\"? y/n\n")
+    c = db_con.execute("SELECT id FROM Tsumino WHERE id_onpage = ?", (book_id,))
+    # lists from db is string "list1, list2, .."
+    id_internal = c.fetchone()[0]
+
+    update_dic = prepare_dict_for_db(url, dic)
+
+    # get previous value for downloaded from db
+    c = db_con.execute("SELECT downloaded FROM Tsumino WHERE id_onpage = ?", (book_id,))
+    downloaded = c.fetchone()[0]
+    if lists:
+        update_dic["downloaded"] = 1 if "li_downloaded" in lists else downloaded
 
     # seems like book id on tsumino just gets replaced with newer uncensored or fixed version -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
     # => WARN to redownload book
-    c = db_con.execute("SELECT uploader, upload_date, pages, tags FROM Tsumino WHERE id_onpage = ?", (book_id,))
+    c.execute("SELECT uploader, upload_date, pages FROM Tsumino WHERE id_onpage = ?", (book_id,))
     res_tuple = c.fetchone()
 
     field_change_str = []
     # build line str of changed fields
-    for res_tuple_i, key in ((0, "uploader"), (1, "upload_date"), (2, "pages"), (3, "tags")):
+    for res_tuple_i, key in ((0, "uploader"), (1, "upload_date"), (2, "pages")):
         if res_tuple[res_tuple_i] != update_dic[key]:
             field_change_str.append(f"Field \"{key}\" changed from \"{res_tuple[res_tuple_i]}\" to \"{update_dic[key]}\"!")
+
+    # check tags seperately due to using bridge table
+    # get column tag names where tag_id in BookTags and Tags match and book_id in BookTags is the book were looking for
+    c.execute("""SELECT Tags.name
+                 FROM BookTags bt, Tags
+                 WHERE bt.tag_id = Tags.tag_id
+                 AND bt.book_id = ?""", (id_internal,))
+    # filter lists from tags first
+    tags = [tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")]
+    # compare sorted to see if tags changed, alternatively convert to set and add -> see if len() changed
+    if sorted(tags) != sorted(dic["Tag"]):
+        field_change_str.append(f"Field \"tags\" changed from \"{', '.join(tags)}\" to \"{', '.join(dic['Tag'])}\"!")
+
     if field_change_str:
         field_change_str = '\n'.join(field_change_str)
         logger.warning(f"Please re-download \"{url}\", since the change of following fields suggest that someone has uploaded a new version:\n{field_change_str}")
 
+    with db_con:
+        # dont update: title = :title, title_eng = :title_eng, 
+        c.execute("""UPDATE Tsumino SET
+                     upload_date = :upload_date, uploader = :uploader, pages = :pages, 
+                     rating = :rating, rating_full = :rating_full, category = :category, 
+                     collection = :collection, groups = :groups, artist = :artist, 
+                     parody = :parody, character = :character, 
+                     last_change = :last_change, downloaded = :downloaded 
+                     WHERE id_onpage = :id_onpage""", update_dic)
 
-    # dont update: title = :title, title_eng = :title_eng, 
-    c.execute("""UPDATE Tsumino SET url = :url,
-                      upload_date = :upload_date, uploader = :uploader, pages = :pages, 
-                      rating = :rating, rating_full = :rating_full, category = :category, 
-                      collection = :collection, groups = :groups, artist = :artist, 
-                      parody = :parody, character = :character, tags = :tags, lists = :lists, 
-                      last_change = :last_change, downloaded = :downloaded 
-                      WHERE id_onpage = :id_onpage""", update_dic)
-    logger.info("Updated book with url \"%s\" in database!", url)
-    db_con.commit()
+        # workaround to make concatenation work
+        if lists is None:
+            lists = []
+        # c.lastrowid doesnt work with update
+        add_tags_to_book(db_con, id_internal, lists + dic["Tag"])
+
+        logger.info("Updated book with url \"%s\" in database!", url)
 
 
 def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu_book_url):
@@ -342,8 +441,27 @@ def rate_manga(db_con, url, rating):
     logger.info("Successfully updated rating of book with id \"%s\" to \"%s\"", book_id, rating)
 
 
+def search_tags_intersection(db_con, tags):
+    # dynamically insert correct nr (as many ? as elements in tags) of ? in SQLite
+    # query using join on ", " and ["?"] * amount
+    # then unpack list with arguments using *tags
 
-def process_job_list(db_con, jobs)
+    # SQLite Query -> select alls columns in Tsumino
+    # tagids must match AND name of the tag(singular) must be in tags list
+    # bookids must match
+    # results are GROUPed BY Tsumino.id and only entries are returned that occur
+    # ? (=nr of tags in tags) times --> matching all tags
+    c = db_con.execute(f"""SELECT Tsumino.*
+                           FROM BookTags bt, Tsumino, Tags
+                           WHERE bt.tag_id = Tags.tag_id
+                           AND (Tags.name IN ({', '.join(['?']*len(tags))}))
+                           AND Tsumino.id = bt.book_id
+                           GROUP BY Tsumino.id
+                           HAVING COUNT( Tsumino.id ) = ?""", (*tags, len(tags)))
+    return c.fetchall()
+
+
+def process_job_list(db_con, jobs, write_infotxt=False):
     logger.info("Started working on list with %i items", len(jobs))
     try:
         while jobs:
@@ -379,7 +497,10 @@ def main():
         conn, c = load_or_create_sql_db("manga_db.sqlite")
 
         if cmdline[0] == "test":
-            test_filter_duplicate_at_index_of_list_items()
+            #test_filter_duplicate_at_index_of_list_items()
+            print(search_tags_intersection(conn, input("Tags: ").split(",")))
+            # with conn:
+            #     add_tags_to_book(conn, int(input("\nBookid: ")), input("\nTags: ").split(","))
         elif cmdline[0] == "rate":
             rate_manga(conn, *cmdline[1:])
         elif cmdline[0] == "exportcsv":
@@ -393,10 +514,14 @@ def main():
             ids_in_db = set([tupe[0] for tupe in c.fetchall()])
 
             l = watch_clip_db_get_info_after(ids_in_db, fixed_lists=fixed_list_opt)
-            process_job_list(conn, l)
+            process_job_list(conn, l, write_infotxt=write_infotxt)
     else:
         print(f"\"{cmdline[0]}\" is not a valid command! Valid commands are: {', '.join(cmdline_cmds)}")
 if __name__ == "__main__":
     main()
 
 # TODO
+# thumbnail dl and col
+# remove tag(s)
+# export csv
+# dl pdf of sqlitetutorial.net
