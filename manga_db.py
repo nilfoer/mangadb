@@ -5,6 +5,7 @@ import os
 import datetime
 import csv
 import sqlite3
+import urllib.request
 
 from logging.handlers import RotatingFileHandler
 
@@ -42,6 +43,14 @@ formatterstdo = logging.Formatter(
     "%(asctime)s - %(levelname)s - %(message)s", "%H:%M:%S")
 stdohandler.setFormatter(formatterstdo)
 logger.addHandler(stdohandler)
+
+# normal urllib user agent is being blocked by tsumino
+# set user agent to use with urrlib
+opener = urllib.request.build_opener()
+opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0')]
+# ...and install it globally so it can be used with urlretrieve/open
+urllib.request.install_opener(opener)
+
 
 
 def load_or_create_sql_db(filename):
@@ -347,8 +356,8 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
                                     upd = False
 
                                 if fixed_lists is None:
-                                    # strip urls of trailing "-" since there is a dash appended to the url when exiting from reading a manga on tsumino (compared to when entering from main site)
                                     manga_lists = enter_manga_lists(len(found))
+                                    # strip urls of trailing "-" since there is a dash appended to the url when exiting from reading a manga on tsumino (compared to when entering from main site)
                                     found.append((recent_value.rstrip("-"), manga_lists, upd))
                                 else:
                                     found.append((recent_value.rstrip("-"), fixed_lists, upd))
@@ -356,7 +365,8 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
     except KeyboardInterrupt:
         logger.info("Stopped watching clipboard!")
 
-    return found
+    # use filter_duplicate_at_index_of_list_items to only keep latest list element with same urls -> index 0 in tuple
+    return filter_duplicate_at_index_of_list_items(0, found)
 
 
 def filter_duplicate_at_index_of_list_items(i, li):
@@ -442,6 +452,23 @@ def rate_manga(db_con, url, rating):
 
 
 def search_tags_intersection(db_con, tags):
+    """Searches for entries containing all tags in tags and returns the rows as
+    a list of sqlite3.Row objects
+    :param db_con: Open connection to database
+    :param tags: List of tags as strings
+    :return List of sqlite3.Row objects"""
+
+    # would also be possible to use c.description but as i want to populate a dictionary anyways Row is a better fit
+    # Row provides both index-based and case-insensitive name-based access to columns with almost no memory overhead
+    db_con.row_factory = sqlite3.Row
+    # we need to create new cursor after changing row_factory
+    c = db_con.cursor()
+
+    # even though Row class can be accessed both by index (like tuples) and case-insensitively by name
+    # reset row_factory to default so we get normal tuples when fetching (should we generate a new cursor)
+    # new_c will always fetch Row obj and cursor will fetch tuples
+    db_con.row_factory = None
+
     # dynamically insert correct nr (as many ? as elements in tags) of ? in SQLite
     # query using join on ", " and ["?"] * amount
     # then unpack list with arguments using *tags
@@ -451,14 +478,29 @@ def search_tags_intersection(db_con, tags):
     # bookids must match
     # results are GROUPed BY Tsumino.id and only entries are returned that occur
     # ? (=nr of tags in tags) times --> matching all tags
-    c = db_con.execute(f"""SELECT Tsumino.*
-                           FROM BookTags bt, Tsumino, Tags
-                           WHERE bt.tag_id = Tags.tag_id
-                           AND (Tags.name IN ({', '.join(['?']*len(tags))}))
-                           AND Tsumino.id = bt.book_id
-                           GROUP BY Tsumino.id
-                           HAVING COUNT( Tsumino.id ) = ?""", (*tags, len(tags)))
+    c.execute(f"""SELECT Tsumino.*
+                  FROM BookTags bt, Tsumino, Tags
+                  WHERE bt.tag_id = Tags.tag_id
+                  AND (Tags.name IN ({', '.join(['?']*len(tags))}))
+                  AND Tsumino.id = bt.book_id
+                  GROUP BY Tsumino.id
+                  HAVING COUNT( Tsumino.id ) = ?""", (*tags, len(tags)))
+
     return c.fetchall()
+
+
+def dl_book_thumb(url):
+    book_id = book_id_from_url(url)
+    thumb_url = f"http://www.tsumino.com/Image/Thumb/{book_id}"
+    try:
+        urllib.request.urlretrieve(thumb_url, os.path.join("thumbs", str(book_id)))
+    except urllib.request.HTTPError as err:
+        logger.warning("Thumb for book with id (on page) %s couldnt be downloaded!", book_id)
+        logger.warning("HTTP Error {}: {}: \"{}\"".format(err.code, err.reason, thumb_url))
+        return False
+    else:
+        return True
+        logger.info("Thumb for book with id (on page) %s downloaded successfully!", book_id)
 
 
 def process_job_list(db_con, jobs, write_infotxt=False):
@@ -476,6 +518,7 @@ def process_job_list(db_con, jobs, write_infotxt=False):
                 update_manga_db_entry_from_dict(db_con, url, lists, dic)
             else:
                 add_manga_db_entry_from_dict(db_con, url, lists, dic)
+                dl_book_thumb(url)
             time.sleep(0.3)
     except Exception:
             # current item is alrdy removed even though it failed on it
@@ -506,7 +549,7 @@ def main():
         elif cmdline[0] == "exportcsv":
             export_csv_from_sql("manga_db.csv", conn)
         elif cmdline[0] == "watch":
-            write_infotxt = bool(input("Write info txt files?"))
+            write_infotxt = bool(input("Write info txt files? -> empty string -> No!!"))
             print("You can now configure the lists that all following entries should be added to!")
             fixed_list_opt = enter_manga_lists(0)
 
@@ -521,7 +564,6 @@ if __name__ == "__main__":
     main()
 
 # TODO
-# thumbnail dl and col
 # remove tag(s)
 # export csv
 # dl pdf of sqlitetutorial.net

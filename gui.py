@@ -1,5 +1,9 @@
+import os
 from tkinter import *
+
 from PIL import Image, ImageTk 
+
+from manga_db import load_or_create_sql_db, search_tags_intersection
 
 
 class MangaDBGUI(Frame):
@@ -8,6 +12,7 @@ class MangaDBGUI(Frame):
         super().__init__(master)
         self.grid(row=0, column=0, sticky=N+S+E+W)
         self.output_frame = None
+        self.db_con, _ = load_or_create_sql_db("manga_db.sqlite")
 
         # configure the rows and columns to have a non-zero weight so that they will take up the extra space when expanding
         # for x in range(5):
@@ -33,10 +38,9 @@ class MangaDBGUI(Frame):
     def search_for_tags(self, event=None):
         # event z.B. <KeyPress event state=Mod1 keysym=Return keycode=13 char='\r' x=46 y=12>
         # print(event, self.search_field.get())
-        self.output_frame.search(["test"])
+        self.output_frame.search(self.search_field.get().split(", "))
 
 
-import random
 class SearchResultOutput(Frame):
     def __init__(self, master, row, col, grid_dimensions):
         super().__init__(master)
@@ -52,14 +56,8 @@ class SearchResultOutput(Frame):
         self.next_btn = None
 
     def search(self, tags):
-        self.data = ["Succubus-chan (FAKKU)", "Fuck de Dasshu", "Onna Spy ☆ Misshitsu Zekkyou",
-                   "Kao Kakushite Ketsuana Kakusazu", "Alice Breaker Ch.1-8", 
-                   "Bunny Girl Symdrome (FAKKU)", 
-                   "Kayoinbo ~Wagako no Geshuku de Onna ni Modoru Haha~", "Kosu Kano",
-                   "Blue Eyes Vol.3", "Hinin wa Taisetsu jan?", "SMACK MILLIA!!",
-                   "Kuse ni Naru Fukei", "A.Tsu.I.Yo.Ru", "Kogal Holes (FAKKU)",
-                   "Nana-san's Height Comparison (FAKKU)", "Yariko-san of the Toilet (FAKKU)",
-                   "Immoral (FAKKU)", "Nighttime Lover R (FAKKU)", "TEST"]
+        # sqlite3.Row objects returned -> columns accessible like a dictionary
+        self.data = search_tags_intersection(self.master.db_con, tags)
         # no buttons if results fit page
         if len(self.data) > (self.rowmax*self.colmax):
             self.back_btn = Button(self, text="Back", command=self.back_pg, justify=LEFT)
@@ -81,7 +79,7 @@ class SearchResultOutput(Frame):
             self.current_i -= self.rowmax*self.colmax
             self.generate_output()
 
-    def generate_output(self, tags=None):
+    def generate_output(self):
         # destroy old output first -> otherwise kept in mem
         if self.img_grid_frame:
             self.img_grid_frame.destroy()
@@ -99,11 +97,10 @@ class SearchResultOutput(Frame):
                 # run out of items?
                 if index >= len(self.data):
                     return
+
                 Grid.columnconfigure(self.img_grid_frame, col_index, weight=1, pad=3)
-                img = Image.open(random.choice(("thumbs/36467.jpg","thumbs/36473.jpg",
-                    "thumbs/36491.jpg", "thumbs/36912.jpg", "thumbs/36922.jpg",
-                    "thumbs/36486.jpg", "thumbs/36928.jpg", "thumbs/36618.jpg",
-                    "thumbs/36417.jpg", "thumbs/36357.jpg", "thumbs/30330.jpg")))
+                img = Image.open(os.path.join("thumbs", f"{self.data[index]['id_onpage']}"))
+
                 # change size of img with PIL/pillow b4 creating PhotoImage
                 # 400, 562; 200, 281; width*1.405=height
                 img = img.resize((125, 176), Image.ANTIALIAS) #The (250, 250) is (height, width)
@@ -112,8 +109,9 @@ class SearchResultOutput(Frame):
                 # Note: When a PhotoImage object is garbage-collected by Python (e.g. when you return from a function which stored an image in a local variable), the image is cleared even if it’s being displayed by a Tkinter widget.
                 # To avoid this, the program must keep an extra reference to the image object. A simple way to do this is to assign the image to a widget attribute, like this:
                 l.image=tkimage
+
                 # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
-                text = f"{self.data[index]:.45}..." if len(self.data[index]) > 44 else self.data[index]
+                text = f"{self.data[index]['title_eng']:.45}..." if len(self.data[index]['title_eng']) > 44 else self.data[index]['title_eng']
                 t = Label(self.img_grid_frame, text=text, bg="white", wraplength=150, justify=CENTER)#"Title!")
                 l.grid(row=row_index+1, column=col_index, sticky=N+S+E+W)  
                 t.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
@@ -132,7 +130,7 @@ root.columnconfigure(0, weight=1)
 # dont allow resizing (user)
 root.resizable(width=False, height=False)
 # then change window size in code with
-root.geometry('424x770')
+root.geometry('445x770')
 
 # sizes search only, with result, optimum: 302x86 493x905 493x803
 
