@@ -113,11 +113,14 @@ def load_or_create_sql_db(filename):
     # FOREIGN KEY.. PRIMARY KEY (..) etc. muss nach columns kommen sonst syntax error
     # NOT NULL for book_id, tag_id must be stated even though theyre primary keys since
     # in SQLite they can be 0 (contrary to normal SQL)
+    # ON DELETE CASCADE, wenn der eintrag des FK in der primärtabelle gelöscht wird dann auch in dieser (detailtabelle) die einträge löschen -> Löschweitergabe
     c.execute("""CREATE TABLE IF NOT EXISTS BookTags(
                  book_id INTEGER NOT NULL, 
                  tag_id INTEGER NOT NULL,
-                 FOREIGN KEY (book_id) REFERENCES Tsumino(id),
-                 FOREIGN KEY (tag_id) REFERENCES Tags(tag_id),
+                 FOREIGN KEY (book_id) REFERENCES Tsumino(id)
+                 ON DELETE CASCADE,
+                 FOREIGN KEY (tag_id) REFERENCES Tags(tag_id)
+                 ON DELETE CASCADE,
                  PRIMARY KEY (book_id, tag_id))""")
 
     # commit changes
@@ -489,6 +492,42 @@ def search_tags_intersection(db_con, tags):
     return c.fetchall()
 
 
+def remove_tags_from_book(db_con, url, tags):
+    """Leave commiting changes to upper scope"""
+    book_id = book_id_from_url(url)
+
+    # cant use DELETE FROM with multiple tables or multiple WHERE statements -> use" WITH .. AS" (->Common Table Expressions, but they dont seem to work for me with DELETE -> error no such table, but they work with SELECT ==> this due to acting like temporary views and thus are READ-ONLY) or seperate subquery with "IN"
+    # -> we can only use CTE/with for the subqueries/select statements
+    # WITH bts AS (
+    # SELECT BookTags.*
+    # FROM BookTags, Tags
+    # WHERE BookTags.book_id = 12
+    # AND (Tags.name IN ('Yaoi'))
+    # AND BookTags.tag_id = Tags.tag_id
+    # ) 
+    # DELETE
+    # FROM BookTags
+    # WHERE BookTags.book_id IN (select book_id FROM bts)
+    # AND BookTags.tag_id IN (select tag_id FROM bts)
+
+    # delete all rows that contain a tagid where the name col in Tags matches one of the tags to delete and the book_id matches id of Tsumino table where id_onpage matches our book_id
+    db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
+                       (SELECT Tags.tag_id FROM Tags
+                       WHERE (Tags.name IN ({', '.join(['?']*len(tags))})))
+                       AND BookTags.book_id IN
+                       (SELECT Tsumino.id FROM Tsumino
+                       WHERE Tsumino.id_onpage = ?)""", (*tags, book_id))
+    logger.info("Tags %s were successfully removed from book with url \"%s\"", tags, url)
+
+
+def add_tags_to_book_cl(db_con, url, tags):
+    book_id = book_id_from_url(url)
+    c = db_con.execute("SELECT Tsumino.id FROM Tsumino WHERE Tsumino.id_onpage = ?", (book_id,))
+    id_internal = c.fetchone()[0]
+    add_tags_to_book(db_con, id_internal, tags)
+    logger.info("Tags %s were successfully added to book with url \"%s\"", tags, url)
+
+
 def dl_book_thumb(url):
     book_id = book_id_from_url(url)
     thumb_url = f"http://www.tsumino.com/Image/Thumb/{book_id}"
@@ -527,7 +566,7 @@ def process_job_list(db_con, jobs, write_infotxt=False):
             raise
 
 
-cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv")
+cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -541,11 +580,19 @@ def main():
 
         if cmdline[0] == "test":
             #test_filter_duplicate_at_index_of_list_items()
-            print(search_tags_intersection(conn, input("Tags: ").split(",")))
+            #print(search_tags_intersection(conn, input("Tags: ").split(",")))
+            pass
             # with conn:
             #     add_tags_to_book(conn, int(input("\nBookid: ")), input("\nTags: ").split(","))
         elif cmdline[0] == "rate":
             rate_manga(conn, *cmdline[1:])
+        elif cmdline[0] == "remove_tags":
+            # remove_tags url "tag1,tag2,tag3 tag3,.."
+            with conn:
+                remove_tags_from_book(conn, cmdline[1], cmdline[2].split(","))
+        elif cmdline[0] == "add_tags":
+            with conn:
+                add_tags_to_book_cl(conn, cmdline[1], cmdline[2].split(","))
         elif cmdline[0] == "exportcsv":
             export_csv_from_sql("manga_db.csv", conn)
         elif cmdline[0] == "watch":
@@ -564,6 +611,4 @@ if __name__ == "__main__":
     main()
 
 # TODO
-# remove tag(s)
 # export csv
-# dl pdf of sqlitetutorial.net
