@@ -376,44 +376,65 @@ def test_derive_dirname():
 
 
 if __name__ == "__main__":
-        optnr = input("OPTIONS: [1] Watch clipboard and get info directly [2] Move txts into folders "
-				  "[3] Check if every manga folder contains info.txt [4] Watch clipboard and get info afterwards [5] Get tsu info for urls in \"tsuurls.txt\"\n")
-        if optnr == "1":
-                watch_clip()
-        elif optnr == "2":
-                move_txts_to_folders(ROOTDIR)
-        elif optnr == "3":
-                logger.info("Folders that are missing info files:\n%s", "\n".join(check_subdirs_txt(ROOTDIR)))
-        elif optnr == "4":
-                l = watch_clip_dl_after()
-                logger.info("Started working on list with %i items", len(l))
-                try:
-                        while l:
-                                item = l.pop(0)
-                                print(create_tsubook_info(item))
-                                time.sleep(0.3)
-                except Exception:
-                        # item is alrdy removed even though it failed on it
-                        logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", item, "\n".join(l))
-                        raise
-        elif optnr == "5":
-            with open("tsuurls.txt", "r", encoding="UTF-8") as f:
-                l = f.read().strip().splitlines()
+
+    handler = RotatingFileHandler(os.path.join(ROOTDIR, "tsuinfo.log"),
+                                  maxBytes=1048576, backupCount=5, encoding="UTF-8")
+    handler.setLevel(logging.DEBUG)
+
+    # create a logging format
+    formatter = logging.Formatter(
+        "%(asctime)-15s - %(name)-9s - %(levelname)-6s - %(message)s")
+    # '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handler.setFormatter(formatter)
+
+    # add the handlers to the logger
+    logger.addHandler(handler)
+
+    # create streamhandler
+    stdohandler = logging.StreamHandler(sys.stdout)
+    stdohandler.setLevel(logging.INFO)
+
+    # create a logging format
+    formatterstdo = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s", "%H:%M:%S")
+    stdohandler.setFormatter(formatterstdo)
+    logger.addHandler(stdohandler)
+
+    optnr = input("OPTIONS: [1] Watch clipboard and get info directly [2] Move txts into folders "
+                              "[3] Check if every manga folder contains info.txt [4] Watch clipboard and get info afterwards [5] Get tsu info for urls in \"tsuurls.txt\"\n")
+    if optnr == "1":
+            watch_clip()
+    elif optnr == "2":
+            move_txts_to_folders(ROOTDIR)
+    elif optnr == "3":
+            logger.info("Folders that are missing info files:\n%s", "\n".join(check_subdirs_txt(ROOTDIR)))
+    elif optnr == "4":
+            l = watch_clip_dl_after()
+            logger.info("Started working on list with %i items", len(l))
             try:
                     while l:
                             item = l.pop(0)
-                            create_tsubook_info(item)
+                            print(create_tsubook_info(item))
                             time.sleep(0.3)
             except Exception:
                     # item is alrdy removed even though it failed on it
                     logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", item, "\n".join(l))
                     raise
-        elif optnr == "6":
-            test_derive_dirname()
+    elif optnr == "5":
+        with open("tsuurls.txt", "r", encoding="UTF-8") as f:
+            l = f.read().strip().splitlines()
+        try:
+                while l:
+                        item = l.pop(0)
+                        create_tsubook_info(item)
+                        time.sleep(0.3)
+        except Exception:
+                # item is alrdy removed even though it failed on it
+                logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", item, "\n".join(l))
+                raise
+    elif optnr == "6":
+        test_derive_dirname()
 
-		
-
-	
 	# test_derive_dirname()
 
     # url = "http://www.tsumino.com/Book/Info/34906/neet-fakku-"
