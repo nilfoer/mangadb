@@ -415,8 +415,16 @@ def export_csv_from_sql(filename, db_con):
         # excel dialect -> which line terminator(\r\n), delimiter(,) to use, when to quote cells etc.
         csvwriter = csv.writer(csvfile, dialect="excel", delimiter=";")
 
-        # get rows from db
-        c = db_con.execute("SELECT * FROM Tsumino")
+        # get rows from db, using joins and aggregate func group_concat to combine data from bridge table
+        # SELECT Tsumino.*, Tags.* and the inner joins without the group by would return one row for every tag that a book has
+        # the inner join joins matching (<- matching dependent on ON condition e.g. Tsumino id matching book_id in BookTags) rows from both tables --> MATCHING rows only
+        # then we group by Tsumino.id and the aggregate function group_concat(X) returns a string which is the concatenation of all non-NULL values of X --> default delimiter is "," but customizable with group_concat(X,Y) as Y
+        # rename col group_concat(Tags.name) to tags with AS, but group_concat(Tags.name) tags would also work
+        c = db_con.execute("""SELECT Tsumino.*, group_concat(Tags.name) AS tags
+                              FROM Tsumino
+                              INNER JOIN BookTags bt ON Tsumino.id = bt.book_id
+                              INNER JOIN Tags ON Tags.tag_id = bt.tag_id
+                              GROUP BY Tsumino.id""")
         rows = c.fetchall()
 
         # cursor.description -> sequence of 7-item sequences each containing info describing one result column
@@ -490,6 +498,77 @@ def search_tags_intersection(db_con, tags):
                   HAVING COUNT( Tsumino.id ) = ?""", (*tags, len(tags)))
 
     return c.fetchall()
+
+
+def search_tags_exclude(db_con, tags):
+    db_con.row_factory = sqlite3.Row
+    c = db_con.cursor()
+    db_con.row_factory = None
+    # select all tsumino.ids that contain these tags (OR, would be AND with HAVING COUNT)
+    # -> select all rows whose ids are not in the sub-query
+    c.execute(f"""SELECT Tsumino.*
+                  FROM Tsumino
+                  WHERE Tsumino.id NOT IN (
+                          SELECT Tsumino.id 
+                          FROM BookTags bt, Tsumino, Tags 
+                          WHERE Tsumino.id = bt.book_id 
+                          AND bt.tag_id = Tags.tag_id 
+                          AND Tags.name IN ({', '.join(['?']*len(tags))})
+                )""", (*tags,))
+    # ^^ use *tags, -> , to ensure its a tuple when only one tag supplied
+
+    return c.fetchall()
+
+
+def search_tags_intersection_exclude(db_con, tags_and, tags_ex):
+    db_con.row_factory = sqlite3.Row
+    c = db_con.cursor()
+    db_con.row_factory = None
+
+    c.execute(f"""SELECT Tsumino.*
+                  FROM BookTags bt, Tsumino, Tags
+                  WHERE bt.tag_id = Tags.tag_id
+                  AND (Tags.name IN ({', '.join(['?']*len(tags_and))}))
+                  AND Tsumino.id = bt.book_id
+                  AND Tsumino.id NOT IN (
+                    SELECT Tsumino.id 
+                    FROM BookTags bt, Tsumino, Tags 
+                    WHERE Tsumino.id = bt.book_id 
+                    AND bt.tag_id = Tags.tag_id 
+                    AND Tags.name IN ({', '.join(['?']*len(tags_ex))})
+                  )
+                  GROUP BY Tsumino.id
+                  HAVING COUNT( Tsumino.id ) = ?""", (*tags_and, *tags_ex, len(tags_and)))
+
+    return c.fetchall()
+
+
+def search_tags_string_parse(db_con, tagstring):
+    if "!" in tagstring:
+        excl_nr = tagstring.count("!")
+        # nr of commas + 1 == nr of tags
+        tags_nr = tagstring.count(",") + 1
+        if tags_nr == excl_nr:
+            tags = [tag[1:] for tag in tagstring.split(",")]
+            # only excluded tags in tagstring
+            return search_tags_exclude(db_con, tags)
+        else:
+            # is list comprehension faster even though we have to iterate over the list twice?
+            tags_and = []
+            tags_ex = []
+            # sort tags for search_tags_intersection_exclude func
+            for tag in tagstring.split(","):
+                if tag[0] == "!":
+                    # remove ! then append
+                    tags_ex.append(tag[1:])
+                else:
+                    tags_and.append(tag)
+
+            return search_tags_intersection_exclude(db_con, tags_and, tags_ex)
+    else:
+        tags = tagstring.split(",")
+        return search_tags_intersection(db_con, tags)
+
 
 
 def remove_tags_from_book(db_con, url, tags):
@@ -566,7 +645,8 @@ def process_job_list(db_con, jobs, write_infotxt=False):
             raise
 
 
-cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags")
+cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
+                "search_tags")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -593,6 +673,8 @@ def main():
         elif cmdline[0] == "add_tags":
             with conn:
                 add_tags_to_book_cl(conn, cmdline[1], cmdline[2].split(","))
+        elif cmdline[0] == "search_tags":
+            print("\n".join((f"{row['title_eng']}: {row['url']}" for row in search_tags_string_parse(conn, cmdline[1]))))
         elif cmdline[0] == "exportcsv":
             export_csv_from_sql("manga_db.csv", conn)
         elif cmdline[0] == "watch":
@@ -611,4 +693,3 @@ if __name__ == "__main__":
     main()
 
 # TODO
-# export csv

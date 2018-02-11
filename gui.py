@@ -3,7 +3,7 @@ from tkinter import *
 
 from PIL import Image, ImageTk 
 
-from manga_db import load_or_create_sql_db, search_tags_intersection
+from manga_db import load_or_create_sql_db, search_tags_string_parse
 
 
 class MangaDBGUI(Frame):
@@ -38,7 +38,7 @@ class MangaDBGUI(Frame):
     def search_for_tags(self, event=None):
         # event z.B. <KeyPress event state=Mod1 keysym=Return keycode=13 char='\r' x=46 y=12>
         # print(event, self.search_field.get())
-        self.output_frame.search(self.search_field.get().split(", "))
+        self.output_frame.search(self.search_field.get())
 
 
 class SearchResultOutput(Frame):
@@ -55,9 +55,9 @@ class SearchResultOutput(Frame):
         self.back_btn = None
         self.next_btn = None
 
-    def search(self, tags):
+    def search(self, tagstring):
         # sqlite3.Row objects returned -> columns accessible like a dictionary
-        self.data = search_tags_intersection(self.master.db_con, tags)
+        self.data = search_tags_string_parse(self.master.db_con, tagstring)
         # no buttons if results fit page
         if len(self.data) > (self.rowmax*self.colmax):
             self.back_btn = Button(self, text="Back", command=self.back_pg, justify=LEFT)
