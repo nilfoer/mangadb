@@ -607,6 +607,17 @@ def add_tags_to_book_cl(db_con, url, tags):
     logger.info("Tags %s were successfully added to book with url \"%s\"", tags, url)
 
 
+def get_tags_by_book_url(db_con, url):
+    book_id = book_id_from_url(url)
+    c = db_con.execute("""SELECT group_concat(Tags.name)
+                          FROM Tags, BookTags bt, Tsumino
+                          WHERE bt.book_id = Tsumino.id
+                          AND Tsumino.id_onpage = ?
+                          AND bt.tag_id = Tags.tag_id
+                          GROUP BY bt.book_id""", (book_id,))
+    return c.fetchone()[0]
+
+    
 def dl_book_thumb(url):
     book_id = book_id_from_url(url)
     thumb_url = f"http://www.tsumino.com/Image/Thumb/{book_id}"
@@ -641,12 +652,35 @@ def process_job_list(db_con, jobs, write_infotxt=False):
     except Exception:
             # current item is alrdy removed even though it failed on it
             # join() expects list of str -> convert them first with (str(i) for i in tup)
-            logger.error("Job was interrupted, the following entries were not processed:\n%s\n%s", ", ".join((url, str(lists), str(upd))), "\n".join((', '.join(str(i) for i in tup) for tup in jobs)))
+            logger.error("Job was interrupted, items that werent processed yet were exported to resume_info.txt")
+            # insert popped tuple again since it wasnt processed
+            jobs.insert(0, (url, lists, upd))
+            write_resume_info("resume_info.txt", jobs)
             raise
 
 
+def write_resume_info(filename, info):
+    info_str = "\n".join((f"{tup[0]};{','.join(tup[1])};{tup[2]}" for tup in info))
+
+    with open(filename, "w", encoding="UTF-8") as w:
+        w.write(info_str)
+
+
+def resume_from_file(filename):
+    with open("resume_info.txt", "r", encoding="UTF-8") as f:
+        info = f.read().splitlines()
+
+    result = []
+    for ln in info:
+        url, tags, upd = ln.split(";")
+        upd = True if upd == "True" else False
+        result.append((url, tags.split(","), upd))
+
+    return result
+
+
 cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
-                "search_tags")
+                "search_tags", "resume")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -661,7 +695,7 @@ def main():
         if cmdline[0] == "test":
             #test_filter_duplicate_at_index_of_list_items()
             #print(search_tags_intersection(conn, input("Tags: ").split(",")))
-            pass
+            print(get_tags_by_book_url(conn, "http://www.tsumino.com/Book/Info/36856/parasite-queen"))
             # with conn:
             #     add_tags_to_book(conn, int(input("\nBookid: ")), input("\nTags: ").split(","))
         elif cmdline[0] == "rate":
@@ -677,6 +711,9 @@ def main():
             print("\n".join((f"{row['title_eng']}: {row['url']}" for row in search_tags_string_parse(conn, cmdline[1]))))
         elif cmdline[0] == "exportcsv":
             export_csv_from_sql("manga_db.csv", conn)
+        elif cmdline[0] == "resume":
+            write_infotxt = bool(input("Write info txt files? -> empty string -> No!!"))
+            process_job_list(conn, resume_from_file("resume_info.txt"), write_infotxt=write_infotxt)
         elif cmdline[0] == "watch":
             write_infotxt = bool(input("Write info txt files? -> empty string -> No!!"))
             print("You can now configure the lists that all following entries should be added to!")
