@@ -248,6 +248,10 @@ def add_tags_to_book(db_con, bid, tags):
     # --> GROUP BY to get distinct (no duplicate) values
     # ==> but better to use SELECT DISTINCT!!
     # The DISTINCT clause is an optional clause of the SELECT statement. The DISTINCT clause allows you to remove the duplicate rows in the result set
+
+    if "li_downloaded" in tags:
+        c.execute("UPDATE Tsumino SET downloaded = ? WHERE id = ?", (1, bid))
+
     return c
 
 
@@ -457,8 +461,7 @@ def book_id_from_url(url):
 
 def rate_manga(db_con, url, rating):
     book_id = book_id_from_url(url)
-    with db_con:
-        db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id_onpage = ?", (rating, book_id))
+    db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id_onpage = ?", (rating, book_id))
     logger.info("Successfully updated rating of book with id \"%s\" to \"%s\"", book_id, rating)
 
 
@@ -680,14 +683,21 @@ def resume_from_file(filename):
 
 
 cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
-                "search_tags", "resume")
+                "search_tags", "resume", "read", "downloaded", "show_tags")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
     if cmdline[0] == "help":
         print("""OPTIONS:    [watch] Watch clipboard for manga urls, get and write info afterwards
-            [rate] url rating; Update rating for book with supplied url
-            [exportcsv] Export csv-file of SQLite-DB""")
+            [resume] Resume from crash
+            [rate] url rating: Update rating for book with supplied url
+            [exportcsv] Export csv-file of SQLite-DB
+            [search_tags] \"tag,!exclude_tag,..\": Returns title and url of books with matching tags
+            [add_tags] url \"tag,tag,..\": Add tags to book
+            [remove_tags] url \"tag,tag,..\": Remove tags from book
+            [read] url: Mark book as read (-> remove from li_to-read)
+            [downloaded] url: Mark book as downloaded
+            [show_tags] url: Display tags of book""")
     elif cmdline[0] in cmdline_cmds:
         # valid cmd -> load db
         conn, c = load_or_create_sql_db("manga_db.sqlite")
@@ -695,18 +705,27 @@ def main():
         if cmdline[0] == "test":
             #test_filter_duplicate_at_index_of_list_items()
             #print(search_tags_intersection(conn, input("Tags: ").split(",")))
-            print(get_tags_by_book_url(conn, "http://www.tsumino.com/Book/Info/36856/parasite-queen"))
+            pass
             # with conn:
             #     add_tags_to_book(conn, int(input("\nBookid: ")), input("\nTags: ").split(","))
+        elif cmdline[0] == "show_tags":
+            print(get_tags_by_book_url(conn, cmdline[1]))
         elif cmdline[0] == "rate":
-            rate_manga(conn, *cmdline[1:])
+            with conn:
+                rate_manga(conn, *cmdline[1:])
         elif cmdline[0] == "remove_tags":
             # remove_tags url "tag1,tag2,tag3 tag3,.."
             with conn:
-                remove_tags_from_book(conn, cmdline[1], cmdline[2].split(","))
+                remove_tags_from_book(conn, cmdline[2], cmdline[1].split(","))
         elif cmdline[0] == "add_tags":
             with conn:
-                add_tags_to_book_cl(conn, cmdline[1], cmdline[2].split(","))
+                add_tags_to_book_cl(conn, cmdline[2], cmdline[1].split(","))
+        elif cmdline[0] == "read":
+            with conn:
+                remove_tags_from_book(conn, cmdline[1], ["li_to-read"])
+        elif cmdline[0] == "downloaded":
+            with conn:
+                add_tags_to_book_cl(conn, cmdline[1], ["li_downloaded"])
         elif cmdline[0] == "search_tags":
             print("\n".join((f"{row['title_eng']}: {row['url']}" for row in search_tags_string_parse(conn, cmdline[1]))))
         elif cmdline[0] == "exportcsv":
