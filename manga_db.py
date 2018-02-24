@@ -284,7 +284,6 @@ def add_manga_db_entry_from_dict(db_con, url, lists, dic):
 def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     book_id = book_id_from_url(url)
 
-    add_l = input(f"Also add previously entered lists ({lists}) for book \"{dic['Title']}\"? y/n\n")
     c = db_con.execute("SELECT id FROM Tsumino WHERE id_onpage = ?", (book_id,))
     # lists from db is string "list1, list2, .."
     id_internal = c.fetchone()[0]
@@ -338,6 +337,8 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
         if lists is None:
             lists = []
         # c.lastrowid doesnt work with update
+
+        # WARNING tags are only added, if tags got removed on the page they will still be in the db for this book unless removed manually with remove_tags
         add_tags_to_book(db_con, id_internal, lists + dic["Tag"])
 
         logger.info("Updated book with url \"%s\" in database!", url)
@@ -368,6 +369,13 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
                                     found.append((recent_value.rstrip("-"), manga_lists, upd))
                                 else:
                                     found.append((recent_value.rstrip("-"), fixed_lists, upd))
+                        elif recent_value == "set_tags":
+                            url, tag_li, upd = found.pop()
+                            logger.info("Setting tags for \"%s\"! Previous tags were: %s", url, tag_li)
+                            manga_lists = enter_manga_lists(len(found)-1)
+                            found.append((url, manga_lists, upd))
+
+
                 time.sleep(0.1)
     except KeyboardInterrupt:
         logger.info("Stopped watching clipboard!")
@@ -693,8 +701,8 @@ def main():
             [rate] url rating: Update rating for book with supplied url
             [exportcsv] Export csv-file of SQLite-DB
             [search_tags] \"tag,!exclude_tag,..\": Returns title and url of books with matching tags
-            [add_tags] url \"tag,tag,..\": Add tags to book
-            [remove_tags] url \"tag,tag,..\": Remove tags from book
+            [add_tags] \"tag,tag,..\" url: Add tags to book
+            [remove_tags] \"tag,tag,..\" url: Remove tags from book
             [read] url: Mark book as read (-> remove from li_to-read)
             [downloaded] url: Mark book as downloaded
             [show_tags] url: Display tags of book""")
@@ -714,7 +722,7 @@ def main():
             with conn:
                 rate_manga(conn, *cmdline[1:])
         elif cmdline[0] == "remove_tags":
-            # remove_tags url "tag1,tag2,tag3 tag3,.."
+            # remove_tags "tag1,tag2,tag3 tag3,.." url
             with conn:
                 remove_tags_from_book(conn, cmdline[2], cmdline[1].split(","))
         elif cmdline[0] == "add_tags":
