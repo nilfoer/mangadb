@@ -87,7 +87,7 @@ class SearchResultOutput(Frame):
         self.data = search_tags_string_parse(self.master.db_con, tagstring)
         self.max_pages = round_up_div(len(self.data), self.rowmax*self.colmax)
         # greyed out buttons if results fit page and no action on click
-        if self.max_pages == 0:
+        if self.max_pages == 1:
             self.back_btn.config(fg="grey", command=None)
             self.next_btn.config(fg="grey", command=None)
         else:
@@ -147,14 +147,19 @@ class SearchResultOutput(Frame):
         # create grid with grid_dimensions with title+image placeholders (-> rows*2)
         for row_index in range(0, self.rowmax*2, 2):
             Grid.rowconfigure(self.img_grid_frame, row_index, weight=1)
-            Grid.rowconfigure(self.img_grid_frame, row_index+1, weight=1)
+            Grid.rowconfigure(self.img_grid_frame, row_index+1, weight=25)
             row_list = []
             for col_index in range(self.colmax):
                 Grid.columnconfigure(self.img_grid_frame, col_index, weight=1, pad=3)
-                l = Label(self.img_grid_frame, bg="white", width=125, height=176)
+                # compound -> behaviour when both txt and img present, default display img instead of txt
+                # BOTTOM -> draw img under text
+                # -> this way only one label widget needed instead of 2; other solution also wasnt working since: If the label displays text, the size is given in text units. If the label displays an image, the size is given in pixels (or screen units). If the size is set to 0, or omitted, it is calculated based on the label contents. 
+                # set width and height so we get correct placement even if not all grid positions are used (less than one full page)
+                # -> placement was still off for long txt etc.
+                l = Label(self.img_grid_frame, bg="red", width=1, height=13)
 
                 # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
-                t = Label(self.img_grid_frame, text="Test", bg="white", wraplength=150, justify=CENTER)#"Title!")
+                t = Label(self.img_grid_frame, text="Test", bg="grey", wraplength=125, justify=CENTER)
                 l.grid(row=row_index+1, column=col_index, sticky=N+S+E+W)  
                 t.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
                 row_list.append((l, t))
@@ -193,8 +198,8 @@ class SearchResultOutput(Frame):
 
                     # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
                     # :.45 truncate to 45 chars
-                    text = f"{self.data[data_index]['title_eng']:.45}..." if len(self.data[data_index]['title_eng']) > 44 else self.data[data_index]['title_eng']
-                    txt_label.configure(text=text)
+                    text = f"{self.data[data_index]['title_eng']:.40}..." if len(self.data[data_index]['title_eng']) > 44 else self.data[data_index]['title_eng']
+                    txt_label.config(text=text)
 
 
 root = Tk()
