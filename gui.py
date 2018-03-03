@@ -1,9 +1,24 @@
 import os
 from tkinter import *
+import webbrowser
 
 from PIL import Image, ImageTk 
+import pyperclip
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse
+
+firefox_path="N:\_edc\FirefoxPortable\FirefoxPortable.exe"
+# webbrowser apparently doesnt recognize any browsers on my sys, register one manually
+# webbrowser.register(name, constructor[, instance])
+webbrowser.register('firefox-port', None, webbrowser.BackgroundBrowser(firefox_path), 1)
+BROWSER = webbrowser.get("firefox-port")
+
+
+def round_up_div(x, y):
+    # so we dont have to import math for ceil
+    # The first part (21 // 5) becomes 4 and the second part evaluates to "True" if there is a remainder, which in addition True = 1; False = 0. So if there is no remainder, then it stays the same integer, but if there is a remainder it adds 1
+    # src: user3074620, https://stackoverflow.com/questions/2356501/how-do-you-round-up-a-number-in-python
+    return x // y + (x % y > 0)
 
 
 class MangaDBGUI(Frame):
@@ -54,29 +69,48 @@ class SearchResultOutput(Frame):
         # track index in data of first grid item displayed
         self.current_i = 0
         self.data = None
+        self.max_pages = 0
         self.back_btn = Button(self, text="Back", command=None, justify=LEFT, fg="grey")
         self.back_btn.grid(row=1, column=0)
         self.next_btn = Button(self, text="Next", command=None, justify=RIGHT, fg="grey")
         self.next_btn.grid(row=1, column=2)
+        self._pg_spinval_old = None
+        self.pg_spinval = IntVar()
+        self.pg_spinbox = Spinbox(self, textvariable=self.pg_spinval, justify=CENTER, command=self.pg_spinbox_action)
+        self.pg_spinbox.bind("<Return>", self.pg_spinbox_action)
+        self.pg_spinbox.grid(row=1, column=1)
 
     def search(self, tagstring):
         # reset page i
         self.current_i = 0
         # sqlite3.Row objects returned -> columns accessible like a dictionary
         self.data = search_tags_string_parse(self.master.db_con, tagstring)
+        self.max_pages = round_up_div(len(self.data), self.rowmax*self.colmax)
         # greyed out buttons if results fit page and no action on click
-        if len(self.data) < (self.rowmax*self.colmax):
+        if self.max_pages == 0:
             self.back_btn.config(fg="grey", command=None)
             self.next_btn.config(fg="grey", command=None)
         else:
             self.next_btn.config(fg="black", command=self.next_pg)
+        self.pg_spinbox.config(from_=1, to=self.max_pages)
+        self._pg_spinval_old = 1
+        self.pg_spinval.set(f"1 of {self.max_pages}")
 
         self.generate_output()
+
+    def pg_spinbox_action(self, *args):
+        new_pg = self.pg_spinval.get()
+        if new_pg > self._pg_spinval_old:
+            self.next_pg()
+        else:
+            self.back_pg()
 
     def next_pg(self):
         # at least one item left
         if (self.current_i+self.rowmax*self.colmax) < len(self.data):
             self.current_i += self.rowmax*self.colmax
+            self._pg_spinval_old += 1
+            self.pg_spinval.set(f"{self._pg_spinval_old} of {self.max_pages}")
             self.set_pg_btn_status()
             self.generate_output()
 
@@ -85,6 +119,8 @@ class SearchResultOutput(Frame):
         # return
         if self.current_i > 0:
             self.current_i -= self.rowmax*self.colmax
+            self._pg_spinval_old -= 1
+            self.pg_spinval.set(f"{self._pg_spinval_old} of {self.max_pages}")
             self.set_pg_btn_status()
             self.generate_output()
 
@@ -135,6 +171,9 @@ class SearchResultOutput(Frame):
                     # remove images (and all references to it so it get gc'ed) and text from unused widgets
                     img_label.configure(image=None)
                     img_label.image = None
+                    # remove all callbacks for Button-1 event
+                    img_label.unbind("<Button-1>")
+                    img_label.unbind("<Button-3>")
                     txt_label.configure(text="")
                 else:
                     img = Image.open(os.path.join("thumbs", f"{self.data[data_index]['id_onpage']}"))
@@ -144,6 +183,10 @@ class SearchResultOutput(Frame):
                     img = img.resize((125, 176), Image.ANTIALIAS) #The (250, 250) is (height, width)
                     tkimage = ImageTk.PhotoImage(img)
                     img_label.configure(image=tkimage)
+                    # assign data_index to i in lambda so we can use it later, otherwise the latest data_index which is always (rowmax*colmax)-1 will be used
+                    img_label.bind("<Button-1>", lambda e,i=data_index: BROWSER.open_new_tab(f"{self.data[i]['url']}"))
+                    # 1->LMB 2->middleMB 3->RMB
+                    img_label.bind("<Button-3>", lambda e,i=data_index: pyperclip.copy(f"{self.data[i]['url']}"))
                     # Note: When a PhotoImage object is garbage-collected by Python (e.g. when you return from a function which stored an image in a local variable), the image is cleared even if it’s being displayed by a Tkinter widget.
                     # To avoid this, the program must keep an extra reference to the image object. A simple way to do this is to assign the image to a widget attribute, like this:
                     img_label.image=tkimage
