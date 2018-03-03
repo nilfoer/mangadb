@@ -315,9 +315,11 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
                  AND bt.book_id = ?""", (id_internal,))
     # filter lists from tags first
     tags = [tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")]
+    removed_on_page = None
     # compare sorted to see if tags changed, alternatively convert to set and add -> see if len() changed
     if sorted(tags) != sorted(dic["Tag"]):
         field_change_str.append(f"Field \"tags\" changed from \"{', '.join(tags)}\" to \"{', '.join(dic['Tag'])}\"!")
+        removed_on_page = set(tags).difference(dic["Tag"])
 
     if field_change_str:
         field_change_str = '\n'.join(field_change_str)
@@ -338,7 +340,10 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
             lists = []
         # c.lastrowid doesnt work with update
 
-        # WARNING tags are only added, if tags got removed on the page they will still be in the db for this book unless removed manually with remove_tags
+        if removed_on_page:
+            # remove tags that are still present in db but were removed on page
+            remove_tags_from_book(db_con, url, removed_on_page)
+
         add_tags_to_book(db_con, id_internal, lists + dic["Tag"])
 
         logger.info("Updated book with url \"%s\" in database!", url)
@@ -506,7 +511,8 @@ def search_tags_intersection(db_con, tags):
                   AND (Tags.name IN ({', '.join(['?']*len(tags))}))
                   AND Tsumino.id = bt.book_id
                   GROUP BY Tsumino.id
-                  HAVING COUNT( Tsumino.id ) = ?""", (*tags, len(tags)))
+                  HAVING COUNT( Tsumino.id ) = ?
+                  ORDER BY Tsumino.id DESC""", (*tags, len(tags)))
 
     return c.fetchall()
 
@@ -525,7 +531,8 @@ def search_tags_exclude(db_con, tags):
                           WHERE Tsumino.id = bt.book_id 
                           AND bt.tag_id = Tags.tag_id 
                           AND Tags.name IN ({', '.join(['?']*len(tags))})
-                )""", (*tags,))
+                )
+                ORDER BY Tsumino.id DESC""", (*tags,))
     # ^^ use *tags, -> , to ensure its a tuple when only one tag supplied
 
     return c.fetchall()
@@ -549,7 +556,8 @@ def search_tags_intersection_exclude(db_con, tags_and, tags_ex):
                     AND Tags.name IN ({', '.join(['?']*len(tags_ex))})
                   )
                   GROUP BY Tsumino.id
-                  HAVING COUNT( Tsumino.id ) = ?""", (*tags_and, *tags_ex, len(tags_and)))
+                  HAVING COUNT( Tsumino.id ) = ?
+                  ORDER BY Tsumino.id DESC""", (*tags_and, *tags_ex, len(tags_and)))
 
     return c.fetchall()
 
@@ -643,6 +651,23 @@ def dl_book_thumb(url):
         logger.info("Thumb for book with id (on page) %s downloaded successfully!", book_id)
 
 
+def add_book(db_con, url, lists, write_infotxt=False):
+    if write_infotxt:
+        dic = create_tsubook_info(url)
+    else:
+        dic = get_tsubook_info(url)
+    add_manga_db_entry_from_dict(db_con, url, lists, dic)
+    dl_book_thumb(url)
+
+
+def update_book(db_con, url, lists, write_infotxt=False):
+    if write_infotxt:
+        dic = create_tsubook_info(url)
+    else:
+        dic = get_tsubook_info(url)
+    update_manga_db_entry_from_dict(db_con, url, lists, dic)
+
+
 def process_job_list(db_con, jobs, write_infotxt=False):
     logger.info("Started working on list with %i items", len(jobs))
     try:
@@ -691,7 +716,8 @@ def resume_from_file(filename):
 
 
 cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
-                "search_tags", "resume", "read", "downloaded", "show_tags")
+                "search_tags", "resume", "read", "downloaded", "show_tags", "update_book",
+                "add_book")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -701,6 +727,8 @@ def main():
             [rate] url rating: Update rating for book with supplied url
             [exportcsv] Export csv-file of SQLite-DB
             [search_tags] \"tag,!exclude_tag,..\": Returns title and url of books with matching tags
+            [add_book] \"tag1,tag2,..\" url (writeinfotxt): Adds book with added tags to db using url
+            [update_book] \"tag1,tag2,..\" url (writeinfotxt): Updates book with added tags using url
             [add_tags] \"tag,tag,..\" url: Add tags to book
             [remove_tags] \"tag,tag,..\" url: Remove tags from book
             [read] url: Mark book as read (-> remove from li_to-read)
@@ -721,6 +749,22 @@ def main():
         elif cmdline[0] == "rate":
             with conn:
                 rate_manga(conn, *cmdline[1:])
+        elif cmdline[0] == "add_book":
+            # no added tags, though unlikely for add_book
+            if (cmdline[1] ==  "") or (cmdline[1] == "-"):
+                lists = None
+            else:
+                lists = cmdline[1].split(",")
+
+            add_book(conn, cmdline[2], lists, write_infotxt=True if len(cmdline) > 3 else False)
+        elif cmdline[0] == "update_book":
+            # no added tags
+            if (cmdline[1] ==  "") or (cmdline[1] == "-"):
+                lists = None
+            else:
+                lists = cmdline[1].split(",")
+
+            update_book(conn, cmdline[2], lists, write_infotxt=True if len(cmdline) > 3 else False)
         elif cmdline[0] == "remove_tags":
             # remove_tags "tag1,tag2,tag3 tag3,.." url
             with conn:
