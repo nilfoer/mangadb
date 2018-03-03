@@ -49,27 +49,35 @@ class SearchResultOutput(Frame):
         # Grid.columnconfigure(self, 0, weight=1)
         self.img_grid_frame = None
         self.colmax, self.rowmax = grid_dimensions
+        self.img_grid_widgets = []
+        self.init_output()
         # track index in data of first grid item displayed
         self.current_i = 0
         self.data = None
-        self.back_btn = None
-        self.next_btn = None
+        self.back_btn = Button(self, text="Back", command=None, justify=LEFT, fg="grey")
+        self.back_btn.grid(row=1, column=0)
+        self.next_btn = Button(self, text="Next", command=None, justify=RIGHT, fg="grey")
+        self.next_btn.grid(row=1, column=2)
 
     def search(self, tagstring):
+        # reset page i
+        self.current_i = 0
         # sqlite3.Row objects returned -> columns accessible like a dictionary
         self.data = search_tags_string_parse(self.master.db_con, tagstring)
-        # no buttons if results fit page
-        if len(self.data) > (self.rowmax*self.colmax):
-            self.back_btn = Button(self, text="Back", command=self.back_pg, justify=LEFT)
-            self.back_btn.grid(row=1, column=0)
-            self.next_btn = Button(self, text="Next", command=self.next_pg, justify=RIGHT)
-            self.next_btn.grid(row=1, column=2)
+        # greyed out buttons if results fit page and no action on click
+        if len(self.data) < (self.rowmax*self.colmax):
+            self.back_btn.config(fg="grey", command=None)
+            self.next_btn.config(fg="grey", command=None)
+        else:
+            self.next_btn.config(fg="black", command=self.next_pg)
+
         self.generate_output()
 
     def next_pg(self):
         # at least one item left
         if (self.current_i+self.rowmax*self.colmax) < len(self.data):
             self.current_i += self.rowmax*self.colmax
+            self.set_pg_btn_status()
             self.generate_output()
 
     def back_pg(self):
@@ -77,46 +85,73 @@ class SearchResultOutput(Frame):
         # return
         if self.current_i > 0:
             self.current_i -= self.rowmax*self.colmax
+            self.set_pg_btn_status()
             self.generate_output()
 
-    def generate_output(self):
-        # destroy old output first -> otherwise kept in mem
-        if self.img_grid_frame:
-            self.img_grid_frame.destroy()
-        self.img_grid_frame = Frame(self, relief=SUNKEN, bg="white", borderwidth=1, padx=5, pady=5)
+    def set_pg_btn_status(self):
+        """Sets status of back and next buttons (greyed out and no effect when no more pages
+           that direction)"""
+        data_len = len(self.data)
+        if self.current_i == 0:
+            self.back_btn.config(fg="grey", command=None)
+        else:
+            self.back_btn.config(fg="black", command=self.back_pg)
+
+        if (self.current_i+self.rowmax*self.colmax) >= data_len:
+            self.next_btn.config(fg="grey", command=None)
+        else:
+            self.next_btn.config(fg="black", command=self.next_pg)
+
+    def init_output(self):
+        self.img_grid_frame = Frame(self, relief=SUNKEN, bg="white", borderwidth=1, padx=5, pady=5,
+                width=435, height=675)
         self.img_grid_frame.grid(row=0, column=0, columnspan=self.colmax, sticky=N+W, padx=5, pady=5)
-        # create grid with grid_dimensions with title+image (-> rows*2)
-        # convert i-th item to row i//3*2
-        row_start = self.current_i//3*2
-        for row_index in range(row_start, row_start+self.rowmax*2, 2):
+        # setting size when creating instance of Frame and turning of propagate -> Frame will stay the same size and wont resize to fit content
+        self.img_grid_frame.grid_propagate(0)
+        # create grid with grid_dimensions with title+image placeholders (-> rows*2)
+        for row_index in range(0, self.rowmax*2, 2):
             Grid.rowconfigure(self.img_grid_frame, row_index, weight=1)
             Grid.rowconfigure(self.img_grid_frame, row_index+1, weight=1)
+            row_list = []
             for col_index in range(self.colmax):
-                # two rows per item (title+img) -> current item index: row_index//2*self.colmax+col_index
-                index = row_index//2*self.colmax+col_index
-                # run out of items?
-                if index >= len(self.data):
-                    return
-
                 Grid.columnconfigure(self.img_grid_frame, col_index, weight=1, pad=3)
-                img = Image.open(os.path.join("thumbs", f"{self.data[index]['id_onpage']}"))
-
-                # change size of img with PIL/pillow b4 creating PhotoImage
-                # 400, 562; 200, 281; width*1.405=height
-                img = img.resize((125, 176), Image.ANTIALIAS) #The (250, 250) is (height, width)
-                tkimage = ImageTk.PhotoImage(img)
-                l = Label(self.img_grid_frame, image=tkimage, bg="white")
-                # Note: When a PhotoImage object is garbage-collected by Python (e.g. when you return from a function which stored an image in a local variable), the image is cleared even if it’s being displayed by a Tkinter widget.
-                # To avoid this, the program must keep an extra reference to the image object. A simple way to do this is to assign the image to a widget attribute, like this:
-                l.image=tkimage
+                l = Label(self.img_grid_frame, bg="white", width=125, height=176)
 
                 # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
-                text = f"{self.data[index]['title_eng']:.45}..." if len(self.data[index]['title_eng']) > 44 else self.data[index]['title_eng']
-                t = Label(self.img_grid_frame, text=text, bg="white", wraplength=150, justify=CENTER)#"Title!")
+                t = Label(self.img_grid_frame, text="Test", bg="white", wraplength=150, justify=CENTER)#"Title!")
                 l.grid(row=row_index+1, column=col_index, sticky=N+S+E+W)  
                 t.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
-        # print childs of
-        # print(main_frame.winfo_children())
+                row_list.append((l, t))
+
+            self.img_grid_widgets.append(row_list)
+
+    def generate_output(self):
+        for row_index in range(0, self.rowmax):
+            for col_index in range(self.colmax):
+                img_label, txt_label = self.img_grid_widgets[row_index][col_index]
+                data_index = self.current_i + self.colmax*row_index + col_index
+                # run out of items?
+                if data_index >= len(self.data):
+                    # remove images (and all references to it so it get gc'ed) and text from unused widgets
+                    img_label.configure(image=None)
+                    img_label.image = None
+                    txt_label.configure(text="")
+                else:
+                    img = Image.open(os.path.join("thumbs", f"{self.data[data_index]['id_onpage']}"))
+
+                    # change size of img with PIL/pillow b4 creating PhotoImage
+                    # 400, 562; 200, 281; width*1.405=height
+                    img = img.resize((125, 176), Image.ANTIALIAS) #The (250, 250) is (height, width)
+                    tkimage = ImageTk.PhotoImage(img)
+                    img_label.configure(image=tkimage)
+                    # Note: When a PhotoImage object is garbage-collected by Python (e.g. when you return from a function which stored an image in a local variable), the image is cleared even if it’s being displayed by a Tkinter widget.
+                    # To avoid this, the program must keep an extra reference to the image object. A simple way to do this is to assign the image to a widget attribute, like this:
+                    img_label.image=tkimage
+
+                    # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
+                    # :.45 truncate to 45 chars
+                    text = f"{self.data[data_index]['title_eng']:.45}..." if len(self.data[data_index]['title_eng']) > 44 else self.data[data_index]['title_eng']
+                    txt_label.configure(text=text)
 
 
 root = Tk()

@@ -129,8 +129,8 @@ def load_or_create_sql_db(filename):
     return conn, c
 
 
-lists = ["li_to-read", "li_downloaded", "li_femdom", "li_good", "li_good futa", "li_monster",
-         "li_straight shota", "li_trap", "li_vanilla", "li_best"]
+lists = ["li_to-read", "li_downloaded", "li_prob-good", "li_femdom", "li_good", "li_good futa",
+         "li_monster", "li_straight shota", "li_trap", "li_vanilla", "li_best"]
 # create list with lines where one line contains 3 elements from list with corresponding indexes as string
 # use two fstrings to first format index and value and then pad the resulting string to the same length
 # is there a way just using one f string? -> no not without using variables, which doesnt work here (at least i dont think so)
