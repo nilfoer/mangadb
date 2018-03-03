@@ -145,61 +145,57 @@ class SearchResultOutput(Frame):
         # setting size when creating instance of Frame and turning of propagate -> Frame will stay the same size and wont resize to fit content
         self.img_grid_frame.grid_propagate(0)
         # create grid with grid_dimensions with title+image placeholders (-> rows*2)
-        for row_index in range(0, self.rowmax*2, 2):
+        for row_index in range(0, self.rowmax):
             Grid.rowconfigure(self.img_grid_frame, row_index, weight=1)
-            Grid.rowconfigure(self.img_grid_frame, row_index+1, weight=25)
             row_list = []
             for col_index in range(self.colmax):
                 Grid.columnconfigure(self.img_grid_frame, col_index, weight=1, pad=3)
-                # compound -> behaviour when both txt and img present, default display img instead of txt
-                # BOTTOM -> draw img under text
-                # -> this way only one label widget needed instead of 2; other solution also wasnt working since: If the label displays text, the size is given in text units. If the label displays an image, the size is given in pixels (or screen units). If the size is set to 0, or omitted, it is calculated based on the label contents. 
-                # set width and height so we get correct placement even if not all grid positions are used (less than one full page)
-                # -> placement was still off for long txt etc.
-                l = Label(self.img_grid_frame, bg="red", width=1, height=13)
-
                 # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
-                t = Label(self.img_grid_frame, text="Test", bg="grey", wraplength=125, justify=CENTER)
-                l.grid(row=row_index+1, column=col_index, sticky=N+S+E+W)  
-                t.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
-                row_list.append((l, t))
+                # compound -> behaviour when both txt and img present, default display img instead of txt
+                # TOP -> draw img above text, anchor=N -> place img+txt anchored at top
+                # -> this way only one label widget needed instead of 2; other solution also wasnt working since: If the label displays text, the size is given in text units. If the label displays an image, the size is given in pixels (or screen units). If the size is set to 0, or omitted, it is calculated based on the label contents. 
+                # set width so we get correct placement even if not all grid positions are used (less than one full page) -> not using height=x works since we use anchor=N and it gets placed topmost
+                # -> placement was still off for long txt etc.
+                l = Label(self.img_grid_frame, bg="red", width=1, wraplength=125,
+                        compound=TOP, pady=3, justify=CENTER, anchor=N)
+
+                l.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
+                row_list.append(l)
 
             self.img_grid_widgets.append(row_list)
 
     def generate_output(self):
         for row_index in range(0, self.rowmax):
             for col_index in range(self.colmax):
-                img_label, txt_label = self.img_grid_widgets[row_index][col_index]
+                label = self.img_grid_widgets[row_index][col_index]
                 data_index = self.current_i + self.colmax*row_index + col_index
                 # run out of items?
                 if data_index >= len(self.data):
                     # remove images (and all references to it so it get gc'ed) and text from unused widgets
-                    img_label.configure(image=None)
-                    img_label.image = None
+                    label.configure(image=None, text="")
+                    label.image = None
                     # remove all callbacks for Button-1 event
-                    img_label.unbind("<Button-1>")
-                    img_label.unbind("<Button-3>")
-                    txt_label.configure(text="")
+                    label.unbind("<Button-1>")
+                    label.unbind("<Button-2>")
                 else:
+                    # :.40 truncate to 40 chars
+                    text = f"{self.data[data_index]['title_eng']:.40}..." if len(self.data[data_index]['title_eng']) > 39 else self.data[data_index]['title_eng']
+
                     img = Image.open(os.path.join("thumbs", f"{self.data[data_index]['id_onpage']}"))
 
                     # change size of img with PIL/pillow b4 creating PhotoImage
                     # 400, 562; 200, 281; width*1.405=height
                     img = img.resize((125, 176), Image.ANTIALIAS) #The (250, 250) is (height, width)
                     tkimage = ImageTk.PhotoImage(img)
-                    img_label.configure(image=tkimage)
-                    # assign data_index to i in lambda so we can use it later, otherwise the latest data_index which is always (rowmax*colmax)-1 will be used
-                    img_label.bind("<Button-1>", lambda e,i=data_index: BROWSER.open_new_tab(f"{self.data[i]['url']}"))
+                    label.configure(image=tkimage, text=text)
+
                     # 1->LMB 2->middleMB 3->RMB
-                    img_label.bind("<Button-3>", lambda e,i=data_index: pyperclip.copy(f"{self.data[i]['url']}"))
+                    # assign data_index to i in lambda so we can use it later, otherwise the latest data_index which is always (rowmax*colmax)-1 will be used
+                    label.bind("<Button-1>", lambda e,i=data_index: pyperclip.copy(f"{self.data[i]['url']}"))
+                    label.bind("<Button-2>", lambda e,i=data_index: BROWSER.open_new_tab(f"{self.data[i]['url']}"))
                     # Note: When a PhotoImage object is garbage-collected by Python (e.g. when you return from a function which stored an image in a local variable), the image is cleared even if it’s being displayed by a Tkinter widget.
                     # To avoid this, the program must keep an extra reference to the image object. A simple way to do this is to assign the image to a widget attribute, like this:
-                    img_label.image=tkimage
-
-                    # line-wrapping -> wraplenght kw param, the units for this are screen units so try wraplength=50 and adjust as necessary. You will also need to set "justify" to LEFT, RIGHT or CENTER
-                    # :.45 truncate to 45 chars
-                    text = f"{self.data[data_index]['title_eng']:.40}..." if len(self.data[data_index]['title_eng']) > 44 else self.data[data_index]['title_eng']
-                    txt_label.config(text=text)
+                    label.image=tkimage
 
 
 root = Tk()
