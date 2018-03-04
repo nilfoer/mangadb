@@ -13,7 +13,8 @@
     <div class="book-grid-item">
 
     <a href={{ entry.url|safe }}>
-    <img src={{ url_for('thumb_static', filename=entry.id_onpage) }} class="thumb">    
+	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
+    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{ url_for('thumb_static', filename=entry.id_onpage) }} class="lazyload">
     <div class="overlay">
         <div class="overlay-data">
             <div class="overlay-title">
@@ -44,5 +45,7 @@
     <em>Unbelievable.  No entries here so far</em>
   {% endfor %}
   </div>
+  {# only started working once placed at end of website or at least after imgs? #}
+  <script type="text/javascript">lazyload();</script>
 
 {% endblock %}
