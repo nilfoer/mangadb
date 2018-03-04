@@ -1,11 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
 
+<div id="rootContainer" class="container container-fluid">
 <div style="margin: 5px auto;"></div>
 <div class="book-page-container">
 	<div class="row row-no-margin">
 	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
-		<a href="/Read/View/38177">
+		<a href={{ book_info.url|safe }}>
 		<img alt={{ book_info.title }} class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book_info.id_onpage) }}>
 		</a>
 		{# <select id="listSelection" data-url="/Book/ToggleList?bookId=38177" multiple="multiple" style="display: none;">
@@ -141,21 +142,28 @@
 	<div class="book-line">
 	<div class="book-info"></div>
 	<div class="book-data" id="">
-	<a href={{ book_info.url }} id="btnReadOnline" class="book-read-button button-stack">
+	<a href={{ 'http://www.tsumino.com/Read/View/' ~ book_info.id_onpage }} id="btnReadOnline" class="book-read-button button-stack">
 	<i class="fa fa-arrow-circle-right"> </i>
 	Read Online
 	</a>
+
+	{% if favorite %}
+	<a href="#" id="btnFavoriteHandler" class="book-read-button button-stack" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
+	{% else %}
 	<a href="#" id="btnFavoriteHandler" class="book-read-button button-stack dark-color" data-get="/Book/GetFavorite/38177" data-add="/Book/AddFavorite/38177" data-remove="/Book/RemoveFavorite/38177"><i class="fa fa-plus"></i> Add to Favorite</a>
-	<a href="#" id="backToIndex" class="book-read-button button-stack">
+	{% endif %}
+
+	<a href="/" id="backToIndex" class="book-read-button button-stack">
 	<i class="fa fa-home"> </i>
 	BACK TO INDEX
 	</a>
 	<a href="/Book/Info/38177?edit=1" id="btnEditRequest" class="book-read-button button-stack red-color">
-	<i class="fa fa-pencil"> </i>
+	<i class="fa fa-pencil-alt"> </i>
 	Edit
 	</a>
 	</div>
 	</div>
+</div>
 </div>
 </div>
 </div>

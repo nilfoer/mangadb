@@ -1,14 +1,30 @@
 {% extends "layout.html" %}
 {% block body %}
-    <form action="{{ url_for('search_books') }}" method=post class=add-entry>
-        Search for tags:<br/>
-        <input type=text size=30 name=tagstring>
-        <input type=submit value=Search margin-bottom=1em>
+<div class="row search-all">
+<div class="search-text col-md-6 col-sm-12">
+<div class="button-container" id="simple-container">
+    <form action="{{ url_for('search_books') }}" method=post class="search-tags">
+	<i class="button-expand-icon fa fa-search" id="srchIcon"></i>
+	{% if search_field %}
+	{# search_field will be set if we already searched -> set searchstring as value of searchfield so usr knows what search result is displayed #}
+	<input value={{ search_field }} type=text name=tagstring class="data-search" id="txtSearch">
+	{% else %}
+        <input type=text name=tagstring class="data-search" id="txtSearch">
+	{% endif %}
+	<input type=submit value=Search id="searchBtn" class="book-read-button button-stack">
     </form>
+</div>
+</div>
+</div>
+<div style="margin: 10px auto;"></div>
 
-  <div class="container">
-  {% for entry in entries %}
-    <div class="col">
+<div class="row">
+<div class="col-md-12">
+<div id="foundBooks">
+<div id="foundBooksWrapper">
+<div id="foundBooksInner">
+    {% for entry in entries %}
+    <div class="col-md-2 col-sm-4 col-xs-6 col-no-padding">
     <div class="book-grid-item-container">
     <div class="book-grid-item">
 
@@ -31,12 +47,12 @@
                 {% endfor %}
             </div>
         </div>
-	<a href={{ url_for('show_book_info', entry.id_onpage) }}  class="set-backToIndex overlay-button status-none">
+	<a href={{ url_for('show_book_info', book_id_onpage=entry.id_onpage) }}  class="set-backToIndex overlay-button status-none">
                         VIEW INFO
         </a>
     </div>
-    <div class="title">
-    <span class="thumb-title">{{ entry.title_eng }}</span>
+    <div class="title status-none">
+    <span class="title-text">{{ entry.title_eng }}</span>
     </div>
     </a>
 
@@ -48,6 +64,10 @@
     <em>Unbelievable.  No entries here so far</em>
   {% endfor %}
   </div>
+</div>
+</div>
+</div>
+</div>
   {# only started working once placed at end of website or at least after imgs? #}
   <script type="text/javascript">lazyload();</script>
 

@@ -46,3 +46,4 @@ flask-packages/
 static/webfonts/
 fontawe*
 lazyload.js
+bootstrap*

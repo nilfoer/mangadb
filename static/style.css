@@ -1,19 +1,19 @@
-* { box-sizing: border-box; }
-body            {   font-size: 14px;
-                    line-height: 1.42857143;
-                    font-family: 'Open Sans',sans-serif !important;
-                    color: #fff;
-                    background: #1a1a1a;}
 a, h1, h2       { color: #fff; underline: none }
 a               { text-decoration: none; }
 h1, h2          { font-family: 'Open Sans',sans-serif; margin: 0; }
 h1              { border-bottom: 2px solid #eee; }
 h2              { font-size: 1.2em; }
 h3              { color: #22a7f0; }
-.add-entry input{ margin-bottom: 0.5em }
+.search-tags input{ margin-bottom: 0 }
 
 .page           { margin: 2em auto; width: 75%;
                   padding: 0.8em}
+.search-tags input {
+
+}
+#srchIcon { display: inline !important; }
+#searchBtn { color: #1a1a1a; display: table-cell; margin-left: 10px; margin-top: auto; margin-bottom: auto; padding: 6px; }
+#txtSearch { width: 75%; }
 /* grid with ul and li
 ul {
   display: flex;
@@ -34,6 +34,7 @@ ul li {
   background-color: yellow;
   width: 200px;
 } */
+/* old container stuff by me now using tsumino css
 .container  { width: 100%; margin: 1em 5px 0 5px }
 .container-fluid {
     padding-right: 15px;
@@ -42,9 +43,11 @@ ul li {
     margin-left: auto;
 }
 .col      { width: 16.66666667%; text-align: left; position:relative; float:left; }
+*/
 
 /* switch to 33.3% width under 1100px screen width, to 50% under 770px, didnt work without
     putting lower check inside higher one*/
+/* old container stuff by me now using tsumino css
 @media only screen
   and (max-device-width: 1100px),
   only screen and (max-width: 1100px) {
@@ -56,9 +59,18 @@ ul li {
     .col      { width: 50%; text-align: left; position:relative; float:left; }
 }
 }
+*/
+
+.book-grid-item a {
+    color: #fff;
+}
+.book-grid-item a:hover, .book-grid-item a:focus {
+    color: #fff;
+}
 
 /* 
     display: inline-block;*/
+/* copied from tsumino css
 .book-grid-item-container {
     width: 100%;
     padding-top: 145%;
@@ -88,10 +100,12 @@ bottom: 0; }
     opacity: 0;
     font-size: 24px;
 }
+*/
 .book-grid-item-container:hover .book-grid-item{border:3px solid #22a7f0}
 /* on tsumino without >a, since only view info (displayed on hover) is anchor to book */
 .book-grid-item-container:hover .book-grid-item>a>.overlay{opacity:1;cursor:pointer}
 .book-grid-item-container:hover .book-grid-item>a>.title{opacity:0}
+/* copied over from tsumino css
 .book-grid-item-container .book-grid-item .overlay .overlay-data {
 
     width: 100%;
@@ -117,15 +131,6 @@ bottom: 0; }
     color: #22a7f0;
 
 }
-.fa {
-    display: inline-block;
-    font: normal normal normal 14px/1 FontAwesome;
-        font-size: 14px;
-    font-size: inherit;
-    text-rendering: auto;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
 .book-grid-item-container .book-grid-item .title {
     width: 100%;
     position: absolute;
@@ -139,9 +144,8 @@ bottom: 0; }
     height: 30px;
     line-height: 30px;
     border-top: 3px solid #22a7f0;
-}
-.thumb-title    { text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; }
-
+} */
+/* copied over from tsuminos css
 .book-page-container {
     padding-top: 0;
     padding-bottom: 20px;
@@ -260,13 +264,14 @@ bottom: 0; }
 .red-color {
     background-color: #c00 !important;
 }
-
+*/
 .entries img    { width: 100% }
 .entries li h2  { margin-left: -1em; }
-.add-entry      { font-size: 0.9em; border-bottom: 1px solid #ccc; }
-.add-entry dl   { font-weight: bold; }
 .metanav        { text-align: right; font-size: 0.8em; padding: 0.3em;
                   margin-bottom: 1em; background: #1a1a1a; }
-.flash          { background: #cee5F5; padding: 0.5em;
-                  border: 1px solid #aacbe2; }
+.flash          { background: #22a7f0; padding: 0.5em;
+                  margin: 5px 0 1em  auto; 
+                  color: #fff !important;
+                  font-family: 'Open Sans',sans-serif;
+                  font-size: 14px; }
 .error          { background: #f0d6d6; padding: 0.5em; }

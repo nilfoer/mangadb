@@ -43,9 +43,10 @@ def show_book_info(book_id_onpage):
     cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
     book_info = cur.fetchone()
     tags = get_tags_by_book_id_onpage(db_con, book_id_onpage)
-    print([f"{key}: {book_info[key]}" for key in book_info.keys()], tags)
+    favorite = "li_best" in tags
 
-    return render_template('show_book_info.html', book_info=book_info, tags=tags)
+    return render_template('show_book_info.html', book_info=book_info, tags=tags,
+            favorite=favorite)
 
 
 @app.route('/add', methods=['POST'])
@@ -58,8 +59,11 @@ def add_entry():
 
 @app.route("/search", methods=["POST"])
 def search_books():
-    books = search_tags_string_parse(db_con, request.form['tagstring'])
-    return render_template("show_entries.html", entries=books)
+    # search_tags_.. functions set row factory of db_con back to None -> pass additional param
+    books = search_tags_string_parse(db_con, request.form['tagstring'], keep_row_fac=True)
+    # now setting value of search field when this func was called to show previous search string in search input field -> flash msg not needed
+    # flash(f'Showing results for tags: {request.form["tagstring"]}')
+    return render_template("show_entries.html", entries=books, search_field=request.form['tagstring'])
 
 if __name__ == "__main__":
     app.run()

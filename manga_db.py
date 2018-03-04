@@ -478,7 +478,7 @@ def rate_manga(db_con, url, rating):
     logger.info("Successfully updated rating of book with id \"%s\" to \"%s\"", book_id, rating)
 
 
-def search_tags_intersection(db_con, tags):
+def search_tags_intersection(db_con, tags, keep_row_fac=False):
     """Searches for entries containing all tags in tags and returns the rows as
     a list of sqlite3.Row objects
     :param db_con: Open connection to database
@@ -494,7 +494,9 @@ def search_tags_intersection(db_con, tags):
     # even though Row class can be accessed both by index (like tuples) and case-insensitively by name
     # reset row_factory to default so we get normal tuples when fetching (should we generate a new cursor)
     # new_c will always fetch Row obj and cursor will fetch tuples
-    db_con.row_factory = None
+    # -> this was generating problems when called from webGUI that always expected Rows since we set it there in the module, but calling the search_tags_.. functions always reset it back to tuples
+    if not keep_row_fac:
+        db_con.row_factory = None
 
     # dynamically insert correct nr (as many ? as elements in tags) of ? in SQLite
     # query using join on ", " and ["?"] * amount
@@ -517,10 +519,11 @@ def search_tags_intersection(db_con, tags):
     return c.fetchall()
 
 
-def search_tags_exclude(db_con, tags):
+def search_tags_exclude(db_con, tags, keep_row_fac=False):
     db_con.row_factory = sqlite3.Row
     c = db_con.cursor()
-    db_con.row_factory = None
+    if not keep_row_fac:
+        db_con.row_factory = None
     # select all tsumino.ids that contain these tags (OR, would be AND with HAVING COUNT)
     # -> select all rows whose ids are not in the sub-query
     c.execute(f"""SELECT Tsumino.*
@@ -538,10 +541,11 @@ def search_tags_exclude(db_con, tags):
     return c.fetchall()
 
 
-def search_tags_intersection_exclude(db_con, tags_and, tags_ex):
+def search_tags_intersection_exclude(db_con, tags_and, tags_ex, keep_row_fac=False):
     db_con.row_factory = sqlite3.Row
     c = db_con.cursor()
-    db_con.row_factory = None
+    if not keep_row_fac:
+        db_con.row_factory = None
 
     c.execute(f"""SELECT Tsumino.*
                   FROM BookTags bt, Tsumino, Tags
@@ -562,7 +566,7 @@ def search_tags_intersection_exclude(db_con, tags_and, tags_ex):
     return c.fetchall()
 
 
-def search_tags_string_parse(db_con, tagstring):
+def search_tags_string_parse(db_con, tagstring, keep_row_fac=False):
     if "!" in tagstring:
         excl_nr = tagstring.count("!")
         # nr of commas + 1 == nr of tags
@@ -570,7 +574,7 @@ def search_tags_string_parse(db_con, tagstring):
         if tags_nr == excl_nr:
             tags = [tag[1:] for tag in tagstring.split(",")]
             # only excluded tags in tagstring
-            return search_tags_exclude(db_con, tags)
+            return search_tags_exclude(db_con, tags, keep_row_fac=keep_row_fac)
         else:
             # is list comprehension faster even though we have to iterate over the list twice?
             tags_and = []
@@ -583,10 +587,10 @@ def search_tags_string_parse(db_con, tagstring):
                 else:
                     tags_and.append(tag)
 
-            return search_tags_intersection_exclude(db_con, tags_and, tags_ex)
+            return search_tags_intersection_exclude(db_con, tags_and, tags_ex, keep_row_fac=keep_row_fac)
     else:
         tags = tagstring.split(",")
-        return search_tags_intersection(db_con, tags)
+        return search_tags_intersection(db_con, tags, keep_row_fac=keep_row_fac)
 
 
 
