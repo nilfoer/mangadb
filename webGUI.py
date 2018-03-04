@@ -4,7 +4,8 @@ import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, Blueprint, send_from_directory
 
-from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage
+from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
+        add_tags_to_book, remove_tags_from_book_id
 
 app = Flask(__name__) # create the application instance :)
 
@@ -38,32 +39,61 @@ def show_entries():
     return render_template('show_entries.html', entries=entries)
 
 
-@app.route('/book/<book_id_onpage>')
-def show_book_info(book_id_onpage):
-    cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
+@app.route('/book/<book_id_internal>')
+def show_book_info(book_id_internal):
+    cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
     book_info = cur.fetchone()
-    tags = get_tags_by_book_id_onpage(db_con, book_id_onpage)
+    tags = get_tags_by_book_id_onpage(db_con, book_info['id_onpage'])
     favorite = "li_best" in tags
 
     return render_template('show_book_info.html', book_info=book_info, tags=tags,
             favorite=favorite)
 
 
-@app.route('/add', methods=['POST'])
-def add_entry():
-    #db.execute('insert into entries (title, text) values (?, ?)',
-    #             [request.form['title'], request.form['text']])
-    #db.commit()
-    flash(f'New entry was successfully posted with: {request.form["title"]}')
-    return redirect(url_for('show_entries'))
+# access to book with id_onpage seperate so theres no conflict if we support more than 1 site
+@app.route('/tsubook/<book_id_onpage>')
+def show_tsubook_info(book_id_onpage):
+    cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
+    book_info = cur.fetchone()
+    tags = get_tags_by_book_id_onpage(db_con, book_id_onpage)
+    favorite = "li_best" in tags
 
-@app.route("/search", methods=["POST"])
+    return render_template('show_tsubook_info.html', book_info=book_info, tags=tags,
+            favorite=favorite)
+
+
+@app.route("/search", methods=["GET", "POST"])
 def search_books():
+    if request.method == 'POST':
+        tagstr = request.form['tagstring']
+    else:
+        tagstr = request.args['tagstring']
     # search_tags_.. functions set row factory of db_con back to None -> pass additional param
-    books = search_tags_string_parse(db_con, request.form['tagstring'], keep_row_fac=True)
+    books = search_tags_string_parse(db_con, tagstr, keep_row_fac=True)
     # now setting value of search field when this func was called to show previous search string in search input field -> flash msg not needed
     # flash(f'Showing results for tags: {request.form["tagstring"]}')
-    return render_template("show_entries.html", entries=books, search_field=request.form['tagstring'])
+    return render_template("show_entries.html", entries=books, search_field=tagstr)
+
+
+@app.route("/AddFavorite/<book_id_internal>")
+def add_book_favorite(book_id_internal):
+    with db_con:
+        # add_tags_to_book doesnt commit changes
+        add_tags_to_book(db_con, book_id_internal, ["li_best"])
+    flash("Successfully added Book to Favorites!")
+    
+    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+
+
+@app.route("/RemoveFavorite/<book_id_internal>")
+def remove_book_favorite(book_id_internal):
+    with db_con:
+        # add_tags_to_book doesnt commit changes
+        remove_tags_from_book_id(db_con, book_id_internal, ["li_best"])
+    flash("Successfully removed Book from Favorites!")
+    
+    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+
 
 if __name__ == "__main__":
     app.run()

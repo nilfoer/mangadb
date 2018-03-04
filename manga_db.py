@@ -594,6 +594,16 @@ def search_tags_string_parse(db_con, tagstring, keep_row_fac=False):
 
 
 
+def remove_tags_from_book_id(db_con, id_internal, tags):
+    """Leave commiting changes to upper scope"""
+
+    db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
+                       (SELECT Tags.tag_id FROM Tags
+                       WHERE (Tags.name IN ({', '.join(['?']*len(tags))})))
+                       AND BookTags.book_id = ?""", (*tags, id_internal))
+    logger.info("Tags %s were successfully removed from book with id \"%s\"", tags, id_internal)
+
+
 def remove_tags_from_book(db_con, url, tags):
     """Leave commiting changes to upper scope"""
     book_id = book_id_from_url(url)

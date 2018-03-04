@@ -133,7 +133,8 @@
 	<div class="book-info">Tag</div>
 	<div class="book-data" id="Tag">
 		{% for tag in tags.split(",") %}
-			<a class="book-tag" href="#">
+			{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
+			<a class="book-tag" href="{{ url_for('search_books', tagstring=tag) }}">
 				{{ tag }}
 			</a>
 		{% endfor %}
@@ -148,9 +149,9 @@
 	</a>
 
 	{% if favorite %}
-	<a href="#" id="btnFavoriteHandler" class="book-read-button button-stack" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
+	<a href={{ url_for('remove_book_favorite', book_id_internal=book_info.id) }} id="btnFavoriteHandler" class="book-read-button button-stack" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
 	{% else %}
-	<a href="#" id="btnFavoriteHandler" class="book-read-button button-stack dark-color" data-get="/Book/GetFavorite/38177" data-add="/Book/AddFavorite/38177" data-remove="/Book/RemoveFavorite/38177"><i class="fa fa-plus"></i> Add to Favorite</a>
+	<a href={{ url_for('add_book_favorite', book_id_internal=book_info.id) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
 	{% endif %}
 
 	<a href="/" id="backToIndex" class="book-read-button button-stack">
