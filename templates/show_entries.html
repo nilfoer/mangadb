@@ -23,9 +23,10 @@
                 {{ entry.pages }} pages
             </div>
             <div class="overlay-rate">
-                <!-- To cast to a string in an expression, you use x|string() instead of str(x) -->
-                {% for _ in range( entry.rating|int() ) %}                            
-                <span class="fa fa-star"> </span>
+                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
+                {% for _ in range( entry.rating|int() ) %}
+                {# &#9733; would also works but looks better with Fontawesome #}
+                <span class="fa fa-star"></span>
                 {% endfor %}
             </div>
         </div>

@@ -92,18 +92,30 @@ class SearchResultOutput(Frame):
             self.next_btn.config(fg="grey", command=None)
         else:
             self.next_btn.config(fg="black", command=self.next_pg)
-        self.pg_spinbox.config(from_=1, to=self.max_pages)
+        # account for not getting any data back -> max_pages 0 so from also has to be 0
+        from_i = 1 if self.data else 0
+        self.pg_spinbox.config(from_=from_i, to=self.max_pages)
         self._pg_spinval_old = 1
-        self.pg_spinval.set(f"1 of {self.max_pages}")
+        self.pg_spinval.set(f"{from_i} of {self.max_pages}")
 
         self.generate_output()
 
     def pg_spinbox_action(self, *args):
         new_pg = self.pg_spinval.get()
-        if new_pg > self._pg_spinval_old:
+        if new_pg == self._pg_spinval_old + 1:
             self.next_pg()
-        else:
+        elif new_pg == self._pg_spinval_old - 1:
             self.back_pg()
+        else:
+            self.jump_pg(new_pg)
+
+    def jump_pg(self, new_pg):
+        # spinbox from-to alrdy makes sure that pg nr is valid
+        self.current_i = (new_pg - 1) * (self.rowmax * self.colmax)
+        self._pg_spinval_old = new_pg 
+        self.pg_spinval.set(f"{self._pg_spinval_old} of {self.max_pages}")
+        self.set_pg_btn_status()
+        self.generate_output()
 
     def next_pg(self):
         # at least one item left
@@ -140,7 +152,7 @@ class SearchResultOutput(Frame):
 
     def init_output(self):
         self.img_grid_frame = Frame(self, relief=SUNKEN, bg="white", borderwidth=1, padx=5, pady=5,
-                width=435, height=675)
+                width=435, height=685)
         self.img_grid_frame.grid(row=0, column=0, columnspan=self.colmax, sticky=N+W, padx=5, pady=5)
         # setting size when creating instance of Frame and turning of propagate -> Frame will stay the same size and wont resize to fit content
         self.img_grid_frame.grid_propagate(0)
@@ -156,7 +168,7 @@ class SearchResultOutput(Frame):
                 # -> this way only one label widget needed instead of 2; other solution also wasnt working since: If the label displays text, the size is given in text units. If the label displays an image, the size is given in pixels (or screen units). If the size is set to 0, or omitted, it is calculated based on the label contents. 
                 # set width so we get correct placement even if not all grid positions are used (less than one full page) -> not using height=x works since we use anchor=N and it gets placed topmost
                 # -> placement was still off for long txt etc.
-                l = Label(self.img_grid_frame, bg="red", width=1, wraplength=125,
+                l = Label(self.img_grid_frame, bg="white", width=1, wraplength=125,
                         compound=TOP, pady=3, justify=CENTER, anchor=N)
 
                 l.grid(row=row_index, column=col_index, sticky=N+S+E+W)  
@@ -209,7 +221,7 @@ root.columnconfigure(0, weight=1)
 # dont allow resizing (user)
 root.resizable(width=False, height=False)
 # then change window size in code with
-root.geometry('445x770')
+root.geometry('445x780')
 
 # sizes search only, with result, optimum: 302x86 493x905 493x803
 
