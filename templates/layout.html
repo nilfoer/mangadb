@@ -1,3 +1,15 @@
+<!doctype html>
+<title>MangaDB</title>
+<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+<div class=page>
+  <h1>MangaDB</h1>
+  <div class=metanav>
+  </div>
+  {% for message in get_flashed_messages() %}
+    <div class=flash>{{ message }}</div>
+  {% endfor %}
+  {% block body %}{% endblock %}
+</div>
 <script type="text/javascript">
 // this is asynchronous - result comes back to callback later, while this returns immediately
 // -----------------------------------------------------------------------=======------------
@@ -32,4 +44,3 @@ var cd_url;
 	callAjax(cd_url,upd_callback);
 }
 </script>
-<a href="" onclick=pyRequest("Ben",cb_myCallback);>TEST</a>

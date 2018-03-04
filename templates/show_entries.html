@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block body %}
+    <form action="{{ url_for('search_books') }}" method=post class=add-entry>
+        Search for tags:<br/>
+        <input type=text size=30 name=tagstring>
+        <input type=submit value=Search margin-bottom=1em>
+    </form>
+
+  <div class="container">
+  {% for entry in entries %}
+    <div class="col">
+    <div class="book-grid-item-container">
+    <div class="book-grid-item">
+
+    <a href={{ entry.url|safe }}>
+    <img src={{ url_for('thumb_static', filename=entry.id_onpage) }} class="thumb">    
+    <div class="overlay">
+        <div class="overlay-data">
+            <div class="overlay-title">
+                {{ entry.title }}
+            </div>
+            <div class="overlay-sub">
+                {{ entry.pages }} pages
+            </div>
+            <div class="overlay-rate">
+                <!-- To cast to a string in an expression, you use x|string() instead of str(x) -->
+                {% for _ in range( entry.rating|int() ) %}                            
+                <span class="fa fa-star"> </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="title">
+    <span class="thumb-title">{{ entry.title_eng }}</span>
+    </div>
+    </a>
+
+    </div>
+    </div>
+    </div>
+    
+  {% else %}
+    <em>Unbelievable.  No entries here so far</em>
+  {% endfor %}
+  </div>
+
+{% endblock %}
