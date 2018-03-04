@@ -1,5 +1,9 @@
 * { box-sizing: border-box; }
-body            { font-family: sans-serif; background: #1a1a1a; color: #fff}
+body            {   font-size: 14px;
+                    line-height: 1.42857143;
+                    font-family: 'Open Sans',sans-serif !important;
+                    color: #fff;
+                    background: #1a1a1a;}
 a, h1, h2       { color: #fff; underline: none }
 a               { text-decoration: none; }
 h1, h2          { font-family: 'Open Sans',sans-serif; margin: 0; }
@@ -31,6 +35,12 @@ ul li {
   width: 200px;
 } */
 .container  { width: 100%; margin: 1em 5px 0 5px }
+.container-fluid {
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+}
 .col      { width: 16.66666667%; text-align: left; position:relative; float:left; }
 
 /* switch to 33.3% width under 1100px screen width, to 50% under 770px, didnt work without
@@ -131,6 +141,126 @@ bottom: 0; }
     border-top: 3px solid #22a7f0;
 }
 .thumb-title    { text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; }
+
+.book-page-container {
+    padding-top: 0;
+    padding-bottom: 20px;
+    float: none;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 1024px;
+}
+.row-no-margin {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+.row {
+    margin-right: -15px;
+    margin-left: -15px;
+}
+.book-page-cover {
+    width: 30%;
+    margin: 0 auto;
+}
+.col-no-padding {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+.col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12 {
+    float: left;
+}
+.col-xs-1, .col-sm-1, .col-md-1, .col-lg-1, .col-xs-2, .col-sm-2, .col-md-2, .col-lg-2, .col-xs-3, .col-sm-3, .col-md-3, .col-lg-3, .col-xs-4, .col-sm-4, .col-md-4, .col-lg-4, .col-xs-5, .col-sm-5, .col-md-5, .col-lg-5, .col-xs-6, .col-sm-6, .col-md-6, .col-lg-6, .col-xs-7, .col-sm-7, .col-md-7, .col-lg-7, .col-xs-8, .col-sm-8, .col-md-8, .col-lg-8, .col-xs-9, .col-sm-9, .col-md-9, .col-lg-9, .col-xs-10, .col-sm-10, .col-md-10, .col-lg-10, .col-xs-11, .col-sm-11, .col-md-11, .col-lg-11, .col-xs-12, .col-sm-12, .col-md-12, .col-lg-12 {
+    position: relative;
+    min-height: 1px;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+.book-page-image {
+    width: 100%;
+}
+.img-responsive, .thumbnail > img, .thumbnail a > img, .carousel-inner > .item > img, .carousel-inner > .item > a > img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+@media only screen and (min-width: 970px)
+.book-info-wrap {
+    width: 69%;
+}
+.book-info-wrap {
+    float: right;
+    width: 100%;
+}
+@media only screen and (min-width: 768px)
+.col-sm-12 {
+    width: 100%;
+}
+@media only screen and (min-width: 768px)
+.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12 {
+    float: left;
+}
+.alt-bg {
+    background-color: #1a1a1a;
+}
+.book-title {
+    font-size: 28px;
+    font-family: 'Open Sans',sans-serif;
+    color: #fff;
+}
+.book-info-wrap .book-info-container {
+    font-family: 'Open Sans',sans-serif;
+    color: #fff;
+    display: table;
+    border-collapse: separate;
+}
+.book-info-wrap .book-info-container .book-line {
+    display: table-row;
+    vertical-align: middle;
+}
+.book-info-wrap .book-info-container .book-info, .book-info-wrap .book-info-container .book-data {
+    display: table-cell;
+}
+.book-info-wrap .book-info-container .book-info {
+    padding-right: 13px;
+}
+.book-info-wrap .book-info-container .book-info, .book-info-wrap .book-info-container .book-data {
+    display: table-cell;
+}
+.book-tag {
+    background-color: #333;
+    color: #fff !important;
+    font-family: 'Open Sans',sans-serif;
+    font-size: 12px;
+    font-weight: lighter;
+    padding: 5px;
+    height: 20px;
+    line-height: 10px;
+    margin-bottom: 5px;
+    margin-right: 2px;
+    text-decoration: none !important;
+    display: inline-block;
+}
+.button-stack {
+    margin: 5px;
+    display: inline-block;
+}
+.book-read-button {
+    background-color: #22a7f0;
+    color: #fff !important;
+    font-family: 'Open Sans',sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 15px;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+.dark-color {
+    background-color: #1f1f1f !important;
+}
+.red-color {
+    background-color: #c00 !important;
+}
+
 .entries img    { width: 100% }
 .entries li h2  { margin-left: -1em; }
 .add-entry      { font-size: 0.9em; border-bottom: 1px solid #ccc; }

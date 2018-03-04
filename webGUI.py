@@ -4,7 +4,7 @@ import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, Blueprint, send_from_directory
 
-from manga_db import load_or_create_sql_db, search_tags_string_parse
+from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage
 
 app = Flask(__name__) # create the application instance :)
 
@@ -36,6 +36,16 @@ def show_entries():
     cur = db_con.execute('select * from Tsumino order by id desc')
     entries = cur.fetchall()
     return render_template('show_entries.html', entries=entries)
+
+
+@app.route('/book/<book_id_onpage>')
+def show_book_info(book_id_onpage):
+    cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
+    book_info = cur.fetchone()
+    tags = get_tags_by_book_id_onpage(db_con, book_id_onpage)
+    print([f"{key}: {book_info[key]}" for key in book_info.keys()], tags)
+
+    return render_template('show_book_info.html', book_info=book_info, tags=tags)
 
 
 @app.route('/add', methods=['POST'])

@@ -31,6 +31,9 @@
                 {% endfor %}
             </div>
         </div>
+	<a href={{ url_for('show_book_info', entry.id_onpage) }}  class="set-backToIndex overlay-button status-none">
+                        VIEW INFO
+        </a>
     </div>
     <div class="title">
     <span class="thumb-title">{{ entry.title_eng }}</span>

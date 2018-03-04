@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div style="margin: 5px auto;"></div>
+<div class="book-page-container">
+	<div class="row row-no-margin">
+	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
+		<a href="/Read/View/38177">
+		<img alt={{ book_info.title }} class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book_info.id_onpage) }}>
+		</a>
+		{# <select id="listSelection" data-url="/Book/ToggleList?bookId=38177" multiple="multiple" style="display: none;">
+		<option value="14414">good</option>
+		<option value="15094">trap</option>
+		<option value="15095">good futa</option>
+		<option value="15096">monster</option>
+		<option value="15097">strshota</option>
+		<option value="17404">to-read</option>
+		<option value="17405">to-read2</option>
+		<option value="18629">vanilla</option>
+		<option value="20684">femdom</option>
+		<option value="28613">downloaded</option>
+		</select>
+		<div class="btn-group" style="width: 100%;"><button type="button" class="multiselect dropdown-toggle btn btn-default" data-toggle="dropdown" style="width: 100%; overflow: hidden; text-overflow: ellipsis;" title="None selected"><span class="multiselect-selected-text">None selected</span> <b class="caret"></b></button><ul class="multiselect-container dropdown-menu pull-right"><li><a tabindex="0"><label class="checkbox"><input value="14414" type="checkbox"> good</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15094" type="checkbox"> trap</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15095" type="checkbox"> good futa</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15096" type="checkbox"> monster</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15097" type="checkbox"> strshota</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="17404" type="checkbox"> to-read</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="17405" type="checkbox"> to-read2</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="18629" type="checkbox"> vanilla</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="20684" type="checkbox"> femdom</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="28613" type="checkbox"> downloaded</label></a></li></ul></div> #}
+	</div>
+	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
+		<div class="row row-no-margin">
+			<div class="book-title">{{ book_info.title }}</div>
+		<hr>
+		</div>
+		<div class="book-info-container" style="border-spacing: 3px;">
+		<div class="book-line">
+		<div class="book-info">Title</div>
+		<div class="book-data" id="Title">
+			{{ book_info.title }}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Uploader</div>
+		<div class="book-data" id="Uploader">
+		<a class="book-tag" href="#">
+			{{ book_info.uploader }}
+		</a>
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Uploaded</div>
+		<div class="book-data" id="Uploaded">
+			{{ book_info.upload_date }}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Pages</div>
+		<div class="book-data" id="Pages">
+			{{ book_info.pages }}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Rating</div>
+		<div class="book-data" id="Rating">
+			{{ book_info.rating_full }}
+		</div>
+	</div>
+	<div class="book-line">
+	<div class="book-info">My Rating</div>
+	<div class="book-data" id="MyRating">
+		{{ book_info.my_rating }}
+	</div>
+	</div>
+	<div class="book-line">
+	<div class="book-info">Category</div>
+	<div class="book-data" id="Category">
+	<a class="book-tag" href="#">
+		{{ book_info.category }}
+	</a>
+	</div>
+	</div>
+	{% if book_info.collection %}
+		<div class="book-line">
+		<div class="book-info">Collection</div>
+		<div class="book-data" id="Collection">
+		<a class="book-tag" href="#">
+			{{ book_info.collection }}
+		</a>
+		</div>
+		</div>
+	{% endif %}
+	{% if book_info.groups %}
+		<div class="book-line">
+		<div class="book-info">Group</div>
+		<div class="book-data" id="Group">
+			{% for group in book_info.groups.split(",") %}
+				<a class="book-tag" href="#">
+					{{ group }}
+				</a>
+			{% endfor %}
+		</div>
+		</div>
+	{% endif %}
+	<div class="book-line">
+	<div class="book-info">Artist</div>
+	<div class="book-data" id="Artist">
+		{% for artist in book_info.artist.split(",") %}
+			<a class="book-tag" href="#">
+				{{ artist }}
+			</a>
+		{% endfor %}
+	</div>
+	</div>
+	{% if book_info.parody %}
+		<div class="book-line">
+		<div class="book-info">Parody</div>
+		<div class="book-data" id="Parody">
+		<a class="book-tag" href="#">
+			{{ book_info.parody }}
+		</a>
+		</div>
+		</div>
+	{% endif %}
+	{% if book_info.character %}
+		<div class="book-line">
+		<div class="book-info">Character</div>
+		<div class="book-data" id="Character">
+			{% for char in book_info.character.split(",") %}
+				<a class="book-tag" href="#">
+					{{ char }}
+				</a>
+			{% endfor %}
+		</div>
+		</div>
+	{% endif %}
+	<div class="book-line">
+	<div class="book-info">Tag</div>
+	<div class="book-data" id="Tag">
+		{% for tag in tags.split(",") %}
+			<a class="book-tag" href="#">
+				{{ tag }}
+			</a>
+		{% endfor %}
+	</div>
+	</div>
+	<div class="book-line">
+	<div class="book-info"></div>
+	<div class="book-data" id="">
+	<a href={{ book_info.url }} id="btnReadOnline" class="book-read-button button-stack">
+	<i class="fa fa-arrow-circle-right"> </i>
+	Read Online
+	</a>
+	<a href="#" id="btnFavoriteHandler" class="book-read-button button-stack dark-color" data-get="/Book/GetFavorite/38177" data-add="/Book/AddFavorite/38177" data-remove="/Book/RemoveFavorite/38177"><i class="fa fa-plus"></i> Add to Favorite</a>
+	<a href="#" id="backToIndex" class="book-read-button button-stack">
+	<i class="fa fa-home"> </i>
+	BACK TO INDEX
+	</a>
+	<a href="/Book/Info/38177?edit=1" id="btnEditRequest" class="book-read-button button-stack red-color">
+	<i class="fa fa-pencil"> </i>
+	Edit
+	</a>
+	</div>
+	</div>
+</div>
+</div>
+</div>
+</div>
+
+{% endblock %}
