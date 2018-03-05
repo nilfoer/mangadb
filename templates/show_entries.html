@@ -7,7 +7,7 @@
 	<i class="button-expand-icon fa fa-search" id="srchIcon"></i>
 	{% if search_field %}
 	{# search_field will be set if we already searched -> set searchstring as value of searchfield so usr knows what search result is displayed #}
-	<input value={{ search_field }} type=text name=tagstring class="data-search" id="txtSearch">
+	<input value="{{ search_field }}" type=text name=tagstring class="data-search" id="txtSearch">
 	{% else %}
         <input type=text name=tagstring class="data-search" id="txtSearch">
 	{% endif %}

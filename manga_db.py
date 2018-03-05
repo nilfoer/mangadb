@@ -681,6 +681,16 @@ def get_tags_by_book_id_onpage(db_con, id_onpage):
                           GROUP BY bt.book_id""", (id_onpage,))
     return c.fetchone()[0]
 
+
+def get_tags_by_book_id_internal(db_con, id_internal):
+    c = db_con.execute("""SELECT group_concat(Tags.name)
+                          FROM Tags, BookTags bt, Tsumino
+                          WHERE bt.book_id = Tsumino.id
+                          AND Tsumino.id = ?
+                          AND bt.tag_id = Tags.tag_id
+                          GROUP BY bt.book_id""", (id_internal,))
+    return c.fetchone()[0]
+
     
 def dl_book_thumb(url):
     book_id = book_id_from_url(url)

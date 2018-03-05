@@ -179,6 +179,26 @@ about 100 times as fast as the intersection queries"
 Obwohl bei mir auch Variante 1 oder 2 reichen würden, entscheide ich mich (für den Lerneffekt, da eigtl. kompliziertester Aufbau)
 für Variante 3
 
-	
+__________________________________________________________________________________________________________
 
+added favorite col in Table after i was alrdy using it
+added col with SQL:
+    ALTER TABLE Tsumino ADD COLUMN favorite INTEGER
+bei der db im dev-ordner hatte ich den SQLiteBrowser benutzt, aber beim zweiten Mal hab ich gesehen,
+dass es zu Problemen kommen kann, da er den Datentyp der DATETIME col nicht erkennt (spez für python)
+sicherheitshalber (obwohl bis jetzt keine probs) lieber mit dem Befehl arbeiten
+
+__________________________________________________________________________________________________________
+
+SQL um die neue Spalte anhand der Tags (Bridge-Table) zu befuellen
+
+UPDATE Tsumino SET favorite = (Tsumino.id IN (SELECT Tsumino.id
+                  FROM BookTags bt, Tsumino, Tags
+                  WHERE bt.tag_id = Tags.tag_id
+                  AND (Tags.name IN ('li_best'))
+                  AND Tsumino.id = bt.book_id
+                  GROUP BY Tsumino.id
+                  HAVING COUNT( Tsumino.id ) = 1))
+
+__________________________________________________________________________________________________________
 

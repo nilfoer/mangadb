@@ -5,7 +5,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, Blueprint, send_from_directory
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
-        add_tags_to_book, remove_tags_from_book_id, lists
+        add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal
 
 app = Flask(__name__) # create the application instance :)
 
@@ -40,30 +40,46 @@ def show_entries():
 
 
 lists_dic = {li: None for li in lists}
-@app.route('/book/<book_id_internal>')
+# int:blabla -> means var blabla has to be of type int
+@app.route('/book/<int:book_id_internal>')
 def show_book_info(book_id_internal):
+    lists_all = lists_dic.copy()
+
     cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
     book_info = cur.fetchone()
-    tags = get_tags_by_book_id_onpage(db_con, book_info['id_onpage']).split(",")
+    tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
     # split tags and lists
-    lists_book = [tag for tag in tags if tag.startswith("li_")]
+    lists_book = {tag: True for tag in tags if tag.startswith("li_")}
+    # upd dic with all lists with lists that are set on this book
+    lists_all.update(lists_book)
+    lists_book = lists_all
+    favorite = lists_book["li_best"]
+
     tags = [tag for tag in tags if not tag.startswith("li_")]
-    favorite = "li_best" in lists_book
 
     return render_template('show_book_info.html', book_info=book_info, tags=tags,
-            favorite=favorite, lists_book=lists_book, lists=lists)
+            favorite=favorite, lists_book=lists_book)
 
 
 # access to book with id_onpage seperate so theres no conflict if we support more than 1 site
 @app.route('/tsubook/<book_id_onpage>')
 def show_tsubook_info(book_id_onpage):
+    lists_all = lists_dic.copy()
+
     cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
     book_info = cur.fetchone()
     tags = get_tags_by_book_id_onpage(db_con, book_id_onpage)
-    favorite = "li_best" in tags
+    # split tags and lists
+    lists_book = {tag: True for tag in tags if tag.startswith("li_")}
+    # upd dic with all lists with lists that are set on this book
+    lists_all.update(lists_book)
+    lists_book = lists_all
+    favorite = lists_book["li_best"]
 
-    return render_template('show_tsubook_info.html', book_info=book_info, tags=tags,
-            favorite=favorite)
+    tags = [tag for tag in tags if not tag.startswith("li_")]
+
+    return render_template('show_book_info.html', book_info=book_info, tags=tags,
+            favorite=favorite, lists_book=lists_book)
 
 
 @app.route("/search", methods=["GET", "POST"])
@@ -110,7 +126,28 @@ def rate_book_internal(book_id_internal):
 
 @app.route("/SetLists", methods=["POST"])
 def set_lists_book():
-    pass
+    book_id_internal = request.form["book_id_internal"]
+    
+    lists_book_prev = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
+    # convert to set for diff operation later
+    lists_book_prev = set((tag for tag in lists_book_prev if tag.startswith("li_")))
+
+    # requests.form -> Dict[('book_id_internal', '25'), ('li_to-read', 'on'), ('li_downloaded', 'on'), ('li_best', 'on')]
+    # all checked lists (from page) are present as keys in request.form
+    # if list also is in lists_book_prev -> list tag already set -> dont need to set it
+    lists_checked = set((k for k in request.form.keys() if k.startswith("li_")))
+
+    # s.difference(t) 	s - t (-> s-t only works if both sets)
+    lists_to_remove = lists_book_prev - lists_checked
+    lists_to_add = lists_checked - lists_book_prev
+
+    with db_con:
+        add_tags_to_book(db_con, book_id_internal, lists_to_add)
+        remove_tags_from_book_id(db_con, book_id_internal, lists_to_remove)
+
+    flash(f"Successfully added these lists: {', '.join(lists_to_add) if lists_to_add else 'None'}. The following lists were removed: {', '.join(lists_to_remove) if lists_to_remove else 'None'}.")
+
+    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
 
 
 if __name__ == "__main__":

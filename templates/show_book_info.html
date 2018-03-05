@@ -7,7 +7,7 @@
 	<div class="row row-no-margin">
 	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
 		<a href={{ book_info.url|safe }}>
-		<img alt={{ book_info.title }} class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book_info.id_onpage) }}>
+		<img alt="{{ book_info.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book_info.id_onpage) }}>
 		</a>
 	</div>
 	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
@@ -175,10 +175,14 @@ Update Lists here!
 </div>
 <form action={{ url_for('set_lists_book') }} method=post>
 <ul class="multiselect-container" id="mangaDBLists">
-	{% for li in lists %}
+	{# use hidden input field with value set to id to get id through POST #}
+	<input type="hidden" name="book_id_internal" value={{ book_info.id }}>
+	{% for li, book_on_list in lists_book.items() %}
 	<li>
 	<label class="lists-label">
-	<input value={{ li }} type="checkbox"> {{ li[3:] }}
+	{# pre-check checkbox if book is on that list with checked attribue #}
+	{# values for name that contain spaces get cut off, starting a new attribute after whitespace -> wrap {{}} with "" to prevent that (thought this was done automatically but that wasnt the case) #}
+	<input name="{{ li }}" type="checkbox" {{ 'checked' if book_on_list else '' }}> {{ li[3:] }}
 	</label>
 	</li>
 	{% else %}
