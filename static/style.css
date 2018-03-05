@@ -24,6 +24,33 @@ h3              { color: #22a7f0; }
 #srchIcon { display: inline !important; }
 #searchBtn { color: #1a1a1a; display: table-cell; margin-left: 10px; margin-top: auto; margin-bottom: auto; padding: 6px; }
 #txtSearch { width: 75%; }
+#mangaDBLists {
+    width: 100%;
+    position: relative;
+    list-style-type: none;
+    margin: 10px 0 0 0;
+    padding: 0;
+    /* start new col when height is reached
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap; works but full ul gets filled -> gap too big between cols */
+    /* The example below shows how to specify that when an element overflows from its container vertically, it should start a new column 150px over. */
+    column-fill: auto;
+    -webkit-column-fill: auto;
+    -moz-column-fill: auto;
+    column-width: 120px;
+    -webkit-column-width: 120px;
+    -moz-column-width: 120px;
+    column-gap: 80px;
+    max-height: 200px;
+}
+#updateBtn {
+    margin: 0;
+}
+.lists-label {
+    cursor: pointer;
+    position: relative;
+}
 /* grid with ul and li
 ul {
   display: flex;

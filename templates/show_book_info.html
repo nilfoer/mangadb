@@ -9,19 +9,6 @@
 		<a href={{ book_info.url|safe }}>
 		<img alt={{ book_info.title }} class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book_info.id_onpage) }}>
 		</a>
-		{# <select id="listSelection" data-url="/Book/ToggleList?bookId=38177" multiple="multiple" style="display: none;">
-		<option value="14414">good</option>
-		<option value="15094">trap</option>
-		<option value="15095">good futa</option>
-		<option value="15096">monster</option>
-		<option value="15097">strshota</option>
-		<option value="17404">to-read</option>
-		<option value="17405">to-read2</option>
-		<option value="18629">vanilla</option>
-		<option value="20684">femdom</option>
-		<option value="28613">downloaded</option>
-		</select>
-		<div class="btn-group" style="width: 100%;"><button type="button" class="multiselect dropdown-toggle btn btn-default" data-toggle="dropdown" style="width: 100%; overflow: hidden; text-overflow: ellipsis;" title="None selected"><span class="multiselect-selected-text">None selected</span> <b class="caret"></b></button><ul class="multiselect-container dropdown-menu pull-right"><li><a tabindex="0"><label class="checkbox"><input value="14414" type="checkbox"> good</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15094" type="checkbox"> trap</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15095" type="checkbox"> good futa</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15096" type="checkbox"> monster</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="15097" type="checkbox"> strshota</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="17404" type="checkbox"> to-read</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="17405" type="checkbox"> to-read2</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="18629" type="checkbox"> vanilla</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="20684" type="checkbox"> femdom</label></a></li><li><a tabindex="0"><label class="checkbox"><input value="28613" type="checkbox"> downloaded</label></a></li></ul></div> #}
 	</div>
 	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 		<div class="row row-no-margin">
@@ -139,7 +126,7 @@
 	<div class="book-line">
 	<div class="book-info">Tag</div>
 	<div class="book-data" id="Tag">
-		{% for tag in tags.split(",") %}
+		{% for tag in tags %}
 			{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
 			<a class="book-tag" href="{{ url_for('search_books', tagstring=tag) }}">
 				{{ tag }}
@@ -161,19 +148,50 @@
 	<a href={{ url_for('add_book_favorite', book_id_internal=book_info.id) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
 	{% endif %}
 
+	<a href={{ 'http://www.tsumino.com/Download/Index/' ~ book_info.id_onpage }} id="btnDownloadEntry" class="book-read-button button-stack red-color">
+	<i class="fa fa-arrow-circle-right"> </i>
+	Download on Tsumino
+	</a>
+
 	<a href="/" id="backToIndex" class="book-read-button button-stack">
 	<i class="fa fa-home"> </i>
 	BACK TO INDEX
 	</a>
-	<a href="/Book/Info/38177?edit=1" id="btnEditRequest" class="book-read-button button-stack red-color">
-	<i class="fa fa-pencil-alt"> </i>
-	Edit
-	</a>
 	</div>
 	</div>
 </div>
 </div>
+</div> {# row end #}
+<div class="row row-no-margin"></div>
+
+<div class="row">
+<div class="col-md-12">
+<div>
+<div style="display: inline-block;" class="book-title">Lists</div>
+<div style="display: inline-block;">
+Update Lists here!
 </div>
+<hr>
+</div>
+<form action={{ url_for('set_lists_book') }} method=post>
+<ul class="multiselect-container" id="mangaDBLists">
+	{% for li in lists %}
+	<li>
+	<label class="lists-label">
+	<input value={{ li }} type="checkbox"> {{ li[3:] }}
+	</label>
+	</li>
+	{% else %}
+	No Lists available!
+	{% endfor %}
+</ul>
+<div>
+	<button type="submit" id="updateBtn" class="book-read-button button-stack red-color"><i class="fa fa-pencil-alt"> </i><spanc style="margin-left: 5px;">Update</span></button>
+</div>
+</form>
+</div>
+</div> {# row end #}
+
 </div>
 </div>
 

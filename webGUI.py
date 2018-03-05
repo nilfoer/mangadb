@@ -5,7 +5,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, Blueprint, send_from_directory
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
-        add_tags_to_book, remove_tags_from_book_id
+        add_tags_to_book, remove_tags_from_book_id, lists
 
 app = Flask(__name__) # create the application instance :)
 
@@ -39,15 +39,19 @@ def show_entries():
     return render_template('show_entries.html', entries=entries)
 
 
+lists_dic = {li: None for li in lists}
 @app.route('/book/<book_id_internal>')
 def show_book_info(book_id_internal):
     cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
     book_info = cur.fetchone()
-    tags = get_tags_by_book_id_onpage(db_con, book_info['id_onpage'])
-    favorite = "li_best" in tags
+    tags = get_tags_by_book_id_onpage(db_con, book_info['id_onpage']).split(",")
+    # split tags and lists
+    lists_book = [tag for tag in tags if tag.startswith("li_")]
+    tags = [tag for tag in tags if not tag.startswith("li_")]
+    favorite = "li_best" in lists_book
 
     return render_template('show_book_info.html', book_info=book_info, tags=tags,
-            favorite=favorite)
+            favorite=favorite, lists_book=lists_book, lists=lists)
 
 
 # access to book with id_onpage seperate so theres no conflict if we support more than 1 site
@@ -102,6 +106,11 @@ def rate_book_internal(book_id_internal):
         db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id = ?", (request.args['rating'], book_id_internal))
     
     return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+
+
+@app.route("/SetLists", methods=["POST"])
+def set_lists_book():
+    pass
 
 
 if __name__ == "__main__":
