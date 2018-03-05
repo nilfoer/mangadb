@@ -95,5 +95,14 @@ def remove_book_favorite(book_id_internal):
     return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
 
 
+
+@app.route("/RateBook/<book_id_internal>", methods=["GET"])
+def rate_book_internal(book_id_internal):
+    with db_con:
+        db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id = ?", (request.args['rating'], book_id_internal))
+    
+    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+
+
 if __name__ == "__main__":
     app.run()

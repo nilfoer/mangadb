@@ -87,7 +87,8 @@ def load_or_create_sql_db(filename):
                  parody TEXT, 
                  character TEXT, 
                  last_change DATE NOT NULL,
-                 downloaded INTEGER)""")
+                 downloaded INTEGER,
+                 favorite INTEGER)""")
 
     # create index for id_onpage so we SQLite can access it with O(log n) instead of O(n) complexit when using WHERE id_onpage = ? (same exists for PRIMARY KEY)
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS book_id_onpage ON Tsumino (id_onpage)")
@@ -203,7 +204,8 @@ def prepare_dict_for_db(url, dic):
             "parody": None,
             "character": None,
             "last_change": datetime.date.today(),
-            "downloaded": None 
+            "downloaded": None,
+            "favorite": None
             }
     # update values of keys that are not always present on book age/in dic
     for key_tsu, key_upd in dic_key_helper:
@@ -233,7 +235,8 @@ def add_tags(db_con, tags):
     return c
 
 def add_tags_to_book(db_con, bid, tags):
-    """Leaves committing changes to upper scope"""
+    """Leaves committing changes to upper scope. Also sets downloaded and favorite
+       if those tags are in tags."""
     c = add_tags(db_con, tags)
 
     # create list with [(bid, tag), (bid, tag)...
@@ -251,6 +254,8 @@ def add_tags_to_book(db_con, bid, tags):
 
     if "li_downloaded" in tags:
         c.execute("UPDATE Tsumino SET downloaded = ? WHERE id = ?", (1, bid))
+    if "li_best" in tags:
+        c.execute("UPDATE Tsumino SET favorite = ? WHERE id = ?", (1, bid))
 
     return c
 
@@ -260,17 +265,19 @@ def add_manga_db_entry_from_dict(db_con, url, lists, dic):
 
     if lists:
         add_dic["downloaded"] = 1 if "li_downloaded" in lists else 0
+        add_dic["favorite"] = 1 if "li_best" in lists else 0
     else:
         add_dic["downloaded"] = 0
+        add_dic["favorite"] = 0
 
     with db_con:
         c = db_con.execute("INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, "
                   "uploader, pages, rating, rating_full, category, collection, groups, "
-                  "artist, parody, character, last_change, downloaded) "
+                  "artist, parody, character, last_change, downloaded, favorite) "
                   "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
                   ":pages, :rating, :rating_full, :category, :collection, "
                   ":groups, :artist, :parody, :character, :last_change, "
-                  ":downloaded)", add_dic)
+                  ":downloaded, :favorite)", add_dic)
 
         # workaround to make concatenation work
         if lists is None:
@@ -290,11 +297,12 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
 
     update_dic = prepare_dict_for_db(url, dic)
 
-    # get previous value for downloaded from db
-    c = db_con.execute("SELECT downloaded FROM Tsumino WHERE id_onpage = ?", (book_id,))
-    downloaded = c.fetchone()[0]
+    # get previous value for downloaded and fav from db
+    c = db_con.execute("SELECT downloaded, favorite FROM Tsumino WHERE id_onpage = ?", (book_id,))
+    downloaded, favorite = c.fetchone()
     if lists:
         update_dic["downloaded"] = 1 if "li_downloaded" in lists else downloaded
+        update_dic["favorite"] = 1 if "li_best" in lists else downloaded
 
     # seems like book id on tsumino just gets replaced with newer uncensored or fixed version -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
     # => WARN to redownload book
@@ -332,7 +340,7 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
                      rating = :rating, rating_full = :rating_full, category = :category, 
                      collection = :collection, groups = :groups, artist = :artist, 
                      parody = :parody, character = :character, 
-                     last_change = :last_change, downloaded = :downloaded 
+                     last_change = :last_change, downloaded = :downloaded, favorite = :favorite 
                      WHERE id_onpage = :id_onpage""", update_dic)
 
         # workaround to make concatenation work
@@ -473,6 +481,7 @@ def book_id_from_url(url):
 
 
 def rate_manga(db_con, url, rating):
+    """Leaves commiting changes to upper scope!!"""
     book_id = book_id_from_url(url)
     db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id_onpage = ?", (rating, book_id))
     logger.info("Successfully updated rating of book with id \"%s\" to \"%s\"", book_id, rating)
@@ -593,9 +602,18 @@ def search_tags_string_parse(db_con, tagstring, keep_row_fac=False):
         return search_tags_intersection(db_con, tags, keep_row_fac=keep_row_fac)
 
 
+def set_favorite_by_id(db_con, id_internal, fav_intbool):
+    """Leaves commiting changes to upper scope
+       :param fav_intbool: 0 or 1"""
+    db_con.execute("UPDATE Tsumino SET favorite = ? WHERE id = ?", (fav_intbool, id_internal))
+    logger.info("Set favorite on bookid %s to %s", id_internal, fav_intbool)
+
 
 def remove_tags_from_book_id(db_con, id_internal, tags):
     """Leave commiting changes to upper scope"""
+    # also do this for li_downloaded, but removing from this list would only make sense if it happened by accident and then we dont need to set downloaded
+    if "li_best" in tags:
+        set_favorite_by_id(db_con, id_internal, 0)
 
     db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
                        (SELECT Tags.tag_id FROM Tags
@@ -623,12 +641,15 @@ def remove_tags_from_book(db_con, url, tags):
     # AND BookTags.tag_id IN (select tag_id FROM bts)
 
     # delete all rows that contain a tagid where the name col in Tags matches one of the tags to delete and the book_id matches id of Tsumino table where id_onpage matches our book_id
-    db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
+    c = db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
                        (SELECT Tags.tag_id FROM Tags
                        WHERE (Tags.name IN ({', '.join(['?']*len(tags))})))
                        AND BookTags.book_id IN
                        (SELECT Tsumino.id FROM Tsumino
                        WHERE Tsumino.id_onpage = ?)""", (*tags, book_id))
+
+    if "li_best" in tags:
+        set_favorite_by_id(db_con, c.lastrowid, 0)
     logger.info("Tags %s were successfully removed from book with url \"%s\"", tags, url)
 
 

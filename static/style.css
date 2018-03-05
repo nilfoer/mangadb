@@ -11,6 +11,16 @@ h3              { color: #22a7f0; }
 .search-tags input {
 
 }
+.star-inactive {
+    color: #fff !important;
+}
+.star-active {
+    color: #22a7f0 !important;
+}
+#MyRating i:hover {
+    color: #c00 !important;
+}
+    
 #srchIcon { display: inline !important; }
 #searchBtn { color: #1a1a1a; display: table-cell; margin-left: 10px; margin-top: auto; margin-bottom: auto; padding: 6px; }
 #txtSearch { width: 75%; }

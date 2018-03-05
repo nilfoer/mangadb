@@ -64,7 +64,14 @@
 	<div class="book-line">
 	<div class="book-info">My Rating</div>
 	<div class="book-data" id="MyRating">
-		{{ book_info.my_rating }}
+		{% for n in range(5) %}
+		{# check for my_rating being None and set all stars active as long as rating>n #}
+		{% if book_info.my_rating and (book_info.my_rating > n) %}
+		<a href={{ url_for('rate_book_internal', book_id_internal=book_info.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
+		{% else %}
+		<a href={{ url_for('rate_book_internal', book_id_internal=book_info.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
+		{% endif %}
+		{% endfor %}
 	</div>
 	</div>
 	<div class="book-line">

@@ -27,6 +27,9 @@
     <div class="col-md-2 col-sm-4 col-xs-6 col-no-padding">
     <div class="book-grid-item-container">
     <div class="book-grid-item">
+	    {% if entry.favorite %}
+	    <div class="ribbon blue"><span><i class="fa fa-thumbs-up"></i> FAVE</span></div>
+	    {% endif %}
 
     <a href={{ entry.url|safe }}>
 	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
