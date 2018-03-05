@@ -4,14 +4,35 @@
 <div class="search-text col-md-6 col-sm-12">
 <div class="button-container" id="simple-container">
     <form action="{{ url_for('search_books') }}" method=post class="search-tags">
+    	{# use divs to split up width of container and then align one to the left and one to the right so they always remain on the same line and shrink and grow with screen size -> container( div90%left div10%right ..) #}
+	<div class="container-align-left" style="width: 90%">
+	<div style="width:5%;" class="container-align-left">
 	<i class="button-expand-icon fa fa-search" id="srchIcon"></i>
+	</div>
+	<div style="width: 95%;" class="container-align-right">
 	{% if search_field %}
 	{# search_field will be set if we already searched -> set searchstring as value of searchfield so usr knows what search result is displayed #}
 	<input value="{{ search_field }}" type=text name=tagstring class="data-search" id="txtSearch">
 	{% else %}
         <input type=text name=tagstring class="data-search" id="txtSearch">
 	{% endif %}
+	</div>
+	</div>
+	<div class="container-align-right" style="width: 10%;">
 	<input type=submit value=Search id="searchBtn" class="book-read-button button-stack">
+	</div>
+    </form>
+</div>
+</div>
+<div class="search-text col-md-6 col-sm-12">
+<div class="button-container" id="jump-container">
+    <form action="{{ url_for('jump_to_book_by_url') }}" method=post class="search-tags">
+	<div class="container-align-left" style="width: 90%">
+	<input value="" type=text name="jump-to-url" class="data-search" id="txtSearch">
+	</div>
+	<div style="width: 10%;" class="container-align-right">
+	<button type="submit" id="jumpBtn" class="book-read-button button-stack"><i class="fa fa-arrow-circle-right button-icon"> </i>Go</button>
+	</div>
     </form>
 </div>
 </div>
@@ -44,7 +65,7 @@
             </div>
             <div class="overlay-rate">
                 {# To cast to a string in an expression, you use x|string() instead of str(x) #}
-                {% for _ in range( entry.rating|int() ) %}
+                {% for _ in range( entry.rating|round|int() ) %}
                 {# &#9733; would also works but looks better with Fontawesome #}
                 <span class="fa fa-star"></span>
                 {% endfor %}

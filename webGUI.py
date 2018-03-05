@@ -5,7 +5,8 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, Blueprint, send_from_directory
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
-        add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal
+        add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
+        book_id_from_url, add_book
 
 app = Flask(__name__) # create the application instance :)
 
@@ -68,7 +69,7 @@ def show_tsubook_info(book_id_onpage):
 
     cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
     book_info = cur.fetchone()
-    tags = get_tags_by_book_id_onpage(db_con, book_id_onpage)
+    tags = get_tags_by_book_id_onpage(db_con, book_id_onpage).split(",")
     # split tags and lists
     lists_book = {tag: True for tag in tags if tag.startswith("li_")}
     # upd dic with all lists with lists that are set on this book
@@ -80,6 +81,25 @@ def show_tsubook_info(book_id_onpage):
 
     return render_template('show_book_info.html', book_info=book_info, tags=tags,
             favorite=favorite, lists_book=lists_book)
+
+
+@app.route('/jump', methods=["GET", "POST"])
+def jump_to_book_by_url():
+    if request.method == 'POST':
+        url = request.form['jump-to-url']
+    else:
+        url = request.args['jump-to-url']
+    book_id_onpage = book_id_from_url(url)
+
+    return redirect(url_for('show_tsubook_info', book_id_onpage=book_id_onpage))
+
+
+@app.route('/AddBookFromPage', methods=["POST"])
+def add_book_by_url():
+    url = request.form["url-to-add"]
+    id_internal = add_book(db_con, url, [], write_infotxt=False)
+    
+    return redirect(url_for('show_book_info', book_id_internal=id_internal))
 
 
 @app.route("/search", methods=["GET", "POST"])

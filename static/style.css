@@ -1,7 +1,7 @@
 a, h1, h2       { color: #fff; underline: none }
 a               { text-decoration: none; }
 h1, h2          { font-family: 'Open Sans',sans-serif; margin: 0; }
-h1              { border-bottom: 2px solid #eee; }
+h1              { border-bottom: 2px solid #eee; margin-bottom: 1em;}
 h2              { font-size: 1.2em; }
 h3              { color: #22a7f0; }
 .search-tags input{ margin-bottom: 0 }
@@ -21,9 +21,13 @@ h3              { color: #22a7f0; }
     color: #c00 !important;
 }
     
-#srchIcon { display: inline !important; }
-#searchBtn { color: #1a1a1a; display: table-cell; margin-left: 10px; margin-top: auto; margin-bottom: auto; padding: 6px; }
-#txtSearch { width: 75%; }
+#srchIcon { /* set to inline-block and same (line)height as input field to align icon and input */
+    display: inline-block !important; min-width: 15px;
+    min-height: 15px; line-height: 32px; }
+#searchBtn { color: #1a1a1a; display: table-cell; /*margin-left: 10px;*/ margin-left: 5px;
+    margin-right: 0; margin-top: auto; margin-bottom: auto; padding: 6px; 
+}
+#txtSearch { width: 100%; }
 #mangaDBLists {
     width: 100%;
     position: relative;
@@ -47,9 +51,85 @@ h3              { color: #22a7f0; }
 #updateBtn {
     margin: 0;
 }
+#jumpBtn { color: #1a1a1a; display: table-cell; /*margin-left: 10px;*/ margin-left: 5px;
+    margin-right: 0; margin-top: auto; margin-bottom: auto; padding: 6px; 
+    min-width: 50px;
+}
 .lists-label {
     cursor: pointer;
     position: relative;
+}
+.button-icon {
+    display: inline;
+    margin: 0;
+}
+#jump-container {
+    float: right;
+    text-align: right;
+}
+@media only screen and (max-width: 1000px) {
+    #jump-container { float: left;
+    text-align: left;
+    margin-top: 5px;
+    }
+}
+#add-book-btn {
+    background-color: #c00;
+    min-width: 102px;
+    float: right;
+    /* top right bot left */
+    margin: 0 0 0 0;
+    padding: 9px;
+    /*text-align: right;*/
+    line-height: 13px;
+}
+.add-book-container {
+    top: 0;
+    right: 13%;
+    position: absolute;
+    z-index: 999;
+    background-color: #333 !important;
+    margin-top: 0;
+    padding: 6px;
+    width: 15%;
+    min-width: 350px;
+    /*border: 1px solid rgba(255,255,255,.2);*/
+}
+#jumpURL {
+    width: 100%;
+}
+#jump-url-field-container {
+    width: 68%;
+}
+#jump-url-btn-container {
+    width: 32%;
+}
+@media only screen and (max-width: 485px) {
+    .add-book-container {
+        width: 150px;
+        min-width: 150px;
+    }
+    #add-book-btn {
+        min-width: 25px;
+    }  
+    #hide-on-screen-width {
+        /* hide(or rather remove) text when theres not enough space left */
+        display: none;
+    }
+    #jump-url-field-container {
+        width: 75%;
+    }
+    #jump-url-btn-container {
+        width: 25%;
+    }
+}
+.container-align-left {
+    float: left;
+    text-align: left;
+}
+.container-align-right {
+    float: right;
+    text-align: right;
 }
 /* grid with ul and li
 ul {

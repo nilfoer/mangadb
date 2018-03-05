@@ -261,6 +261,7 @@ def add_tags_to_book(db_con, bid, tags):
 
 
 def add_manga_db_entry_from_dict(db_con, url, lists, dic):
+    """Commits changes to db"""
     add_dic = prepare_dict_for_db(url, dic)
 
     if lists:
@@ -287,8 +288,11 @@ def add_manga_db_entry_from_dict(db_con, url, lists, dic):
 
         logger.info("Added book with url \"%s\" to database!", url)
 
+    return c.lastrowid
+
 
 def update_manga_db_entry_from_dict(db_con, url, lists, dic):
+    """Commits changes to db"""
     book_id = book_id_from_url(url)
 
     c = db_con.execute("SELECT id FROM Tsumino WHERE id_onpage = ?", (book_id,))
@@ -355,6 +359,8 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
         add_tags_to_book(db_con, id_internal, lists + dic["Tag"])
 
         logger.info("Updated book with url \"%s\" in database!", url)
+    
+    return c.lastrowid
 
 
 def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu_book_url):
@@ -711,8 +717,11 @@ def add_book(db_con, url, lists, write_infotxt=False):
         dic = create_tsubook_info(url)
     else:
         dic = get_tsubook_info(url)
-    add_manga_db_entry_from_dict(db_con, url, lists, dic)
+    # function alrdy commits changes
+    id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
     dl_book_thumb(url)
+
+    return id_internal
 
 
 def update_book(db_con, url, lists, write_infotxt=False):
@@ -720,7 +729,8 @@ def update_book(db_con, url, lists, write_infotxt=False):
         dic = create_tsubook_info(url)
     else:
         dic = get_tsubook_info(url)
-    update_manga_db_entry_from_dict(db_con, url, lists, dic)
+    id_internal = update_manga_db_entry_from_dict(db_con, url, lists, dic)
+    return id_internal
 
 
 def process_job_list(db_con, jobs, write_infotxt=False):

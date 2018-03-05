@@ -8,12 +8,25 @@
 {# src https://appelsiini.net/projects/lazyload or https://github.com/tuupola/jquery_lazyload/tree/2.x #}
 <script src="{{ url_for('static', filename='lazyload.js') }}"></script>
 {# <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script> #}
+
 <div class=page>
   <h1>MangaDB</h1>
-  <div class=metanav>
-  </div>
   {% for message in get_flashed_messages() %}
     <div class="flash dark-color">{{ message }}</div>
   {% endfor %}
   {% block body %}{% endblock %}
 </div>
+
+<div class="add-book-container">
+    <form action="{{ url_for('add_book_by_url') }}" method=post class="search-tags">
+	<div class="container-align-left" id="jump-url-field-container">
+	<input value="" type=text name="url-to-add" class="data-search" id="jumpURL">
+	</div>
+	<div class="container-align-right" id="jump-url-btn-container">
+	<button type="submit" id="add-book-btn" class="book-read-button button-stack red-color">
+		<i class="fa fa-plus"> </i> <span id="hide-on-screen-width">Add Book</span>
+	</button>
+	</div>
+    </form>
+</div>
+
