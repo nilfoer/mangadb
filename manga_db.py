@@ -356,11 +356,13 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
             # remove tags that are still present in db but were removed on page
             remove_tags_from_book(db_con, url, removed_on_page)
 
+        # WARNING lists will only be added, not removed
         add_tags_to_book(db_con, id_internal, lists + dic["Tag"])
 
         logger.info("Updated book with url \"%s\" in database!", url)
     
-    return c.lastrowid
+    # c.lastrowid only works for INSERT/REPLACE
+    return id_internal
 
 
 def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu_book_url):

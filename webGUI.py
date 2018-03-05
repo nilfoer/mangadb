@@ -6,7 +6,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
         add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
-        book_id_from_url, add_book
+        book_id_from_url, add_book, update_book
 
 app = Flask(__name__) # create the application instance :)
 
@@ -97,7 +97,17 @@ def jump_to_book_by_url():
 @app.route('/AddBookFromPage', methods=["POST"])
 def add_book_by_url():
     url = request.form["url-to-add"]
-    id_internal = add_book(db_con, url, [], write_infotxt=False)
+    id_internal = add_book(db_con, url, None, write_infotxt=False)
+    
+    return redirect(url_for('show_book_info', book_id_internal=id_internal))
+
+
+# mb add /<site>/<id> later when more than 1 site supported
+@app.route('/UpdateBookFromPage/<book_id_onpage>', methods=["GET"])
+def update_book_by_id_onpage(book_id_onpage):
+    # all sites use some kind of id -> stop using long url for tsumino and build url with id_onpage instead
+    url = f"http://www.tsumino.com/Book/Info/{book_id_onpage}"
+    id_internal = update_book(db_con, url, None, write_infotxt=False)
     
     return redirect(url_for('show_book_info', book_id_internal=id_internal))
 

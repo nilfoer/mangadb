@@ -153,6 +153,11 @@
 	Download on Tsumino
 	</a>
 
+	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book_info.id_onpage) }}" class="book-read-button button-stack red-color">
+	<i class="fas fa-spinner"></i>
+	Update Book
+	</a>
+
 	<a href="/" id="backToIndex" class="book-read-button button-stack">
 	<i class="fa fa-home"> </i>
 	BACK TO INDEX
@@ -190,7 +195,7 @@ Update Lists here!
 	{% endfor %}
 </ul>
 <div>
-	<button type="submit" id="updateBtn" class="book-read-button button-stack red-color"><i class="fa fa-pencil-alt"> </i><spanc style="margin-left: 5px;">Update</span></button>
+	<button type="submit" id="updateBtn" class="book-read-button button-stack red-color"><i class="fa fa-pencil-alt"> </i><spanc style="margin-left: 5px;">Edit</span></button>
 </div>
 </form>
 </div>
