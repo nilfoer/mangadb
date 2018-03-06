@@ -6,7 +6,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
         add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
-        book_id_from_url, add_book, update_book
+        book_id_from_url, add_book, update_book, search_book_by_title
 from tsu_info_getter import write_inf_txt
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
@@ -152,10 +152,14 @@ def search_books():
         tagstr = request.form['tagstring']
     else:
         tagstr = request.args['tagstring']
-    # search_tags_.. functions set row factory of db_con back to None -> pass additional param
-    books = search_tags_string_parse(db_con, tagstr, keep_row_fac=True)
-    # now setting value of search field when this func was called to show previous search string in search input field -> flash msg not needed
-    # flash(f'Showing results for tags: {request.form["tagstring"]}')
+    if tagstr.startswith("title:"):
+        # reddit also uses sth like author:Username subreddit:Blabla flair:"Flair1 Flair2"
+        # -> model if i want to implement more complex search
+        books = search_book_by_title(db_con, tagstr[6:], keep_row_fac=True)
+    else:
+        # search_tags_.. functions set row factory of db_con back to None -> pass additional param
+        books = search_tags_string_parse(db_con, tagstr, keep_row_fac=True)
+
     return render_template("show_entries.html", entries=books, search_field=tagstr)
 
 

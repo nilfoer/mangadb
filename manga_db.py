@@ -615,6 +615,20 @@ def search_tags_string_parse(db_con, tagstring, keep_row_fac=False):
         return search_tags_intersection(db_con, tags, keep_row_fac=keep_row_fac)
 
 
+def search_book_by_title(db_con, title, keep_row_fac=False):
+    db_con.row_factory = sqlite3.Row
+    c = db_con.cursor()
+    if not keep_row_fac:
+        db_con.row_factory = None
+
+    # search title or title_eng?
+    # '%?%' doesnt work since ' disable ? and :name as placeholder
+    c.execute("""SELECT * FROM Tsumino
+                 WHERE title LIKE ?""", (f"%{title}%",))
+
+    return c.fetchall()
+
+
 def set_favorite_by_id(db_con, id_internal, fav_intbool):
     """Leaves commiting changes to upper scope
        :param fav_intbool: 0 or 1"""
@@ -788,7 +802,7 @@ def resume_from_file(filename):
 
 cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
                 "search_tags", "resume", "read", "downloaded", "show_tags", "update_book",
-                "add_book")
+                "add_book", "search_title")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -798,6 +812,7 @@ def main():
             [rate] url rating: Update rating for book with supplied url
             [exportcsv] Export csv-file of SQLite-DB
             [search_tags] \"tag,!exclude_tag,..\": Returns title and url of books with matching tags
+            [search_title] title: Prints title and url of books with matching title
             [add_book] \"tag1,tag2,..\" url (writeinfotxt): Adds book with added tags to db using url
             [update_book] \"tag1,tag2,..\" url (writeinfotxt): Updates book with added tags using url
             [add_tags] \"tag,tag,..\" url: Add tags to book
@@ -851,6 +866,8 @@ def main():
                 add_tags_to_book_cl(conn, cmdline[1], ["li_downloaded"])
         elif cmdline[0] == "search_tags":
             print("\n".join((f"{row['title_eng']}: {row['url']}" for row in search_tags_string_parse(conn, cmdline[1]))))
+        elif cmdline[0] == "search_title":
+            print("\n".join((f"{row['title_eng']}: {row['url']}" for row in search_book_by_title(conn, cmdline[1]))))
         elif cmdline[0] == "exportcsv":
             export_csv_from_sql("manga_db.csv", conn)
         elif cmdline[0] == "resume":

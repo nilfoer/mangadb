@@ -10,7 +10,7 @@
 {# <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script> #}
 
 <div class=page>
-  <h1>MangaDB</h1>
+	<h1><a href="/" id="title-anchor">MangaDB</a></h1>
   {% for message in get_flashed_messages() %}
     <div class="flash dark-color">{{ message }}</div>
   {% endfor %}

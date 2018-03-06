@@ -95,6 +95,14 @@ h3              { color: #22a7f0; }
     min-width: 350px;
     /*border: 1px solid rgba(255,255,255,.2);*/
 }
+#title-anchor {
+    text-decoration:none;
+}
+#title-anchor:hover {
+    text-decoration:none;
+    cursor: pointer;
+    color: #fff !important;
+}
 #jumpURL {
     width: 100%;
 }
