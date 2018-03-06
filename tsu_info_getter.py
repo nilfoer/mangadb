@@ -14,9 +14,7 @@ import pyperclip
 
 ROOTDIR = os.path.dirname(os.path.realpath(__file__))
 # CWD = os.getcwd()
-
-# only returns dirnames not whole path
-DIRS_ROOT = [e for e in os.listdir(ROOTDIR) if os.path.isdir(e)]
+dirs_root = None
 
 logger = logging.getLogger("tsu-getter")
 logger.setLevel(logging.DEBUG)
@@ -30,6 +28,18 @@ def write_to_txtf_in_root(wstring, filename):
     :return: None
     """
     with open(os.path.join(ROOTDIR, filename), "w", encoding="UTF-8") as w:
+        w.write(wstring)
+
+
+def write_to_txtf(wstring, filename):
+    """
+    Writes wstring to filename
+
+    :param wstring: String to write to file
+    :param filename: Path/Filename
+    :return: None
+    """
+    with open(filename, "w", encoding="UTF-8") as w:
         w.write(wstring)
 
 
@@ -98,7 +108,7 @@ forbidden_windows_re = re.compile(r"[\<\>\:\"\/\\\|\?\*]")
 book_url_re = re.compile(r"^.+tsumino.com\/Book\/Info\/\d+\/.+")
 
 
-def write_inf_txt(inf_str, title):
+def write_inf_txt(inf_str, title, path=ROOTDIR, dirnames_in_path=dirs_root):
 	eng_title = re.match(eng_title_re, title)
 	# asian title after "/"
 	if eng_title:
@@ -111,17 +121,17 @@ def write_inf_txt(inf_str, title):
 	# sub bad path chars
 	title_sanitized = re.sub(forbidden_windows_re, '_', title_sanitized)
 	# try to derive dirname from title if no dir of that name is found try the expensive search
-	dirpath = derive_dirname(title)
-	if not os.path.isdir(os.path.join(ROOTDIR, dirpath)):
+	dirname = derive_dirname(title)
+	if not os.path.isdir(os.path.join(path, dirname)):
 		logger.debug(
-		    "Derived dirname \"%s\" doesnt match any folder in ROOTDIR: Searching for appropriate folder!", dirpath)
-		dirpath = find_dir_simple(title) #find_appropriate_dir(title_sanitized)
+		    "Derived dirname \"%s\" doesnt match any folder in %s: Searching for appropriate folder!", dirname, path)
+		dirname = find_dir_simple(title, path, dirnames_in_path) #find_appropriate_dir(title_sanitized)
 	# python ternary: a if condition else b
 	# rstrip to remove trailing whitespace, -> otherweise filenotfounderror
 	txt_path = os.path.join(
-		dirpath.rstrip(), f"[TSUMINO.COM] {title_sanitized}_info.txt") if dirpath else f"[TSUMINO.COM] {title_sanitized}_info.txt"
+		dirname.rstrip(), f"[TSUMINO.COM] {title_sanitized}_info.txt") if dirname else f"[TSUMINO.COM] {title_sanitized}_info.txt"
 
-	write_to_txtf_in_root(inf_str, txt_path)
+	write_to_txtf(inf_str, os.path.join(path, txt_path))
 
 
 def get_tsubook_info(url):
@@ -130,11 +140,12 @@ def get_tsubook_info(url):
     return dic
 
 
-def create_tsubook_info(url):
+# dirs_root initialized as None only if exec as script (name == __main__ etc) it gets set
+def create_tsubook_info(url, path=ROOTDIR, dirnames_in_path=dirs_root):
     logger.debug("Starting job!")
     dic = get_tsubook_info(url)
     inf_str = create_info_str(dic, url)
-    write_inf_txt(inf_str, dic["Title"])
+    write_inf_txt(inf_str, dic["Title"], path, dirnames_in_path)
     logger.info(f"Info file written for \"{dic['Title']}\"")
     return dic
 
@@ -143,18 +154,25 @@ def create_tsubook_info(url):
 tsu_eng_zip_re = re.compile(r"^(.+)\s{2,}")
 
 
-def find_dir_simple(title):
+def find_dir_simple(title, path=ROOTDIR, dirnames_in_path=dirs_root):
     dir_eng = re.match(eng_title_re, title)
     # dir_eng will be None if alrdy only english title
     dir_eng = dir_eng.group(1) if dir_eng else title
-    matching_dirs = [dirname for dirname in DIRS_ROOT if re.sub(forbidden_windows_re, '', dir_eng) in dirname]
+
+    # possiblity to pass dirnames so we dont have to find them every func call
+    if dirnames_in_path is None:
+        dirnames_in_path = [e for e in os.listdir(path) if os.path.isdir(os.path.join(path, e))]
+
+    matching_dirs = [dirname for dirname in dirnames_in_path if re.sub(forbidden_windows_re, '', 
+                     dir_eng) in dirname]
     if len(matching_dirs) > 1:
         logger.warning("More than one matching dir found, taking the first one: %s", matching_dirs)
+
     # dir might not exist yet return None if no matching dirs
     return matching_dirs[0] if matching_dirs else None
 
 
-def find_appropriate_dir(title_sanitized):
+def find_appropriate_dir(title_sanitized, path=ROOTDIR, dirnames_in_path=dirs_root):
     # refresh dirs every time we want to write a txt or only at startup or at set intervals?
     # print("title: ", f"\"{title_sanitized}\"")
     # build regex pattern, sub {} with title(sanitized)
@@ -162,10 +180,13 @@ def find_appropriate_dir(title_sanitized):
     d_name_re = r"(\[TSUMINO.COM\])?\s?\s?{}$".format(
         re.escape(title_sanitized))
 
+    if dirnames_in_path is None:
+        dirnames_in_path = [e for e in os.listdir(path) if os.path.isdir(os.path.join(path, e))]
+
     found_dir = None
-    for dirpath in DIRS_ROOT:
+    for dirname in dirnames_in_path:
         # normpath -> strip trailing "/", basepath gives last part of path
-        dirname = os.path.basename(os.path.normpath(dirpath))
+        dirname = os.path.basename(os.path.normpath(dirname))
         dir_eng = re.match(tsu_eng_zip_re, dirname)
         if dir_eng:
             # trailing spaces alrdy removes with re
@@ -180,7 +201,7 @@ def find_appropriate_dir(title_sanitized):
         # print("saniz dir_eng: ", f"\"{dir_eng}\"")
         # re.search instead of match since match only matches at beginning of str (same as using ^ in regex)
         if re.search(d_name_re, dir_eng):
-            found_dir = dirpath
+            found_dir = dirname
             break
     logger.debug("Found dir: {}".format(found_dir))
     return found_dir
@@ -234,13 +255,12 @@ class ClipboardWatcher:
 	# predicate ist bedingung ob gesuchter clip content
 	# hier beim aufruf in main funktion is_url_but_not_sgasm
 
-	def __init__(self, predicate, callback, txtpath, pause=5.):
+	def __init__(self, predicate, callback, pause=5.):
 		self._predicate = predicate
 		if callback is None:
 			self._callback = self.add_found
 		else:
 			self._callback = callback
-		self._txtpath = txtpath
 		self._found = []
 		self._pause = pause
 		self._stopping = False
@@ -254,7 +274,7 @@ class ClipboardWatcher:
 				# if predicate is met
 				if self._predicate(recent_value):
 					# call callback
-					self._callback(recent_value)  # , self._txtpath)
+					self._callback(recent_value)
 			time.sleep(self._pause)
 
 	def add_found(self, item):
@@ -270,8 +290,7 @@ class ClipboardWatcher:
 
 def watch_clip():
     # predicate = is_tsu_book_url, callback = create_tsubook_info
-    watcher = ClipboardWatcher(is_tsu_book_url, create_tsubook_info,
-                               ROOTDIR, 0.1)
+    watcher = ClipboardWatcher(is_tsu_book_url, create_tsubook_info, 0.1)
     try:
         logger.info("Watching clipboard...")
         watcher.run()
@@ -283,7 +302,7 @@ def watch_clip():
 def watch_clip_dl_after():
 	found = None
 	# predicate = is_tsu_book_url, callback = create_tsubook_info
-	watcher = ClipboardWatcher(is_tsu_book_url, None, ROOTDIR, 0.1)
+	watcher = ClipboardWatcher(is_tsu_book_url, None, 0.1)
 	try:
 		logger.info("Watching clipboard...")
 		watcher.run()
@@ -307,22 +326,24 @@ def get_book_title_txt(txtpath):
 		return None
 
 
-def move_txt_to_appropriate_folder(txtpath, title):
-	txtname = os.path.basename(os.path.normpath(txtpath))
-	# try to derive dirname from title if no dir of that name is found try the expensive search
-	dirpath = derive_dirname(title)
-	if not os.path.isdir(os.path.join(ROOTDIR, dirpath)):
-		logger.debug("Derived dirname doesnt match any folder in ROOTDIR: Searching for appropriate folder!")
-		dirpath = find_appropriate_dir(txtname)
-	if dirpath:
-	        # rstrip to remove trailing whitespace, -> otherweise filenotfounderror
-		new_txt_path = os.path.join(dirpath.rstrip(), txtname)
+def move_txt_to_appropriate_folder(txtpath, title, path=ROOTDIR, dirnames_in_path=dirs_root):
+    txtname = os.path.basename(os.path.normpath(txtpath))
+    # try to derive dirname from title if no dir of that name is found try the expensive search
+    dirname = derive_dirname(title)
+    if not os.path.isdir(os.path.join(path, dirname)):
+        logger.debug("Derived dirname doesnt match any folder in ROOTDIR: Searching for appropriate folder!")
+        # almost does the same thing but find_dir_simple much simpler (may have partial match when titles are extremely alike, which mb wouldnt happen with find_appropriate_dir)
+        # dirname = find_appropriate_dir(txtname, path, dirnames_in_path)
+        dirname = find_dir_simple(title, path, dirnames_in_path)
+    if dirname:
+        # rstrip to remove trailing whitespace, -> otherweise filenotfounderror
+        new_txt_path = os.path.join(path, dirname.rstrip(), txtname)
 
-		# os.rename won't handle files across different devices. Use shutil.move
-		os.rename(txtpath, new_txt_path)
-		logger.info("Succesfully moved %s into its appropriate folder", txtname)
-	else:
-		logger.warning("Couldnt find appropriate folder for \"%s\"", title)
+        # os.rename won't handle files across different devices. Use shutil.move
+        os.rename(txtpath, new_txt_path)
+        logger.info("Succesfully moved %s into its appropriate folder", txtname)
+    else:
+        logger.warning("Couldnt find appropriate folder for \"%s\"", title)
 
 
 def list_infotxt_folder(dpath):
@@ -331,17 +352,17 @@ def list_infotxt_folder(dpath):
 
 
 def move_txts_to_folders(dpath):
-	l = list_infotxt_folder(dpath)
-	for txt in l:
-		title = get_book_title_txt(txt)
-		if not title:
-			logger.warning("Title couldnt be extracted from %s", txt)
-			continue
-		move_txt_to_appropriate_folder(txt, title)
+    l = list_infotxt_folder(dpath)
+    for txt in l:
+        title = get_book_title_txt(os.path.join(dpath, txt))
+        if not title:
+            logger.warning("Title couldnt be extracted from %s", txt)
+            continue
+        move_txt_to_appropriate_folder(os.path.join(dpath, txt), title, dpath)
 
 
 def check_subdirs_txt(dpath):
-    dirl = [e for e in os.listdir(dpath) if os.path.isdir(e)]
+    dirl = [e for e in os.listdir(dpath) if os.path.isdir(os.path.join(dpath, e))]
     missing = []
     for d in dirl:
         # check every folder or only ones that contain images (jpg/png)?
@@ -400,6 +421,12 @@ if __name__ == "__main__":
     stdohandler.setFormatter(formatterstdo)
     logger.addHandler(stdohandler)
 
+    # variables declared here have same scope as module level stuff declared at top
+    # -> set dirs_root here so its not None when tsu_info_getter is used as script
+    # only returns dirnames not whole path
+    # was viable as a script that just gets dropped and executed in the cur dir
+    dirs_root = [e for e in os.listdir(ROOTDIR) if os.path.isdir(e)]
+
     optnr = input("OPTIONS: [1] Watch clipboard and get info directly [2] Move txts into folders "
                               "[3] Check if every manga folder contains info.txt [4] Watch clipboard and get info afterwards [5] Get tsu info for urls in \"tsuurls.txt\"\n")
     if optnr == "1":
@@ -414,7 +441,7 @@ if __name__ == "__main__":
             try:
                     while l:
                             item = l.pop(0)
-                            print(create_tsubook_info(item))
+                            create_tsubook_info(item, ROOTDIR, dirs_root)
                             time.sleep(0.3)
             except Exception:
                     # item is alrdy removed even though it failed on it
@@ -426,7 +453,7 @@ if __name__ == "__main__":
         try:
                 while l:
                         item = l.pop(0)
-                        create_tsubook_info(item)
+                        create_tsubook_info(item, ROOTDIR, dirs_root)
                         time.sleep(0.3)
         except Exception:
                 # item is alrdy removed even though it failed on it
@@ -435,30 +462,6 @@ if __name__ == "__main__":
     elif optnr == "6":
         test_derive_dirname()
 
-	# test_derive_dirname()
-
-    # url = "http://www.tsumino.com/Book/Info/34906/neet-fakku-"
-    # # html = get_tsu_url(url)
-    # # write_to_txtf_in_root(html, "html.txt")
-    # html = None
-    # with open(os.path.join(ROOTDIR, "html.txt"), "r", encoding="UTF-8") as f:
-    # html = f.read()
-    # dic = extract_info(html)
-    # inf_str = create_info_str(dic, url)
-    # write_inf_txt(inf_str, dic["Title"])
-    # l = ["ASS Horufo-kun 2 / ASS掘るフォくん2",
-    # "Nudist Beach ni Syuugaku Ryokoude!! - In School Trip to The Nudist Beach!! / ヌーディストビーチに修学旅行で!!",
-    # "Energy Kyo-ka Soushuuhen \"Gaisen Fukki Hen\" / えなじぃキョーカ 総集編『凱旋復帰編』",
-    # "SDPO ~Seimukan no Susume~ / SDPO～性務官のススメ～",
-    # "Mama x Pako [Kanzenban] + Leaflet / ママ×パコ",
-    # "A school where you can randomly have procreative sex with any of the fine developing xxxx-school girls you want, any time you want / やたら発育のいい女子〇学生といつでも誰でも子作りSEXできる学校",
-    # "Test title ❤ / asdiai",
-    # "Pandemonium (FAKKU BOOK)",
-    # "I don't need Feminism because I love my Big Brother's Dick!"]
-
-# TODO: mb watch clip for copied book info (e.g. " Title\nHERE COMES A NEW CHALLENGER!!\nUploader\nsehki") and use that to create file instead of sending additional requests
-# info is alrdy displayed in browser when i view and then dl the zip but just copying the url is probably still faster/more comfortable -> only go this route
-# if requests start getting blocked or are taking too long
 
 # C-struct-like structure in python using dictionaries(wont return error when setting on wrong key), namedtuple(but its immutable, as in you cant to this Player(x=10,y=0) Player.x += 1 or a class
 # class Bunch:

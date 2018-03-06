@@ -91,6 +91,7 @@
 		</div>
 		</div>
 	{% endif %}
+	{% if book_info.arist %}
 	<div class="book-line">
 	<div class="book-info">Artist</div>
 	<div class="book-data" id="Artist">
@@ -101,6 +102,7 @@
 		{% endfor %}
 	</div>
 	</div>
+	{% endif %}
 	{% if book_info.parody %}
 		<div class="book-line">
 		<div class="book-info">Parody</div>
@@ -153,9 +155,14 @@
 	Download on Tsumino
 	</a>
 
-	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book_info.id_onpage) }}" class="book-read-button button-stack red-color">
+	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book_info.id_onpage) }}" class="book-read-button button-stack green-color">
 	<i class="fas fa-spinner"></i>
 	Update Book
+	</a>
+
+	<a href="{{ url_for('write_info_txt_by_id', book_id_internal=book_info.id) }}" class="book-read-button button-stack red-color">
+	<i class="fas fa-file-alt"></i>
+	Write info.txt
 	</a>
 
 	<a href="/" id="backToIndex" class="book-read-button button-stack">

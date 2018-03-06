@@ -7,6 +7,9 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
         add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
         book_id_from_url, add_book, update_book
+from tsu_info_getter import write_inf_txt
+
+LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
 
 app = Flask(__name__) # create the application instance :)
 
@@ -110,6 +113,34 @@ def update_book_by_id_onpage(book_id_onpage):
     id_internal = update_book(db_con, url, None, write_infotxt=False)
     
     return redirect(url_for('show_book_info', book_id_internal=id_internal))
+
+
+infotxt_order_helper = (("title", "Title"), ("uploader", "Uploader"), ("upload_date", "Uploaded"),
+        ("pages", "Pages"), ("rating_full", "Rating"), ("category", "Category"),
+        ("collection", "Collection"), ("groups", "Group"), ("artist", "Artist"),
+        ("parody", "Parody"), ("character", "Character"), ("tag", "Tag"), ("url", "URL"))
+@app.route('/WriteInfoTxt/<book_id_internal>', methods=["GET"])
+def write_info_txt_by_id(book_id_internal):
+    cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
+    book_info = cur.fetchone()
+    tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
+    tags = ", ".join((tag for tag in tags if not tag.startswith("li_")))
+
+    info_str = []
+    for key, title in infotxt_order_helper:
+        if key == "tag":
+            info_str.append(f"Tag: {tags}")
+        else:
+            val = book_info[key]
+            if val is None:
+                continue
+            elif isinstance(val, str):
+                val = val.replace(',', ', ')
+            info_str.append(f"{title}: {val}")
+
+    write_inf_txt("\n".join(info_str), book_info["title"], path=LOCAL_DOWNLOAD)
+    
+    return redirect(url_for('show_book_info', book_id_internal=book_id_internal))
 
 
 @app.route("/search", methods=["GET", "POST"])
