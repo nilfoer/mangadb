@@ -326,12 +326,15 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
                  WHERE bt.tag_id = Tags.tag_id
                  AND bt.book_id = ?""", (id_internal,))
     # filter lists from tags first
-    tags = [tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")]
+    tags = set((tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")))
+    tags_page = set(dic["Tag"])
+    added_tags = None
     removed_on_page = None
     # compare sorted to see if tags changed, alternatively convert to set and add -> see if len() changed
-    if sorted(tags) != sorted(dic["Tag"]):
-        field_change_str.append(f"Field \"tags\" changed from \"{', '.join(tags)}\" to \"{', '.join(dic['Tag'])}\"!")
-        removed_on_page = set(tags).difference(dic["Tag"])
+    if tags != tags_page:
+        added_tags = tags_page - tags
+        removed_on_page = tags - tags_page
+        field_change_str.append(f"Field \"tags\" changed -> Added Tags: \"{', '.join(added_tags)}\"; Removed Tags: \"{', '.join(removed_on_page)}\"!")
 
     if field_change_str:
         field_change_str = '\n'.join(field_change_str)
@@ -347,22 +350,24 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
                      last_change = :last_change, downloaded = :downloaded, favorite = :favorite 
                      WHERE id_onpage = :id_onpage""", update_dic)
 
-        # workaround to make concatenation work
-        if lists is None:
-            lists = []
-        # c.lastrowid doesnt work with update
-
         if removed_on_page:
             # remove tags that are still present in db but were removed on page
             remove_tags_from_book(db_con, url, removed_on_page)
 
-        # WARNING lists will only be added, not removed
-        add_tags_to_book(db_con, id_internal, lists + dic["Tag"])
+        if lists or added_tags:
+            # workaround to make concatenation work
+            if lists is None:
+                lists = []
+            # c.lastrowid doesnt work with update
+
+            # WARNING lists will only be added, not removed
+            add_tags_to_book(db_con, id_internal, lists + list(added_tags))
+
 
         logger.info("Updated book with url \"%s\" in database!", url)
     
     # c.lastrowid only works for INSERT/REPLACE
-    return id_internal
+    return id_internal, field_change_str
 
 
 def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu_book_url):
@@ -731,8 +736,7 @@ def update_book(db_con, url, lists, write_infotxt=False):
         dic = create_tsubook_info(url)
     else:
         dic = get_tsubook_info(url)
-    id_internal = update_manga_db_entry_from_dict(db_con, url, lists, dic)
-    return id_internal
+    return update_manga_db_entry_from_dict(db_con, url, lists, dic)
 
 
 def process_job_list(db_con, jobs, write_infotxt=False):

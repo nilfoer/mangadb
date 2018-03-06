@@ -110,7 +110,10 @@ def add_book_by_url():
 def update_book_by_id_onpage(book_id_onpage):
     # all sites use some kind of id -> stop using long url for tsumino and build url with id_onpage instead
     url = f"http://www.tsumino.com/Book/Info/{book_id_onpage}"
-    id_internal = update_book(db_con, url, None, write_infotxt=False)
+    id_internal, field_change_str = update_book(db_con, url, None, write_infotxt=False)
+    if field_change_str:
+        flash("WARNING - Please re-download this Book, since the change of following fields suggest that someone has uploaded a new version:")
+        flash(field_change_str)
     
     return redirect(url_for('show_book_info', book_id_internal=id_internal))
 
