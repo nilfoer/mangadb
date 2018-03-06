@@ -105,7 +105,9 @@ eng_title_re = re.compile(r"^(.+) \/")
 non_ascii_re = re.compile(r'[^\x00-\x7F]+')
 # removed dot from forbidden windows, if python has probs with finding files that contain multiple dots do it with a separate regex
 forbidden_windows_re = re.compile(r"[\<\>\:\"\/\\\|\?\*]")
-book_url_re = re.compile(r"^.+tsumino.com\/Book\/Info\/\d+\/.+")
+# just the id is enought to be valid tsu url /Book/Info/<id>
+# book_url_re = re.compile(r"^.+tsumino.com\/Book\/Info\/\d+\/.+")
+book_url_re = re.compile(r"^.+tsumino.com\/Book\/Info\/\d+")
 
 
 def write_inf_txt(inf_str, title, path=ROOTDIR, dirnames_in_path=dirs_root):

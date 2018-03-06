@@ -124,7 +124,7 @@ def write_info_txt_by_id(book_id_internal):
     cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
     book_info = cur.fetchone()
     tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
-    tags = ", ".join((tag for tag in tags if not tag.startswith("li_")))
+    tags = ", ".join((tag for tag in sorted(tags) if not tag.startswith("li_")))
 
     info_str = []
     for key, title in infotxt_order_helper:
