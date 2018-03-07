@@ -3,6 +3,7 @@
 
 <div id="rootContainer" class="container container-fluid">
 <div style="margin: 5px auto;"></div>
+{% if book_info %}
 <div class="book-page-container">
 	<div class="row row-no-margin">
 	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
@@ -183,6 +184,7 @@
 <div style="display: inline-block;">
 Update Lists here!
 </div>
+<div style="float:right;position:relative;top:15px;">Last Change: {{ book_info.last_change }}</div>
 <hr>
 </div>
 <form action={{ url_for('set_lists_book') }} method=post>
@@ -209,6 +211,9 @@ Update Lists here!
 </div> {# row end #}
 
 </div>
+{% else %}
+<div class="book-title">No book with {{ error_msg }} in DB!</div>
+{% endif %}
 </div>
 
 {% endblock %}

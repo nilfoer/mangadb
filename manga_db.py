@@ -156,8 +156,10 @@ def enter_manga_lists(i):
                     break
             # keep looping (while) till all list names are recognized -> for doesnt break -> return
             else:
+                logger.info("The following lists were selected %s", result)
                 return result
         else:
+            logger.info("No lists were selected!")
             # no input -> dont add to any lists
             return None
 
@@ -400,6 +402,9 @@ def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu
                             logger.info("Setting tags for \"%s\"! Previous tags were: %s", url, tag_li)
                             manga_lists = enter_manga_lists(len(found)-1)
                             found.append((url, manga_lists, upd))
+                        elif recent_value == "remove_book":
+                            logger.info("Deleted last book with url \"%s\" from list", found[-1][0])
+                            del found[-1]
 
 
                 time.sleep(0.1)
@@ -753,6 +758,40 @@ def update_book(db_con, url, lists, write_infotxt=False):
     return update_manga_db_entry_from_dict(db_con, url, lists, dic)
 
 
+def remove_book(db_con, identifier, id_type):
+    """Commits changes itself, since it also deletes book thumb anyway!"""
+    book_id = None
+    if id_type == "id_internal":
+        id_col = "id"
+    elif id_type == "id_onpage":
+        id_col = "id_onpage"
+    elif id_type == "url":
+        book_id = book_id_from_url(identifier)
+        id_col = "id_onpage"
+        identifier = book_id
+    else:
+        logger.error("%s is an unsupported identifier type!", id_type)
+        return
+
+    if not book_id:
+        c = db_con.execute(f"SELECT id_onpage FROM Tsumino WHERE {id_col} = ?", (identifier,))
+        book_id = c.fetchone()[0]
+
+    with db_con:
+        db_con.execute(f"""DELETE
+                           FROM Tsumino
+                           WHERE
+                           {id_col} = ?""", (identifier,))
+
+    # also delete book thumb
+    os.remove(os.path.join("thumbs", str(book_id)))
+    logger.debug("Removed thumb with path %s", f"thumbs/{book_id}")
+
+    logger.info("Successfully removed book with %s: %s", id_type, identifier)
+
+
+
+
 def process_job_list(db_con, jobs, write_infotxt=False):
     logger.info("Started working on list with %i items", len(jobs))
     try:
@@ -802,7 +841,7 @@ def resume_from_file(filename):
 
 cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
                 "search_tags", "resume", "read", "downloaded", "show_tags", "update_book",
-                "add_book", "search_title")
+                "add_book", "search_title", "remove_book")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -815,6 +854,7 @@ def main():
             [search_title] title: Prints title and url of books with matching title
             [add_book] \"tag1,tag2,..\" url (writeinfotxt): Adds book with added tags to db using url
             [update_book] \"tag1,tag2,..\" url (writeinfotxt): Updates book with added tags using url
+            [remove_book] identifier id_type: Removes book db entry and deletes book thumb
             [add_tags] \"tag,tag,..\" url: Add tags to book
             [remove_tags] \"tag,tag,..\" url: Remove tags from book
             [read] url: Mark book as read (-> remove from li_to-read)
@@ -851,6 +891,8 @@ def main():
                 lists = cmdline[1].split(",")
 
             update_book(conn, cmdline[2], lists, write_infotxt=True if len(cmdline) > 3 else False)
+        elif cmdline[0] == "remove_book":
+            remove_book(conn, *cmdline[1:])
         elif cmdline[0] == "remove_tags":
             # remove_tags "tag1,tag2,tag3 tag3,.." url
             with conn:

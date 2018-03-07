@@ -51,6 +51,11 @@ def show_book_info(book_id_internal):
 
     cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
     book_info = cur.fetchone()
+
+    # handle book not being in db yet
+    if not book_info:
+        return render_template('show_book_info.html', error_msg=f"id {book_id_internal}")
+
     tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
     # split tags and lists
     lists_book = {tag: True for tag in tags if tag.startswith("li_")}
@@ -66,12 +71,17 @@ def show_book_info(book_id_internal):
 
 
 # access to book with id_onpage seperate so theres no conflict if we support more than 1 site
-@app.route('/tsubook/<book_id_onpage>')
+@app.route('/tsubook/<int:book_id_onpage>')
 def show_tsubook_info(book_id_onpage):
     lists_all = lists_dic.copy()
 
     cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
     book_info = cur.fetchone()
+
+    # handle book not being in db yet
+    if not book_info:
+        return render_template('show_book_info.html', error_msg=f"Tsumino id {book_id_onpage}")
+
     tags = get_tags_by_book_id_onpage(db_con, book_id_onpage).split(",")
     # split tags and lists
     lists_book = {tag: True for tag in tags if tag.startswith("li_")}
