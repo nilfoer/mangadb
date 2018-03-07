@@ -124,6 +124,38 @@ def load_or_create_sql_db(filename):
                  ON DELETE CASCADE,
                  PRIMARY KEY (book_id, tag_id))""")
 
+    # trigger that gets executed everytime after a row is updated in Tsumino table
+    # with UPDATE -> old and new values of cols accessible with OLD.colname NEW.colname
+    # WHERE id = NEW.id is needed otherwise whole col in table gets set to that value
+    # set last_change to current DATE on update of any col in Tsumino gets updated
+    # could limit to certain rows with WHEN condition (AFTER UPDATE ON table WHEN..)
+    # by checking if old and new val for col differ OLD.colname <> NEW.colname
+    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tsumino
+                 AFTER UPDATE ON Tsumino
+                 BEGIN
+                    UPDATE Tsumino
+                    SET last_change = DATE('now', 'localtime')
+                    WHERE id = NEW.id;
+                 END""")
+
+    # set last_change on Tsumino when new tags get added in bridge table
+    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags
+                 AFTER INSERT ON BookTags
+                 BEGIN
+                    UPDATE Tsumino
+                    SET last_change = DATE('now', 'localtime')
+                    WHERE id = NEW.book_id;
+                 END""")
+
+    # set last_change on Tsumino when tags get removed in bridge table
+    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags
+                 AFTER DELETE ON BookTags
+                 BEGIN
+                    UPDATE Tsumino
+                    SET last_change = DATE('now', 'localtime')
+                    WHERE id = OLD.book_id;
+                 END""")
+
     # commit changes
     conn.commit()
 
