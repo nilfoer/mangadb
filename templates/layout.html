@@ -17,16 +17,15 @@
   {% block body %}{% endblock %}
 </div>
 
-<div class="add-book-container">
-    <form action="{{ url_for('add_book_by_url') }}" method=post class="search-tags">
+<div class="jump-book-container">
+    <form action="{{ url_for('jump_to_book_by_url') }}" method=post class="search-tags">
 	<div class="container-align-left" id="jump-url-field-container">
-	<input value="" type=text name="url-to-add" class="data-search" id="jumpURL">
+	<input value="" type=text name="jump-to-url" class="data-search" id="jumpURL">
 	</div>
 	<div class="container-align-right" id="jump-url-btn-container">
-	<button type="submit" id="add-book-btn" class="book-read-button button-stack red-color">
-		<i class="fa fa-plus"> </i> <span id="hide-on-screen-width">Add Book</span>
+	<button type="submit" id="jump-book-btn" class="book-read-button button-stack red-color">
+		<i class="fas fa-share button-icon"> </i> <span id="hide-on-screen-width">Jump</span>
 	</button>
 	</div>
     </form>
 </div>
-

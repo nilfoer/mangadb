@@ -51,10 +51,6 @@ h3              { color: #22a7f0; }
 #updateBtn {
     margin: 0;
 }
-#jumpBtn { color: #1a1a1a; display: table-cell; /*margin-left: 10px;*/ margin-left: 5px;
-    margin-right: 0; margin-top: auto; margin-bottom: auto; padding: 6px; 
-    min-width: 50px;
-}
 .lists-label {
     cursor: pointer;
     position: relative;
@@ -63,19 +59,9 @@ h3              { color: #22a7f0; }
     display: inline;
     margin: 0;
 }
-#jump-container {
-    float: right;
-    text-align: right;
-}
-@media only screen and (max-width: 1000px) {
-    #jump-container { float: left;
-    text-align: left;
-    margin-top: 5px;
-    }
-}
-#add-book-btn {
+#jump-book-btn {
     background-color: #c00;
-    min-width: 102px;
+    min-width: 75px;
     float: right;
     /* top right bot left */
     margin: 0 0 0 0;
@@ -83,7 +69,7 @@ h3              { color: #22a7f0; }
     /*text-align: right;*/
     line-height: 13px;
 }
-.add-book-container {
+.jump-book-container {
     top: 0;
     right: 13%;
     position: absolute;
@@ -107,17 +93,16 @@ h3              { color: #22a7f0; }
     width: 100%;
 }
 #jump-url-field-container {
-    width: 68%;
+    width: 76%;
 }
 #jump-url-btn-container {
-    width: 32%;
 }
 @media only screen and (max-width: 485px) {
-    .add-book-container {
+    .jump-book-container {
         width: 150px;
         min-width: 150px;
     }
-    #add-book-btn {
+    #jump-book-btn {
         min-width: 25px;
     }  
     #hide-on-screen-width {
@@ -125,10 +110,10 @@ h3              { color: #22a7f0; }
         display: none;
     }
     #jump-url-field-container {
-        width: 75%;
+        width: 73%;
     }
     #jump-url-btn-container {
-        width: 25%;
+        width: 27%;
     }
 }
 .container-align-left {

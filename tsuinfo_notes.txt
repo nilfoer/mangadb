@@ -200,5 +200,14 @@ UPDATE Tsumino SET favorite = (Tsumino.id IN (SELECT Tsumino.id
                   GROUP BY Tsumino.id
                   HAVING COUNT( Tsumino.id ) = 1))
 
+for downloaded                  
+UPDATE Tsumino SET downloaded = (Tsumino.id IN (SELECT Tsumino.id
+                  FROM BookTags bt, Tsumino, Tags
+                  WHERE bt.tag_id = Tags.tag_id
+                  AND (Tags.name IN ('li_downloaded'))
+                  AND Tsumino.id = bt.book_id
+                  GROUP BY Tsumino.id
+                  HAVING COUNT( Tsumino.id ) = 1))                  
+
 __________________________________________________________________________________________________________
 

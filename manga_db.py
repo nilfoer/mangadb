@@ -339,8 +339,14 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
     c = db_con.execute("SELECT downloaded, favorite FROM Tsumino WHERE id_onpage = ?", (book_id,))
     downloaded, favorite = c.fetchone()
     if lists:
+        # if there are lists -> set dled/fav to 1 if appropriate list is in lists else
+        # use value from db (since lists just contains lists to ADD)
         update_dic["downloaded"] = 1 if "li_downloaded" in lists else downloaded
-        update_dic["favorite"] = 1 if "li_best" in lists else downloaded
+        update_dic["favorite"] = 1 if "li_best" in lists else favorite
+    else:
+        # no lists to add to -> use values from db
+        update_dic["downloaded"] = downloaded
+        update_dic["favorite"] = favorite
 
     # seems like book id on tsumino just gets replaced with newer uncensored or fixed version -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
     # => WARN to redownload book
@@ -388,14 +394,17 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
             # remove tags that are still present in db but were removed on page
             remove_tags_from_book(db_con, url, removed_on_page)
 
-        if lists or added_tags:
-            # workaround to make concatenation work
-            if lists is None:
-                lists = []
-            # c.lastrowid doesnt work with update
+        tags_lists_to_add = []
+        if lists:
+            # (micro optimization i know) list concat is faster with + compared with extend
+            tags_lists_to_add = tags_lists_to_add + lists
+        if added_tags:
+            # converting set to list and then concat is faster than using s.union(list)
+            tags_lists_to_add = tags_lists_to_add + list(added_tags)
 
+        if tags_lists_to_add:
             # WARNING lists will only be added, not removed
-            add_tags_to_book(db_con, id_internal, lists + list(added_tags))
+            add_tags_to_book(db_con, id_internal, tags_lists_to_add)
 
 
         logger.info("Updated book with url \"%s\" in database!", url)
@@ -755,6 +764,11 @@ def get_tags_by_book_id_internal(db_con, id_internal):
                           GROUP BY bt.book_id""", (id_internal,))
     return c.fetchone()[0]
 
+
+def get_all_id_onpage_set(db_con):
+    c = db_con.execute("SELECT id_onpage FROM Tsumino")
+    return set([tupe[0] for tupe in c.fetchall()])
+
     
 def dl_book_thumb(url):
     book_id = book_id_from_url(url)
@@ -952,8 +966,7 @@ def main():
             print("You can now configure the lists that all following entries should be added to!")
             fixed_list_opt = enter_manga_lists(0)
 
-            c.execute("SELECT id_onpage FROM Tsumino")
-            ids_in_db = set([tupe[0] for tupe in c.fetchall()])
+            ids_in_db = get_all_id_onpage_set(conn)
 
             l = watch_clip_db_get_info_after(ids_in_db, fixed_lists=fixed_list_opt)
             process_job_list(conn, l, write_infotxt=write_infotxt)

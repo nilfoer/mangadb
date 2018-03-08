@@ -6,7 +6,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
         add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
-        book_id_from_url, add_book, update_book, search_book_by_title
+        book_id_from_url, add_book, update_book, search_book_by_title, get_all_id_onpage_set
 from tsu_info_getter import write_inf_txt
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
@@ -28,6 +28,10 @@ app.config['THUMBS_FOLDER'] = "thumbs"
 
 db_con, _ = load_or_create_sql_db("manga_db.sqlite")
 db_con.row_factory = sqlite3.Row
+
+# set with all id_onpage to check if book is in db without having to query for every check
+# -> if later more than one -> dict (key is pagename) of sets
+all_book_id_onpage = get_all_id_onpage_set(db_con)
 
 # create route for thumbs/static data that isnt in static, can be used in template with /thumbs/path/filename or with url_for(thumb_static, filename='filename')
 # Custom static data
@@ -104,15 +108,14 @@ def jump_to_book_by_url():
         url = request.args['jump-to-url']
     book_id_onpage = book_id_from_url(url)
 
+    # check if book not in db -> add
+    if book_id_onpage not in all_book_id_onpage:
+        add_book(db_con, url, None, write_infotxt=False)
+        # also add book_id_onpage to set of all id_onpage in DB so it represents current state of
+        # DB next time we call this func
+        all_book_id_onpage.add(book_id_onpage)
+
     return redirect(url_for('show_tsubook_info', book_id_onpage=book_id_onpage))
-
-
-@app.route('/AddBookFromPage', methods=["POST"])
-def add_book_by_url():
-    url = request.form["url-to-add"]
-    id_internal = add_book(db_con, url, None, write_infotxt=False)
-    
-    return redirect(url_for('show_book_info', book_id_internal=id_internal))
 
 
 # mb add /<site>/<id> later when more than 1 site supported

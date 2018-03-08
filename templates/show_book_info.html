@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<div id="rootContainer" class="container container-fluid">
+<div id="rootContainer" class="container-fluid">
 <div style="margin: 5px auto;"></div>
 {% if book_info %}
 <div class="book-page-container">
@@ -157,7 +157,7 @@
 	</a>
 
 	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book_info.id_onpage) }}" class="book-read-button button-stack green-color">
-	<i class="fas fa-spinner"></i>
+	<i class="fas fa-sync-alt"></i>
 	Update Book
 	</a>
 
