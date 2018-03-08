@@ -156,6 +156,50 @@ def load_or_create_sql_db(filename):
                     WHERE id = OLD.book_id;
                  END""")
 
+    # set downloaded to 1 if book gets added to li_downloaded
+    c.execute("""CREATE TRIGGER IF NOT EXISTS update_downloaded_on_tags_insert
+                 AFTER INSERT ON BookTags
+				 WHEN NEW.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
+                 BEGIN
+                    UPDATE Tsumino
+                    SET downloaded = 1
+                    WHERE id = NEW.book_id;
+                 END""")
+
+    # set downloaded to 0 if book gets removed from li_downloaded
+    c.execute("""CREATE TRIGGER IF NOT EXISTS update_downloaded_on_tags_delete
+                 AFTER DELETE ON BookTags
+				 WHEN OLD.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
+                 BEGIN
+                    UPDATE Tsumino
+                    SET downloaded = 0
+                    WHERE id = OLD.book_id;
+                 END""")
+
+    # set favorite to 1 if book gets added to li_best
+    c.execute("""CREATE TRIGGER IF NOT EXISTS update_favorite_on_tags_insert
+                 AFTER INSERT ON BookTags
+				 WHEN NEW.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_best')
+                 BEGIN
+                    UPDATE Tsumino
+                    SET favorite = 1
+                    WHERE id = NEW.book_id;
+                 END""")
+
+    # set favorite to 0 if book gets removed from li_best
+    c.execute("""CREATE TRIGGER IF NOT EXISTS update_favorite_on_tags_delete
+                 AFTER DELETE ON BookTags
+				 WHEN OLD.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_best')
+                 BEGIN
+                    UPDATE Tsumino
+                    SET favorite = 0
+                    WHERE id = OLD.book_id;
+                 END""")
+
     # commit changes
     conn.commit()
 
@@ -253,47 +297,6 @@ def prepare_dict_for_db(url, dic):
     return db_dic
 
  
-def add_tags(db_con, tags):
-    """Leaves committing changes to upper scope"""
-    tags = [(tag, 1 if tag.startswith("li_") else 0) for tag in tags]
-    # executemany accepts a list of tuples (one ? in sqlite code for every member of the tuples)
-    # INSERT OR IGNORE -> ignore violation of unique constraint of column -> one has to be unique otherwise new rows inserted
-    # It is then possible to tell the database that you want to silently ignore records that would violate such a constraint
-    # theres also INSERT OR REPLACE -> replace if unique constraint violated
-    c = db_con.executemany("INSERT OR IGNORE INTO Tags(name, list_bool) VALUES(?, ?)", tags)
-    # also possible:
-    # INSERT INTO memos(id,text) 
-    # SELECT 5, 'text to insert' <-- values you want to insert
-    # WHERE NOT EXISTS(SELECT 1 FROM memos WHERE id = 5 AND text = 'text to insert')
-
-    return c
-
-def add_tags_to_book(db_con, bid, tags):
-    """Leaves committing changes to upper scope. Also sets downloaded and favorite
-       if those tags are in tags."""
-    c = add_tags(db_con, tags)
-
-    # create list with [(bid, tag), (bid, tag)...
-    bid_tags = zip([bid]*len(tags), tags)
-    # we can specify normal values in a select statment (that will also get used e.g. 5 as bid)
-    # here using ? which will get replaced by bookid from tuple
-    # then select value of tag_id column in Tags table where the name matches the current tag
-    c.executemany("""INSERT OR IGNORE INTO BookTags(book_id, tag_id)
-                     SELECT ?, Tags.tag_id FROM Tags
-                     WHERE Tags.name = ?""", bid_tags)
-    # ^^taken from example: INSERT INTO Book_Author (Book_ISBN, Author_ID)SELECT Book.Book_ISBN, Book.Author_ID FROM Book GROUP BY Book.Book_ISBN, Book.Author_ID
-    # --> GROUP BY to get distinct (no duplicate) values
-    # ==> but better to use SELECT DISTINCT!!
-    # The DISTINCT clause is an optional clause of the SELECT statement. The DISTINCT clause allows you to remove the duplicate rows in the result set
-
-    if "li_downloaded" in tags:
-        c.execute("UPDATE Tsumino SET downloaded = ? WHERE id = ?", (1, bid))
-    if "li_best" in tags:
-        c.execute("UPDATE Tsumino SET favorite = ? WHERE id = ?", (1, bid))
-
-    return c
-
-
 def add_manga_db_entry_from_dict(db_con, url, lists, dic):
     """Commits changes to db"""
     add_dic = prepare_dict_for_db(url, dic)
@@ -675,18 +678,80 @@ def search_book_by_title(db_con, title, keep_row_fac=False):
     return c.fetchall()
 
 
-def set_favorite_by_id(db_con, id_internal, fav_intbool):
+def add_tags(db_con, tags):
+    """Leaves committing changes to upper scope"""
+    tags = [(tag, 1 if tag.startswith("li_") else 0) for tag in tags]
+    # executemany accepts a list of tuples (one ? in sqlite code for every member of the tuples)
+    # INSERT OR IGNORE -> ignore violation of unique constraint of column -> one has to be unique otherwise new rows inserted
+    # It is then possible to tell the database that you want to silently ignore records that would violate such a constraint
+    # theres also INSERT OR REPLACE -> replace if unique constraint violated
+    c = db_con.executemany("INSERT OR IGNORE INTO Tags(name, list_bool) VALUES(?, ?)", tags)
+    # also possible:
+    # INSERT INTO memos(id,text) 
+    # SELECT 5, 'text to insert' <-- values you want to insert
+    # WHERE NOT EXISTS(SELECT 1 FROM memos WHERE id = 5 AND text = 'text to insert')
+
+    return c
+
+def add_tags_to_book(db_con, bid, tags):
+    """Leaves committing changes to upper scope. Also sets downloaded and favorite
+       if those tags are in tags."""
+    c = add_tags(db_con, tags)
+
+    # create list with [(bid, tag), (bid, tag)...
+    bid_tags = zip([bid]*len(tags), tags)
+    # we can specify normal values in a select statment (that will also get used e.g. 5 as bid)
+    # here using ? which will get replaced by bookid from tuple
+    # then select value of tag_id column in Tags table where the name matches the current tag
+    c.executemany("""INSERT OR IGNORE INTO BookTags(book_id, tag_id)
+                     SELECT ?, Tags.tag_id FROM Tags
+                     WHERE Tags.name = ?""", bid_tags)
+    # ^^taken from example: INSERT INTO Book_Author (Book_ISBN, Author_ID)SELECT Book.Book_ISBN, Book.Author_ID FROM Book GROUP BY Book.Book_ISBN, Book.Author_ID
+    # --> GROUP BY to get distinct (no duplicate) values
+    # ==> but better to use SELECT DISTINCT!!
+    # The DISTINCT clause is an optional clause of the SELECT statement. The DISTINCT clause allows you to remove the duplicate rows in the result set
+
+    return c
+
+
+def set_downloaded(db_con, identifier, id_type, dl_intbool):
+    """Leaves commiting changes to upper scope
+       :param dl_intbool: 0 or 1"""
+    if id_type == "id_internal":
+        id_col = "id"
+    elif id_type == "id_onpage":
+        id_col = "id_onpage"
+    elif id_type == "url":
+        id_col = "id_onpage"
+        identifier = book_id_from_url(identifier)
+    else:
+        logger.error("%s is an unsupported identifier type!", id_type)
+        return
+
+    db_con.execute(f"UPDATE Tsumino SET downloaded = ? WHERE {id_col} = ?", (dl_intbool, identifier))
+    logger.info("Set downloaded on %s %s to %s", id_type, identifier, dl_intbool)
+
+
+def set_favorite(db_con, identifier, id_type, fav_intbool):
     """Leaves commiting changes to upper scope
        :param fav_intbool: 0 or 1"""
-    db_con.execute("UPDATE Tsumino SET favorite = ? WHERE id = ?", (fav_intbool, id_internal))
-    logger.info("Set favorite on bookid %s to %s", id_internal, fav_intbool)
+    if id_type == "id_internal":
+        id_col = "id"
+    elif id_type == "id_onpage":
+        id_col = "id_onpage"
+    elif id_type == "url":
+        id_col = "id_onpage"
+        identifier = book_id_from_url(identifier)
+    else:
+        logger.error("%s is an unsupported identifier type!", id_type)
+        return
+
+    db_con.execute(f"UPDATE Tsumino SET favorite = ? WHERE {id_col} = ?", (fav_intbool, identifier))
+    logger.info("Set favorite on %s %s to %s", id_type, identifier, fav_intbool)
 
 
 def remove_tags_from_book_id(db_con, id_internal, tags):
     """Leave commiting changes to upper scope"""
-    # also do this for li_downloaded, but removing from this list would only make sense if it happened by accident and then we dont need to set downloaded
-    if "li_best" in tags:
-        set_favorite_by_id(db_con, id_internal, 0)
 
     db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
                        (SELECT Tags.tag_id FROM Tags
@@ -714,15 +779,13 @@ def remove_tags_from_book(db_con, url, tags):
     # AND BookTags.tag_id IN (select tag_id FROM bts)
 
     # delete all rows that contain a tagid where the name col in Tags matches one of the tags to delete and the book_id matches id of Tsumino table where id_onpage matches our book_id
-    c = db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
+    db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
                        (SELECT Tags.tag_id FROM Tags
                        WHERE (Tags.name IN ({', '.join(['?']*len(tags))})))
                        AND BookTags.book_id IN
                        (SELECT Tsumino.id FROM Tsumino
                        WHERE Tsumino.id_onpage = ?)""", (*tags, book_id))
 
-    if "li_best" in tags:
-        set_favorite_by_id(db_con, c.lastrowid, 0)
     logger.info("Tags %s were successfully removed from book with url \"%s\"", tags, url)
 
 
