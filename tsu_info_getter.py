@@ -328,7 +328,8 @@ def get_book_title_txt(txtpath):
 		return None
 
 
-def move_txt_to_appropriate_folder(txtpath, title, path=ROOTDIR, dirnames_in_path=dirs_root):
+def move_txt_to_appropriate_folder(txtpath, title, path=ROOTDIR, dirnames_in_path=dirs_root,
+        overwrite=False):
     txtname = os.path.basename(os.path.normpath(txtpath))
     # try to derive dirname from title if no dir of that name is found try the expensive search
     dirname = derive_dirname(title)
@@ -342,7 +343,16 @@ def move_txt_to_appropriate_folder(txtpath, title, path=ROOTDIR, dirnames_in_pat
         new_txt_path = os.path.join(path, dirname.rstrip(), txtname)
 
         # os.rename won't handle files across different devices. Use shutil.move
-        os.rename(txtpath, new_txt_path)
+        try:
+            os.rename(txtpath, new_txt_path)
+        except FileExistsError:
+            if overwrite:
+                logger.info("Info.txt in folder \"%s\" has been replaced!", dirname)
+                os.replace(txtpath, new_txt_path)
+            else:
+                logger.warning("Info.txt \"%s\" in folder \"%s\" already exists!", txtname, dirname)
+                return
+
         logger.info("Succesfully moved %s into its appropriate folder", txtname)
     else:
         logger.warning("Couldnt find appropriate folder for \"%s\"", title)
@@ -353,14 +363,14 @@ def list_infotxt_folder(dpath):
 	return result
 
 
-def move_txts_to_folders(dpath):
+def move_txts_to_folders(dpath, overwrite=False):
     l = list_infotxt_folder(dpath)
     for txt in l:
         title = get_book_title_txt(os.path.join(dpath, txt))
         if not title:
             logger.warning("Title couldnt be extracted from %s", txt)
             continue
-        move_txt_to_appropriate_folder(os.path.join(dpath, txt), title, dpath)
+        move_txt_to_appropriate_folder(os.path.join(dpath, txt), title, dpath, overwrite=overwrite)
 
 
 def check_subdirs_txt(dpath):
@@ -434,7 +444,11 @@ if __name__ == "__main__":
     if optnr == "1":
             watch_clip()
     elif optnr == "2":
-            move_txts_to_folders(ROOTDIR)
+            overwrite = input("Overwrite info.txt files? y/n\n")
+            if overwrite == "y":
+                move_txts_to_folders(ROOTDIR, overwrite=True)
+            else:
+                move_txts_to_folders(ROOTDIR, overwrite=False)
     elif optnr == "3":
             logger.info("Folders that are missing info files:\n%s", "\n".join(check_subdirs_txt(ROOTDIR)))
     elif optnr == "4":
