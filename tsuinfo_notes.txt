@@ -211,3 +211,46 @@ UPDATE Tsumino SET downloaded = (Tsumino.id IN (SELECT Tsumino.id
 
 __________________________________________________________________________________________________________
 
+you cannot have two different operations (INSERT, UDPATE) for the same trigger.
+
+That is an syntax error as the Syntax Diagram for SQLite Triggers does not allow any IF clauses nor CASE WHEN constructions.
+But you can achieve the same effect by defining two or three triggers that use the WHEN condition, see http://sqlite.org/lang_createtrigger.html
+
+Suppose you use a UPDATE statement to update 10 rows in a table, the trigger that associated with the table is fired 10 
+times. This trigger is called FOR EACH ROW trigger. If the trigger associated with the table is fired one time, we call 
+this trigger a FOR EACH STATEMENT trigger.
+At this time SQLite supports only FOR EACH ROW triggers, not FOR EACH STATEMENT triggers. FOR EACH ROW implies that the 
+SQL statements specified in the trigger may be executed (depending on the WHEN clause) for each database row being inserted, 
+updated or deleted by the statement causing the trigger to fire.
+-> too many triggers decrease performance
+=> rather only use add_tags to mark sth as downloaded (even though just using the trigger for updating tags when downloaded
+    gets updated woudl prob be faster, since theyre is no subquery (SELECT) in when clause (subquery in statment of triggers
+    below wont get executed if when clause doesnt apply))
+
+!!!!!!!!these are untested!!!!!!!!
+
+CREATE TRIGGER IF NOT EXISTS update_tags_on_downloaded_1
+AFTER UPDATE ON Tsumino
+WHEN OLD.downloaded <> NEW.downloaded AND NEW.downloaded = 1
+BEGIN
+    INSERT OR IGNORE INTO BookTags(book_id, tag_id)
+    SELECT NEW.id, Tags.tag_id FROM Tags
+    WHERE Tags.name = 'li_downloaded';
+END
+
+CREATE TRIGGER IF NOT EXISTS update_tags_on_downloaded_0
+AFTER UPDATE ON Tsumino
+WHEN OLD.downloaded <> NEW.downloaded AND NEW.downloaded = 0
+BEGIN
+   DELETE FROM BookTags 
+   WHERE BookTags.tag_id IN (SELECT Tags.tag_id FROM Tags
+                             WHERE Tags.name = 'li_downloaded')
+   AND BookTags.book_id = NEW.id
+END
+
+__________________________________________________________________________________________________________
+
+removed TRIGGER set_last_change_tags, since two triggers had the same name (but they got renamed now)
+DROP TRIGGER IF EXISTS set_last_change_tags;
+
+__________________________________________________________________________________________________________

@@ -117,6 +117,13 @@ def jump_to_book_by_url():
 
     return redirect(url_for('show_tsubook_info', book_id_onpage=book_id_onpage))
 
+@app.route("/SetDL/<book_id_internal>", methods=["GET"])
+def set_dl(book_id_internal):
+    with db_con:
+        # add_tags_to_book doesnt commit changes
+        add_tags_to_book(db_con, book_id_internal, ["li_downloaded"])
+    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+
 
 # mb add /<site>/<id> later when more than 1 site supported
 @app.route('/UpdateBookFromPage/<book_id_onpage>', methods=["GET"])

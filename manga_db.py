@@ -139,7 +139,7 @@ def load_or_create_sql_db(filename):
                  END""")
 
     # set last_change on Tsumino when new tags get added in bridge table
-    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags
+    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags_ins
                  AFTER INSERT ON BookTags
                  BEGIN
                     UPDATE Tsumino
@@ -148,7 +148,7 @@ def load_or_create_sql_db(filename):
                  END""")
 
     # set last_change on Tsumino when tags get removed in bridge table
-    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags
+    c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags_del
                  AFTER DELETE ON BookTags
                  BEGIN
                     UPDATE Tsumino
@@ -156,6 +156,7 @@ def load_or_create_sql_db(filename):
                     WHERE id = OLD.book_id;
                  END""")
 
+    # also do this the other way around -> if downloaded get set also add "li_downloaded" to tags?
     # set downloaded to 1 if book gets added to li_downloaded
     c.execute("""CREATE TRIGGER IF NOT EXISTS update_downloaded_on_tags_insert
                  AFTER INSERT ON BookTags
@@ -725,8 +726,7 @@ def add_tags(db_con, tags):
     return c
 
 def add_tags_to_book(db_con, bid, tags):
-    """Leaves committing changes to upper scope. Also sets downloaded and favorite
-       if those tags are in tags."""
+    """Leaves committing changes to upper scope."""
     c = add_tags(db_con, tags)
 
     # create list with [(bid, tag), (bid, tag)...
@@ -743,42 +743,6 @@ def add_tags_to_book(db_con, bid, tags):
     # The DISTINCT clause is an optional clause of the SELECT statement. The DISTINCT clause allows you to remove the duplicate rows in the result set
 
     return c
-
-
-def set_downloaded(db_con, identifier, id_type, dl_intbool):
-    """Leaves commiting changes to upper scope
-       :param dl_intbool: 0 or 1"""
-    if id_type == "id_internal":
-        id_col = "id"
-    elif id_type == "id_onpage":
-        id_col = "id_onpage"
-    elif id_type == "url":
-        id_col = "id_onpage"
-        identifier = book_id_from_url(identifier)
-    else:
-        logger.error("%s is an unsupported identifier type!", id_type)
-        return
-
-    db_con.execute(f"UPDATE Tsumino SET downloaded = ? WHERE {id_col} = ?", (dl_intbool, identifier))
-    logger.info("Set downloaded on %s %s to %s", id_type, identifier, dl_intbool)
-
-
-def set_favorite(db_con, identifier, id_type, fav_intbool):
-    """Leaves commiting changes to upper scope
-       :param fav_intbool: 0 or 1"""
-    if id_type == "id_internal":
-        id_col = "id"
-    elif id_type == "id_onpage":
-        id_col = "id_onpage"
-    elif id_type == "url":
-        id_col = "id_onpage"
-        identifier = book_id_from_url(identifier)
-    else:
-        logger.error("%s is an unsupported identifier type!", id_type)
-        return
-
-    db_con.execute(f"UPDATE Tsumino SET favorite = ? WHERE {id_col} = ?", (fav_intbool, identifier))
-    logger.info("Set favorite on %s %s to %s", id_type, identifier, fav_intbool)
 
 
 def remove_tags_from_book_id(db_con, id_internal, tags):
