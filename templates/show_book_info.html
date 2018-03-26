@@ -74,7 +74,7 @@
 		<div class="book-line">
 		<div class="book-info">Collection</div>
 		<div class="book-data" id="Collection">
-		<a class="book-tag" href="#">
+		<a class="book-tag" href="{{ url_for('search_books', searchstring='collection:\"' + book_info.collection + '\"') }}">
 			{{ book_info.collection }}
 		</a>
 		</div>
@@ -85,19 +85,19 @@
 		<div class="book-info">Group</div>
 		<div class="book-data" id="Group">
 			{% for group in book_info.groups.split(",") %}
-				<a class="book-tag" href="#">
+				<a class="book-tag" href="{{ url_for('search_books', searchstring='groups:\"' + group + '\"') }}">
 					{{ group }}
 				</a>
 			{% endfor %}
 		</div>
 		</div>
 	{% endif %}
-	{% if book_info.arist %}
+	{% if book_info.artist %}
 	<div class="book-line">
 	<div class="book-info">Artist</div>
 	<div class="book-data" id="Artist">
 		{% for artist in book_info.artist.split(",") %}
-			<a class="book-tag" href="#">
+			<a class="book-tag" href="{{ url_for('search_books', searchstring='artist:\"' + artist + '\"') }}">
 				{{ artist }}
 			</a>
 		{% endfor %}
@@ -119,7 +119,7 @@
 		<div class="book-info">Character</div>
 		<div class="book-data" id="Character">
 			{% for char in book_info.character.split(",") %}
-				<a class="book-tag" href="#">
+				<a class="book-tag" href="{{ url_for('search_books', searchstring='character:\"' + char + '\"') }}">
 					{{ char }}
 				</a>
 			{% endfor %}
@@ -131,7 +131,7 @@
 	<div class="book-data" id="Tag">
 		{% for tag in tags %}
 			{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
-			<a class="book-tag" href="{{ url_for('search_books', tagstring=tag) }}">
+			<a class="book-tag" href="{{ url_for('search_books', searchstring='tags:\"' + tag + '\"') }}">
 				{{ tag }}
 			</a>
 		{% endfor %}

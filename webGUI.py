@@ -6,7 +6,8 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 
 from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
         add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
-        book_id_from_url, add_book, update_book, search_book_by_title, get_all_id_onpage_set
+        book_id_from_url, add_book, update_book, search_book_by_title, get_all_id_onpage_set, \
+        search_sytnax_parser
 from tsu_info_getter import write_inf_txt
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
@@ -44,7 +45,8 @@ def thumb_static(filename):
 def show_entries():
     cur = db_con.execute('select * from Tsumino order by id desc')
     entries = cur.fetchall()
-    return render_template('show_entries.html', entries=entries)
+    return render_template('show_entries.html', entries=entries,
+            order_col_libox="id", asc_desc="DESC")
 
 
 lists_dic = {li: None for li in lists}
@@ -169,18 +171,21 @@ def write_info_txt_by_id(book_id_internal):
 @app.route("/search", methods=["GET", "POST"])
 def search_books():
     if request.method == 'POST':
-        tagstr = request.form['tagstring']
+        searchstr = request.form['searchstring']
+        order_by_col = request.form['order-by-col']
+        asc_desc = "ASC" if request.form['asc-desc'] == "ASC" else "DESC"
     else:
-        tagstr = request.args['tagstring']
-    if tagstr.startswith("title:"):
-        # reddit also uses sth like author:Username subreddit:Blabla flair:"Flair1 Flair2"
-        # -> model if i want to implement more complex search
-        books = search_book_by_title(db_con, tagstr[6:], keep_row_fac=True)
-    else:
-        # search_tags_.. functions set row factory of db_con back to None -> pass additional param
-        books = search_tags_string_parse(db_con, tagstr, keep_row_fac=True)
+        searchstr = request.args['searchstring']
+        # prepare defaults so we dont always have to send them when using get
+        order_by_col = request.args.get('order-by-col', "id")
+        asc_desc = request.args.get('asc-desc', "DESC")
 
-    return render_template("show_entries.html", entries=books, search_field=tagstr)
+    
+    order_by = f"Tsumino.{order_by_col} {asc_desc}"
+    books = search_sytnax_parser(db_con, searchstr, order_by=order_by, keep_row_fac=True)
+
+    return render_template("show_entries.html", entries=books, search_field=searchstr,
+            order_col_libox=order_by_col, asc_desc=asc_desc)
 
 
 @app.route("/AddFavorite/<book_id_internal>")

@@ -21,6 +21,24 @@ h3              { color: #22a7f0; }
 #MyRating i:hover {
     color: #c00 !important;
 }
+
+#simple-container-sorting {
+    display: inline-table;
+}
+@media only screen and (max-width: 995px) {
+    #simple-container-sorting {
+        float: left;
+        text-align: left;
+    }
+}
+#sorting-box {
+    display: inline-table;
+    line-height: 32px;
+}
+#asc-desc {
+    display: inline-table;
+    line-height: 32px;
+}
     
 #srchIcon { /* set to inline-block and same (line)height as input field to align icon and input */
     display: inline-block !important; min-width: 15px;
@@ -98,6 +116,7 @@ h3              { color: #22a7f0; }
 }
 #jump-url-btn-container {
 }
+
 @media only screen and (max-width: 485px) {
     .jump-book-container {
         width: 150px;
@@ -115,6 +134,10 @@ h3              { color: #22a7f0; }
     }
     #jump-url-btn-container {
         width: 27%;
+    }
+    #simple-container-sorting {
+        float: left;
+        text-align: left;
     }
 }
 .container-align-left {

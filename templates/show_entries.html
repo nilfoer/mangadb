@@ -1,29 +1,54 @@
 {% extends "layout.html" %}
 {% block body %}
 <div class="row search-all">
-<div class="search-text col-md-6 col-sm-12">
-<div class="button-container" id="simple-container">
-    <form action="{{ url_for('search_books') }}" method=post class="search-tags">
-    	{# use divs to split up width of container and then align one to the left and one to the right so they always remain on the same line and shrink and grow with screen size -> container( div90%left div10%right ..) #}
-	<div class="container-align-left" style="width: 90%">
-	<div style="width:5%;" class="container-align-left">
-	<i class="button-expand-icon fa fa-search" id="srchIcon"></i>
+<form action="{{ url_for('search_books') }}" method=post class="search-tags">
+	<div class="search-text col-md-6 col-sm-12">
+	<div class="button-container" id="simple-container">
+		{# use divs to split up width of container and then align one to the left and one to the right so they always remain on the same line and shrink and grow with screen size -> container( div90%left div10%right ..) #}
+		<div class="container-align-left" style="width: 90%">
+		<div style="width:5%;" class="container-align-left">
+		<i class="button-expand-icon fa fa-search" id="srchIcon"></i>
+		</div>
+		<div style="width: 95%;" class="container-align-right">
+		{% if search_field %}
+		{# search_field will be set if we already searched -> set searchstring as value of searchfield so usr knows what search result is displayed #}
+		<input value="{{ search_field }}" type=text name=searchstring class="data-search" id="txtSearch">
+		{% else %}
+		<input type=text name=searchstring class="data-search" id="txtSearch">
+		{% endif %}
+		</div>
+		</div>
+		<div class="container-align-right" style="width: 10%;">
+		<input type=submit value=Search id="searchBtn" class="book-read-button button-stack">
+		</div>
 	</div>
-	<div style="width: 95%;" class="container-align-right">
-	{% if search_field %}
-	{# search_field will be set if we already searched -> set searchstring as value of searchfield so usr knows what search result is displayed #}
-	<input value="{{ search_field }}" type=text name=tagstring class="data-search" id="txtSearch">
-	{% else %}
-        <input type=text name=tagstring class="data-search" id="txtSearch">
-	{% endif %}
+	</div>
+	<div class="search-text col-md-6 col-sm-12">
+	<div class="button-container container-align-right" id="simple-container-sorting">
+		<div id="sorting-box">
+		<label for="order-col-libox">Sorting:</label>
+		<select id="order-col-libox" name="order-by-col" style="color: #000;">
+		<option {{ 'selected="selected"' if order_col_libox == "id" else "" }} value="id">Date of Import</option>
+		  <option {{ 'selected="selected"' if order_col_libox == "title_eng" else "" }} value="title_eng">Title</option>
+		  <option {{ 'selected="selected"' if order_col_libox == "upload_date" else "" }} value="upload_date">Upload date</option>
+		  <option {{ 'selected="selected"' if order_col_libox == "pages" else "" }} value="pages">Pages</option>
+		  <option {{ 'selected="selected"' if order_col_libox == "rating" else "" }} value="rating">Rating</option>
+		  <option {{ 'selected="selected"' if order_col_libox == "my_rating" else "" }} value="my_rating">My Rating</option>
+		  <option {{ 'selected="selected"' if order_col_libox == "last_change" else "" }} value="last_change">Date of last change</option>
+		</select>
+		</div>
+		<div id="asc-desc">
+		<fieldset>
+		{# give radio same name so only onbe can be selected #}
+		    <input type="radio" id="asc" name="asc-desc" value="ASC" {{ "checked" if asc_desc == "ASC" else "" }}>
+		    <label for="asc">ASC</label>
+		    <input type="radio" id="desc" name="asc-desc" value="DESC" {{ "checked" if asc_desc == "DESC" else "" }}>
+		    <label for="desc">DESC</label>
+		</fieldset>
+		</div>
 	</div>
 	</div>
-	<div class="container-align-right" style="width: 10%;">
-	<input type=submit value=Search id="searchBtn" class="book-read-button button-stack">
-	</div>
-    </form>
-</div>
-</div>
+</form>
 </div>
 <div style="margin: 10px auto;"></div>
 
