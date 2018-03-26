@@ -420,6 +420,7 @@ def update_manga_db_entry_from_dict(db_con, url, lists, dic):
 
 def watch_clip_db_get_info_after(db_book_ids, fixed_lists=None, predicate=is_tsu_book_url):
     found = []
+    print("Available copy cmds are: set_tags, remove_book !")
     try:
         logger.info("Watching clipboard...")
         # upd_setting -> should we update Book; upd_all -> print update prompt

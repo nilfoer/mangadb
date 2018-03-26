@@ -254,3 +254,10 @@ removed TRIGGER set_last_change_tags, since two triggers had the same name (but 
 DROP TRIGGER IF EXISTS set_last_change_tags;
 
 __________________________________________________________________________________________________________
+
+import module from subdir
+
+create __init__.py in folder (empty, but can have setup/init code) -> package
+then (in py3) import with:
+import subdir.submodule
+__________________________________________________________________________________________________________
