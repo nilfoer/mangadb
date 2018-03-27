@@ -1014,6 +1014,24 @@ def update_book(db_con, url, lists, write_infotxt=False):
     return update_manga_db_entry_from_dict(db_con, url, lists, dic)
 
 
+def get_books_low_usr_count(db_con, min_users=15, keep_row_fac=False):
+    db_con.row_factory = sqlite3.Row
+    c = db_con.cursor()
+    if not keep_row_fac:
+        db_con.row_factory = None
+
+    c.execute("""SELECT id, id_onpage, url, rating_full FROM Tsumino""")
+    rows = c.fetchall()
+    result = []
+    for row in rows:
+        # 4.44 (25 users / 665 favs)
+        usrs = int(row["rating_full"].split("(")[1].split(" users /")[0])
+        if usrs < min_users:
+            result.append(row)
+
+    return result
+
+
 def remove_book(db_con, identifier, id_type):
     """Commits changes itself, since it also deletes book thumb anyway!"""
     book_id = None
@@ -1104,7 +1122,7 @@ def print_sqlite3_row(row, sep=";"):
 
 cmdline_cmds = ("help", "test", "rate", "watch", "exportcsv", "remove_tags", "add_tags",
                 "search_tags", "resume", "read", "downloaded", "show_tags", "update_book",
-                "add_book", "search_title", "remove_book")
+                "add_book", "search_title", "remove_book", "update_low_usr_count")
 def main():
     # sys.argv[0] is path to file (manga_db.py)
     cmdline = sys.argv[1:]
@@ -1118,6 +1136,7 @@ def main():
             [add_book] \"tag1,tag2,..\" url (writeinfotxt): Adds book with added tags to db using url
             [update_book] \"tag1,tag2,..\" url (writeinfotxt): Updates book with added tags using url
             [remove_book] identifier id_type: Removes book db entry and deletes book thumb
+            [update_low_usr_count] min_usr_count (write_infotxt): Updates all books on which less than min_usr_count users have voted
             [add_tags] \"tag,tag,..\" url: Add tags to book
             [remove_tags] \"tag,tag,..\" url: Remove tags from book
             [read] url: Mark book as read (-> remove from li_to-read)
@@ -1160,6 +1179,11 @@ def main():
                 lists = cmdline[1].split(",")
 
             update_book(conn, cmdline[2], lists, write_infotxt=True if len(cmdline) > 3 else False)
+        elif cmdline[0] == "update_low_usr_count":
+            rows = get_books_low_usr_count(conn, int(cmdline[1]))
+            write_infotxt = len(cmdline) > 2
+            for row in rows:
+                update_book(conn, row["url"], None, write_infotxt=write_infotxt)
         elif cmdline[0] == "remove_book":
             remove_book(conn, *cmdline[1:])
         elif cmdline[0] == "remove_tags":
