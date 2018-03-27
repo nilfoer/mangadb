@@ -710,15 +710,23 @@ def search_sytnax_parser(db_con, search_str, order_by="Tsumino.id DESC", **kwarg
         single, multi_word = match
         part = None
         if single and ":" in single:
+            # -> search type is part of the word
             search_type, part = single.split(":", 1)
             if search_type in VALID_SEARCH_TYPES:
                 current_search_obj = search_type
             else:
+                # set to None so we skip adding search_options for next word (which
+                # still belongs to unsupported search_type)
+                current_search_obj = None
                 logger.info("%s is not a supported search type!", search_type)
+                continue
         if not part:
             # a or b -> uses whatever var is true -> both true (which cant happen here) uses first one
             part = single or multi_word
-        search_options[current_search_obj] = part
+        # current_search_obj is None if search_type isnt supported
+        # then we want to ignore this part of the search
+        if current_search_obj:
+            search_options[current_search_obj] = part
 
 
     # validate order_by from user input
@@ -761,12 +769,14 @@ def search_book(db_con, order_by="Tsumino.id DESC", keep_row_fac=False, **search
         result_row_lists.append(search_like_cols_values(db_con, *col_name_value_pairs,
             order_by=order_by, keep_row_fac=keep_row_fac))
 
+    # check if we have more than one search result that we need to intersect and then resort
     if len(result_row_lists) > 1:
         # now get intersection (ids must be present in all row lists) of result_row_lists:
         id_sets = []
         for row_list in result_row_lists:
             ids = set((row["id"] for row in row_list))
             id_sets.append(ids)
+        # call intersection on (type)set directly so we can just pass in and unpack list of sets
         ids_intersect = set.intersection(*id_sets)
 
         result = []
