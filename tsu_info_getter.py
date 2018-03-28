@@ -138,18 +138,25 @@ def write_inf_txt(inf_str, title, path=ROOTDIR, dirnames_in_path=dirs_root):
 
 def get_tsubook_info(url):
     html = get_tsu_url(url)
-    dic = extract_info(html)
-    return dic
+    if html:
+        dic = extract_info(html)
+        return dic
+    else:
+        logger.warning("Problem with connection or page was not found! url: %s", url)
+        return None
 
 
 # dirs_root initialized as None only if exec as script (name == __main__ etc) it gets set
 def create_tsubook_info(url, path=ROOTDIR, dirnames_in_path=dirs_root):
     logger.debug("Starting job!")
     dic = get_tsubook_info(url)
-    inf_str = create_info_str(dic, url)
-    write_inf_txt(inf_str, dic["Title"], path, dirnames_in_path)
-    logger.info(f"Info file written for \"{dic['Title']}\"")
-    return dic
+    if dic:
+        inf_str = create_info_str(dic, url)
+        write_inf_txt(inf_str, dic["Title"], path, dirnames_in_path)
+        logger.info(f"Info file written for \"{dic['Title']}\"")
+        return dic
+    else:
+        return None
 
 
 # always two spaces between eng and asian title when using tsu zip

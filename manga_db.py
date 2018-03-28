@@ -954,6 +954,33 @@ def add_tags_to_book_cl(db_con, url, tags):
     logger.info("Tags %s were successfully added to book with url \"%s\"", tags, url)
 
 
+def get_tags_by_book(db_con, identifier, id_type):
+    book_id = None
+    if id_type == "id_internal":
+        id_col = "id"
+    elif id_type == "id_onpage":
+        id_col = "id_onpage"
+    elif id_type == "url":
+        book_id = book_id_from_url(identifier)
+        id_col = "id_onpage"
+        identifier = book_id
+    else:
+        logger.error("%s is an unsupported identifier type!", id_type)
+        return
+
+    if not book_id:
+        c = db_con.execute(f"SELECT id_onpage FROM Tsumino WHERE {id_col} = ?", (identifier,))
+        book_id = c.fetchone()[0]
+
+    c = db_con.execute(f"""SELECT group_concat(Tags.name)
+                           FROM Tags, BookTags bt, Tsumino
+                           WHERE bt.book_id = Tsumino.id
+                           AND Tsumino.{id_col} = ?
+                           AND bt.tag_id = Tags.tag_id
+                           GROUP BY bt.book_id""", (identifier,))
+    return c.fetchone()[0]
+
+
 def get_tags_by_book_url(db_con, url):
     book_id = book_id_from_url(url)
     c = db_con.execute("""SELECT group_concat(Tags.name)
@@ -1009,11 +1036,14 @@ def add_book(db_con, url, lists, write_infotxt=False):
         dic = create_tsubook_info(url)
     else:
         dic = get_tsubook_info(url)
-    # function alrdy commits changes
-    id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
-    dl_book_thumb(url)
+    if dic:
+        # function alrdy commits changes
+        id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
+        dl_book_thumb(url)
 
-    return id_internal
+        return id_internal
+    else:
+        return None
 
 
 def update_book(db_con, url, lists, write_infotxt=False):
@@ -1021,7 +1051,10 @@ def update_book(db_con, url, lists, write_infotxt=False):
         dic = create_tsubook_info(url)
     else:
         dic = get_tsubook_info(url)
-    return update_manga_db_entry_from_dict(db_con, url, lists, dic)
+    if dic:
+        return update_manga_db_entry_from_dict(db_con, url, lists, dic)
+    else:
+        return None, None
 
 
 def get_books_low_usr_count(db_con, min_users=15, keep_row_fac=False):
@@ -1086,6 +1119,10 @@ def process_job_list(db_con, jobs, write_infotxt=False):
                 dic = create_tsubook_info(url)
             else:
                 dic = get_tsubook_info(url)
+
+            # handle connection error or book 404
+            if dic is None:
+                continue
 
             if upd:
                 update_manga_db_entry_from_dict(db_con, url, lists, dic)

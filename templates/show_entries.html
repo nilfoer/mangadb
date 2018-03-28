@@ -84,7 +84,7 @@
                 {% endfor %}
             </div>
         </div>
-	<a href={{ url_for('show_book_info', book_id_internal=entry.id) }}  class="set-backToIndex overlay-button status-none">
+	<a href={{ url_for('show_book_info', id_type='id', book_id=entry.id) }}  class="set-backToIndex overlay-button status-none">
                         VIEW INFO
         </a>
     </div>

@@ -4,7 +4,7 @@ import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, Blueprint, send_from_directory
 
-from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book_id_onpage, \
+from manga_db import load_or_create_sql_db, search_tags_string_parse, get_tags_by_book, \
         add_tags_to_book, remove_tags_from_book_id, lists, get_tags_by_book_id_internal, \
         book_id_from_url, add_book, update_book, search_book_by_title, get_all_id_onpage_set, \
         search_sytnax_parser
@@ -51,44 +51,29 @@ def show_entries():
 
 lists_dic = {li: None for li in lists}
 # int:blabla -> means var blabla has to be of type int
-@app.route('/book/<int:book_id_internal>')
-def show_book_info(book_id_internal):
+@app.route('/book/<string:id_type>/<int:book_id>')
+def show_book_info(id_type, book_id):
     lists_all = lists_dic.copy()
 
-    cur = db_con.execute('select * from Tsumino WHERE id = ?', (book_id_internal,))
+    if id_type == "id":
+        id_col = "id"
+        id_type_db = "id_internal"
+    elif id_type == "ext":
+        id_col = "id_onpage"
+        id_type_db = "id_onpage"
+    else:
+        # could also use flash(f"ERROR...")
+        return render_template('show_book_info.html', error_msg=f"ERROR: Unsupported id_type supplied!")
+
+    cur = db_con.execute(f'select * from Tsumino WHERE {id_col} = ?', (book_id,))
     book_info = cur.fetchone()
 
     # handle book not being in db yet
     if not book_info:
-        return render_template('show_book_info.html', error_msg=f"id {book_id_internal}")
+        return render_template('show_book_info.html', error_msg=f"No book with {id_col} {book_id}"
+                " was found in DB!")
 
-    tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
-    # split tags and lists
-    lists_book = {tag: True for tag in tags if tag.startswith("li_")}
-    # upd dic with all lists with lists that are set on this book
-    lists_all.update(lists_book)
-    lists_book = lists_all
-    favorite = lists_book["li_best"]
-
-    tags = [tag for tag in tags if not tag.startswith("li_")]
-
-    return render_template('show_book_info.html', book_info=book_info, tags=tags,
-            favorite=favorite, lists_book=lists_book)
-
-
-# access to book with id_onpage seperate so theres no conflict if we support more than 1 site
-@app.route('/tsubook/<int:book_id_onpage>')
-def show_tsubook_info(book_id_onpage):
-    lists_all = lists_dic.copy()
-
-    cur = db_con.execute('select * from Tsumino WHERE id_onpage = ?', (book_id_onpage,))
-    book_info = cur.fetchone()
-
-    # handle book not being in db yet
-    if not book_info:
-        return render_template('show_book_info.html', error_msg=f"Tsumino id {book_id_onpage}")
-
-    tags = get_tags_by_book_id_onpage(db_con, book_id_onpage).split(",")
+    tags = get_tags_by_book(db_con, book_id, id_type_db).split(",")
     # split tags and lists
     lists_book = {tag: True for tag in tags if tag.startswith("li_")}
     # upd dic with all lists with lists that are set on this book
@@ -124,7 +109,7 @@ def set_dl(book_id_internal):
     with db_con:
         # add_tags_to_book doesnt commit changes
         add_tags_to_book(db_con, book_id_internal, ["li_downloaded"])
-    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+    return redirect(url_for("show_book_info", id_type="id", book_id=book_id_internal))
 
 
 # mb add /<site>/<id> later when more than 1 site supported
@@ -136,8 +121,10 @@ def update_book_by_id_onpage(book_id_onpage):
     if field_change_str:
         flash("WARNING - Please re-download this Book, since the change of following fields suggest that someone has uploaded a new version:")
         flash(field_change_str)
+    if id_internal is None:
+        flash("WARNING - Connection problem or book wasnt found on page!!!")
     
-    return redirect(url_for('show_book_info', book_id_internal=id_internal))
+    return redirect(url_for('show_book_info', id_type="ext", book_id=book_id_onpage))
 
 
 infotxt_order_helper = (("title", "Title"), ("uploader", "Uploader"), ("upload_date", "Uploaded"),
@@ -165,7 +152,7 @@ def write_info_txt_by_id(book_id_internal):
 
     write_inf_txt("\n".join(info_str), book_info["title"], path=LOCAL_DOWNLOAD)
     
-    return redirect(url_for('show_book_info', book_id_internal=book_id_internal))
+    return redirect(url_for('show_book_info', id_type="id", book_id=book_id_internal))
 
 
 @app.route("/search", methods=["GET", "POST"])
@@ -195,7 +182,7 @@ def add_book_favorite(book_id_internal):
         add_tags_to_book(db_con, book_id_internal, ["li_best"])
     flash("Successfully added Book to Favorites!")
     
-    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+    return redirect(url_for("show_book_info", id_type="id", book_id=book_id_internal))
 
 
 @app.route("/RemoveFavorite/<book_id_internal>")
@@ -205,7 +192,7 @@ def remove_book_favorite(book_id_internal):
         remove_tags_from_book_id(db_con, book_id_internal, ["li_best"])
     flash("Successfully removed Book from Favorites!")
     
-    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+    return redirect(url_for("show_book_info", id_type="id", book_id=book_id_internal))
 
 
 
@@ -214,7 +201,7 @@ def rate_book_internal(book_id_internal):
     with db_con:
         db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id = ?", (request.args['rating'], book_id_internal))
     
-    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+    return redirect(url_for("show_book_info", id_type="id", book_id=book_id_internal))
 
 
 @app.route("/SetLists", methods=["POST"])
@@ -240,7 +227,7 @@ def set_lists_book():
 
     flash(f"Successfully added these lists: {', '.join(lists_to_add) if lists_to_add else 'None'}. The following lists were removed: {', '.join(lists_to_remove) if lists_to_remove else 'None'}.")
 
-    return redirect(url_for("show_book_info", book_id_internal=book_id_internal))
+    return redirect(url_for("show_book_info", id_type="id", book_id=book_id_internal))
 
 
 if __name__ == "__main__":
