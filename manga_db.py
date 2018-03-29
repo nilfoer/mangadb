@@ -228,7 +228,8 @@ def enter_manga_lists(i):
                 try:
                     lname = lists[int(ind)]
                     result.append(lname)
-                except ValueError:
+                # (Error1, Erro2) is needed to except multiple exceptions in one except statement
+                except (ValueError, IndexError):
                     logger.error("\"%s\" was not a valid list index, please re-enter list indexes", ind)
                     break
             # keep looping (while) till all list names are recognized -> for doesnt break -> return
