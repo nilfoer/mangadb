@@ -1,5 +1,9 @@
 <!doctype html>
+{% if book_info %}
+<title>{{ book_info.title_eng + ' - MangaDB' }}</title>
+{% else %}
 <title>MangaDB</title>
+{% endif %}
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='fontawesome-all.css') }}">
 {# <link rel=stylesheet type=text/css href="{{ url_for('static', filename='bootstrap.min.css') }}"> #}
 {# instead of manually coping over stuff from tsuminos html and css im just using their stylesheet now #}

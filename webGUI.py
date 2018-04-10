@@ -47,7 +47,7 @@ def thumb_static(filename):
 
 @app.route('/')
 def show_entries():
-    cur = db_con.execute('select * from Tsumino order by id desc')
+    cur = db_con.execute('select * from Tsumino order by id desc LIMIT 150')
     entries = cur.fetchall()
     return render_template(
         'show_entries.html',
@@ -95,9 +95,16 @@ def show_book_info(id_type, book_id):
 
     tags = [tag for tag in tags if not tag.startswith("li_")]
 
+    books_in_collection = None
+    # get other titles of collection
+    if book_info["collection"]:
+        cur.execute("SELECT id, title_eng, rating, pages FROM Tsumino WHERE collection = ?", (book_info["collection"],))
+        books_in_collection = cur.fetchall()
+
     return render_template(
         'show_book_info.html',
         book_info=book_info,
+        books_in_collection=books_in_collection,
         tags=tags,
         favorite=favorite,
         lists_book=lists_book)

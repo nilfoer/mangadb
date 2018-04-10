@@ -189,6 +189,43 @@
 </div> {# row end #}
 <div class="row row-no-margin"></div>
 
+{% if books_in_collection %}
+<div class="row">
+<div class="col-md-12">
+<div>
+<div style="display: inline-block;" class="book-title">Collection Details</div>
+<div style="display: inline-block;">
+View entries from the collection this entry belongs to (not ordered chronologically)
+</div>
+<hr>
+</div>
+<div class="col-md-12">
+<div class="book-collection-table">
+<div class="trow">
+{# <span class="theader">#</span> #}
+<span class="theader">Name</span>
+<span class="theader">Rating</span>
+<span class="theader">Pages</span>
+{# <span class="theader collection-position hidden">Position</span> #}
+</div>
+
+{% for book_collection_row in books_in_collection %}
+<a href="{{ url_for('show_book_info', id_type='id', book_id=book_collection_row.id) }}" class="trow ">
+{# <span class="tcell">1</span> #}
+<span class="tcell" width="100%">{{ book_collection_row.title_eng }}</span>
+<span class="tcell">{{ book_collection_row.rating }} <span><i class="fa fa-star" aria-hidden="true"></i></span></span>
+<span class="tcell">{{ book_collection_row.pages }}</span>
+{# <span class="tcell collection-position hidden">0</span> #}
+</a>
+{% endfor %}
+
+</div>
+</div> {# coll table div end #}
+</div>
+</div> {# row end #}
+<div class="row row-no-margin" style="margin-bottom: 1em;"></div>
+{% endif %}
+
 <div class="row">
 <div class="col-md-12">
 <div>

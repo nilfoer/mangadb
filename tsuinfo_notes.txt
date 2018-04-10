@@ -261,3 +261,14 @@ create __init__.py in folder (empty, but can have setup/init code) -> package
 then (in py3) import with:
 import subdir.submodule
 __________________________________________________________________________________________________________
+
+display Collections in webGUI
+
+Collection list on tsumino is ordered and it would be possible to get the id (e.g. when getting tsuinfo)
+in the collection but that id could change if a preceeding book gets added
+(we could update that when adding book to db where other parts of the collection alrdy present, but would
+ probably complicate the code too much with little benefit,
+ or we could do it manually (like tsumino probably does as well when adding the book, but then wed need
+ a new col or even better another bridge table for collections etc.)
+-> display books in collection but not in original order
+__________________________________________________________________________________________________________
