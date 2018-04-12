@@ -210,7 +210,7 @@ View entries from the collection this entry belongs to (not ordered chronologica
 </div>
 
 {% for book_collection_row in books_in_collection %}
-<a href="{{ url_for('show_book_info', id_type='id', book_id=book_collection_row.id) }}" class="trow ">
+<a href="{{ url_for('show_book_info', id_type='id', book_id=book_collection_row.id) }}" class="trow {{ 'book-collection-is-me' if book_collection_row.id == book_info.id else '' }}">
 {# <span class="tcell">1</span> #}
 <span class="tcell" width="100%">{{ book_collection_row.title_eng }}</span>
 <span class="tcell">{{ book_collection_row.rating }} <span><i class="fa fa-star" aria-hidden="true"></i></span></span>
