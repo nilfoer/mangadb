@@ -230,6 +230,17 @@ def load_or_create_sql_db(filename):
     return conn, c
 
 
+def cli_yes_no(question_str):
+    ans = input(f"{question_str} y/n:\n")
+    while True:
+        if ans == "n":
+            return False
+        elif ans == "y":
+            return True
+        else:
+            ans = input(f"\"{ans}\" was not a valid answer, type in \"y\" or \"n\":\n")
+
+
 LISTS = [
     "li_to-read", "li_downloaded", "li_prob-good", "li_femdom", "li_good",
     "li_good futa", "li_monster", "li_straight shota", "li_trap", "li_vanilla",
@@ -343,7 +354,7 @@ def prepare_dict_for_db(url, dic):
     return db_dic
 
 
-def add_manga_db_entry_from_dict(db_con, url, lists, dic):
+def add_manga_db_entry_from_dict(db_con, url, lists, dic, duplicate_action=None):
     """Commits changes to db"""
     add_dic = prepare_dict_for_db(url, dic)
 
@@ -354,25 +365,126 @@ def add_manga_db_entry_from_dict(db_con, url, lists, dic):
         add_dic["downloaded"] = 0
         add_dic["favorite"] = 0
 
+    lastrowid = None
     with db_con:
-        c = db_con.execute(
-            "INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, "
-            "uploader, pages, rating, rating_full, category, collection, groups, "
-            "artist, parody, character, last_change, downloaded, favorite) "
-            "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
-            ":pages, :rating, :rating_full, :category, :collection, "
-            ":groups, :artist, :parody, :character, :last_change, "
-            ":downloaded, :favorite)", add_dic)
+        try:
+            c = db_con.execute(
+                "INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, "
+                "uploader, pages, rating, rating_full, category, collection, groups, "
+                "artist, parody, character, last_change, downloaded, favorite) "
+                "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
+                ":pages, :rating, :rating_full, :category, :collection, "
+                ":groups, :artist, :parody, :character, :last_change, "
+                ":downloaded, :favorite)", add_dic)
+        except sqlite3.IntegrityError as error:
+            error_msg = str(error)
+            if "UNIQUE constraint failed" in error_msg:
+                failed_col = error_msg.split(".")[-1]
+                logger.info("Tried to add book with %s that was already in DB: %s",
+                            failed_col, add_dic[failed_col])
+                lastrowid = handle_book_not_unique(db_con, failed_col, url, lists, dic, action=duplicate_action)
+            else:
+                # were only handling unique constraint fail so reraise if its sth else
+                raise error
+        else:
+            lastrowid = c.lastrowid
+            # workaround to make concatenation work
+            if lists is None:
+                lists = []
+            # use cursor.lastrowid to get id of last insert in Tsumino table
+            add_tags_to_book(db_con, lastrowid, lists + dic["Tag"])
 
-        # workaround to make concatenation work
-        if lists is None:
-            lists = []
-        # use cursor.lastrowid to get id of last insert in Tsumino table
-        add_tags_to_book(db_con, c.lastrowid, lists + dic["Tag"])
+            # handle_book_not_unique also handles downloading book thumb in that case
+            dl_book_thumb(url)
 
-        logger.info("Added book with url \"%s\" to database!", url)
+            logger.info("Added book with url \"%s\" to database!", url)
 
-    return c.lastrowid
+    return lastrowid
+
+
+HANDLE_DUPLICATE_BOOK_ACTIONS = ("replace", "keep_both", "keep_old")
+def handle_book_not_unique(db_con, duplicate_col, url, lists, dic, action=None):
+    """Only partly commits changes where it calls add_manga or update_manga"""
+    # @Cleanup ^^
+    # doing this several times @Hack
+    prepared_dic = prepare_dict_for_db(url, dic)
+
+    # webGUI cant do input -> use default None and set if None
+    if action is None:
+        # options: replace(==keep_new), keep_both, keep_old
+        while True:
+            action_i = input("Choose the action for handling duplicate "
+                            f"book {prepared_dic['title_eng']}:\n"
+                             "(0) replace, (1) keep_both, (2) keep_old: ")
+            try:
+                action = HANDLE_DUPLICATE_BOOK_ACTIONS[int(action_i)]
+            except ValueError:
+                print("Not a valid index!!")
+            else:
+                break
+
+
+    # @Incomplete just replacing most recent one if action keep_both was used before
+    c = db_con.execute(f"SELECT id, id_onpage, my_rating, title FROM Tsumino WHERE {duplicate_col} = ?",
+                      (prepared_dic[duplicate_col],))
+    row = c.fetchall()
+    assert(len(row) == 1)
+    old_id_internal, old_id_onpage, my_rating, old_title = row[0]
+
+    id_internal = None
+    if action == "keep_old":
+        logger.info("Kept old book with id_onpage: %s", old_id_onpage)
+        # return None here so we know when no action was taken
+        return id_internal
+
+    if action == "replace":
+        logger.info("Replacing book with id_onpage %s. Everything but the lists (only downloaded will be modified -> new lists wont be added!) will be replaced!", old_id_onpage)
+        # only add/remove list downloaded
+        li_downloaded = None
+        if lists and ("li_downloaded" in lists):
+            li_downloaded = ["li_downloaded"]
+        else:
+            remove_tags_from_book_id(db_con, old_id_internal, ["li_downloaded"])
+
+        # since update_manga_db_entry_from_dict tries to query for id using id_onpage we have to update id_onpage maunally first @Hack @Cleanup
+        # also update url since update.. doesnt @Hack
+        new_id_onpage = book_id_from_url(url)
+        db_con.execute("UPDATE Tsumino SET id_onpage = ?, url = ? WHERE id = ?",
+                      (new_id_onpage, url, old_id_internal))
+        update_manga_db_entry_from_dict(db_con, url, li_downloaded, dic)
+
+        # also delete book thumb
+        os.remove(os.path.join("thumbs", str(old_id_onpage)))
+        logger.debug("Removed thumb with path %s", f"thumbs/{old_id_onpage}")
+
+        id_internal = old_id_internal
+    elif action == "keep_both":
+        i = 1
+        while True:
+            try:
+                # change title of old book
+                old_title_dupe = f"{old_title} (DUPLICATE {i})"
+                db_con.execute("UPDATE Tsumino SET title = ? WHERE id = ?", (old_title_dupe,
+                               old_id_internal))
+            except sqlite3.IntegrityError as error:
+                error_msg = str(error)
+                if "UNIQUE constraint failed" not in error_msg:
+                    # were only handling unique constraint fail so reraise if its sth else
+                    raise error
+                i += 1
+            else:
+                break
+        logger.info("Keeping both books, renamed old version to: %s", old_title_dupe)
+
+        id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
+
+    # in both cases (replace and keep_both) use old rating on newly added book
+    rate_manga(db_con, url, my_rating)
+
+    # dl new thumb also for both cases
+    dl_book_thumb(url)
+
+    return id_internal
 
 
 def update_manga_db_entry_from_dict(db_con, url, lists, dic):
@@ -1216,15 +1328,15 @@ def dl_book_thumb(url):
             book_id)
 
 
-def add_book(db_con, url, lists, write_infotxt=False):
+def add_book(db_con, url, lists, write_infotxt=False, duplicate_action=None):
     if write_infotxt:
         dic = create_tsubook_info(url)
     else:
         dic = get_tsubook_info(url)
     if dic:
         # function alrdy commits changes
-        id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
-        dl_book_thumb(url)
+        id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic,
+                                                   duplicate_action=duplicate_action)
 
         return id_internal
     else:
@@ -1312,7 +1424,6 @@ def process_job_list(db_con, jobs, write_infotxt=False):
                 update_manga_db_entry_from_dict(db_con, url, lists, dic)
             else:
                 add_manga_db_entry_from_dict(db_con, url, lists, dic)
-                dl_book_thumb(url)
             time.sleep(0.3)
     except Exception:
         # current item is alrdy removed even though it failed on it

@@ -120,10 +120,17 @@ def jump_to_book_by_url():
 
     # check if book not in db -> add
     if book_id_onpage not in all_book_id_onpage:
-        add_book(db_con, url, None, write_infotxt=False)
-        # also add book_id_onpage to set of all id_onpage in DB so it represents current state of
-        # DB next time we call this func
-        all_book_id_onpage.add(book_id_onpage)
+        id_internal = add_book(db_con, url, None, write_infotxt=False, duplicate_action="keep_old")
+        if id_internal is None:
+            flash("WARNING - There either was a conncetion/parsing problem or a book with same "
+                  "title was found in the DB - no action was taken! In the case of a duplicate "
+                  "use the command line interface!")
+            return redirect(
+                url_for('show_entries'))
+        else:
+            # also add book_id_onpage to set of all id_onpage in DB so it represents current state of
+            # DB next time we call this func
+            all_book_id_onpage.add(book_id_onpage)
 
     return redirect(
         url_for('show_book_info', id_type="ext", book_id=book_id_onpage))

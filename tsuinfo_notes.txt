@@ -272,3 +272,20 @@ in the collection but that id could change if a preceeding book gets added
  a new col or even better another bridge table for collections etc.)
 -> display books in collection but not in original order
 __________________________________________________________________________________________________________
+
+Handling tsumino book being removed or rather replaced
+
+When adding it via manga_db.py old manga might be in DB and INSERT INTO will fail due to UNIQUE constraint on
+url or title -> e.g. sqlite3.IntegrityError: UNIQUE constraint failed: Tsumino.url
+
+i cant check anything other than book url/the id contained in url for duplicates when collectiing links
+(unless i already dl the site which would not make sense)
+
+on UNIQUE constraint fail -> provide options to replace(update everything with new vals but lists(only downloaded gets updated),
+keep_both (append (DUPLICATE nr) to title of old book and add new one to db) or keep_old (do nothing)
+
+still too dependent on tsumino so heavy refactoring neccessary for being compatible with other sites
+-> book in db would have to store multiple external urls etc.
+
+but solution is okay for current use case so its fine
+__________________________________________________________________________________________________________
