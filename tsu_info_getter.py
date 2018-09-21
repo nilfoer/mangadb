@@ -18,101 +18,14 @@ from logging.handlers import RotatingFileHandler
 import bs4
 import pyperclip
 
+from util import write_to_txtf
+
 ROOTDIR = os.path.dirname(os.path.realpath(__file__))
 # CWD = os.getcwd()
 dirs_root = None
 
 logger = logging.getLogger("tsu-getter")
 logger.setLevel(logging.DEBUG)
-
-
-def write_to_txtf_in_root(wstring, filename):
-    """
-    Writes wstring to filename in dir ROOTDIR
-
-    :param wstring: String to write to file
-    :param filename: Filename
-    :return: None
-    """
-    with open(os.path.join(ROOTDIR, filename), "w", encoding="UTF-8") as w:
-        w.write(wstring)
-
-
-def write_to_txtf(wstring, filename):
-    """
-    Writes wstring to filename
-
-    :param wstring: String to write to file
-    :param filename: Path/Filename
-    :return: None
-    """
-    with open(filename, "w", encoding="UTF-8") as w:
-        w.write(wstring)
-
-
-def get_tsu_url(url):
-    html = None
-
-    # normal urllib user agent is being blocked by tsumino, send normal User-Agent in headers
-    # old: 'User-Agent': 'Mozilla/5.0'
-    req = urllib.request.Request(
-        url,
-        headers={
-            'User-Agent':
-            'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
-        })
-    try:
-        site = urllib.request.urlopen(req)
-    except urllib.request.HTTPError as err:
-        logger.warning("HTTP Error %s: %s: \"%s\"", err.code, err.reason, url)
-    else:
-        html = site.read().decode('utf-8')
-        site.close()
-        logger.debug("Getting html done!")
-
-    return html
-
-
-def extract_info(html):
-    # use OrderedDict (is a dict that remembers the order that keys were first inserted) 
-    # to later just iterate over
-    # list with key,val tuples also possible
-    result_dict = OrderedDict()
-
-    soup = bs4.BeautifulSoup(html, "html.parser")
-    book_data = soup.select_one("div.book-info-container").find_all(
-        "div", class_="book-data")
-
-    for book_dat_div in book_data:
-        tag_id = book_dat_div["id"]
-        if tag_id:
-            # Using a tag name as an attribute will give you only the first tag by that name
-            # -> use find_all
-            if book_dat_div.a is not None:  # and book_dat_div["id"] == "Tag"
-                data_list = [
-                    a.contents[0].strip() for a in book_dat_div.find_all("a")
-                ]
-                result_dict[tag_id] = data_list
-            elif tag_id == "MyRating":
-                continue
-            else:
-                result_dict[book_dat_div["id"]] = book_dat_div.contents[
-                    0].strip()
-    logger.debug("Extracted book data!")
-    return result_dict
-
-
-def create_info_str(dic, url):
-    lines = []
-    for key, value in dic.items():
-        if isinstance(value, list):
-            # new f-strings, python code usable
-            lines.append(f"{key}: {', '.join(value)}")
-        else:
-            lines.append(f"{key}: {value}")
-    lines.append(f"URL: {url}")
-
-    return "\n".join(lines)
 
 
 ENG_TITLE_RE = re.compile(r"^(.+) \/")
