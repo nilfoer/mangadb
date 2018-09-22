@@ -27,8 +27,6 @@ dist/
 *.egg-info/
 build/
 .cache/
-tests/test_dl/
-tests/test_res/
 **/*_info.txt
 *.swp
 *.un~
@@ -43,9 +41,7 @@ research/
 pyperclip*/
 bs4*/
 flask-packages/
-static/webfonts/
-fontawe*
-lazyload.js
+manga_db/webGUI/static/webfonts/
 bootstrap*
 dependencies/
 tsumino_dir_info.json

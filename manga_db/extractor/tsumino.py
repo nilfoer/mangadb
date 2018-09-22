@@ -10,16 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class TsuminoExtractor(BaseMangaExtractor):
-    site_name = "Tsumino"
-    ID_ONPAGE_RE = re.compile(r"tsumino\.com/Book|Read|Download/Info|View|Index/(\d+)")
+    site_name = "tsumino.com"
+    ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
     ENG_TITLE_RE = re.compile(r"^(.+) \/")
     metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
             "title": "Title", "uploader": "Uploader", "upload_date": "Uploaded",
             "pages": "Pages", "rating_full": "Rating", "my_rating": "My Rating",
             "category": "Category", "collection": "Collection", "groups": "Group",
             "artist": "Artist", "parody": "Parody", "character": "Character",
-            "tags": "Tag", "url": None, "id_onpage": None, "rating": None,
-            "title_eng": None
+            "tags": "Tag", "url": None, "id_onpage": None
             }
 
     def __init__(self, url):
@@ -47,33 +46,52 @@ class TsuminoExtractor(BaseMangaExtractor):
         Transform metadata parsed from tsumino.com into DB format
         """
         result = {}
+        value = None
         for attr, key in self.metadata_helper.items():
+            # pop(key, default)
+            value = metadata.pop(key, None)
             # not every key present on every book page (e.g. "Parody", "Group"..)
             if attr == "url":
                 result[attr] = self.url
             elif attr == "pages":
-                result[attr] = int(metadata[key])
+                result[attr] = int(value)
             elif attr == "id_onpage":
-                result[attr] = re.search(self.ID_ONPAGE_RE, self.url).group(1)
-            elif attr == "rating":
-                result[attr] = float(metadata["Rating"].split()[0])
-            elif attr == "category":
-                result[attr] = ", ".join(metadata[key])
+                result[attr] = self.book_id_from_url(self.url)
+            elif attr == "rating_full":
+                result["rating"] = float(value.split()[0])
+                result[attr] = value
             elif attr == "upload_date":
-                result[attr] = datetime.datetime.strptime(metadata[key], "%Y %B %d").date()
-            elif attr == "title_eng":
-                eng_title = re.match(self.ENG_TITLE_RE, metadata["Title"])
-                eng_title = eng_title.group(1) if eng_title else metadata["Title"]
-                result[attr] = eng_title
+                result[attr] = datetime.datetime.strptime(value, "%Y %B %d").date()
+            elif attr == "title":
+                result[attr] = value
+                eng_title = re.match(self.ENG_TITLE_RE, value)
+                eng_title = eng_title.group(1) if eng_title else value
+                result["title_eng"] = eng_title
             else:
-                try:
-                    result[attr] = metadata[key]
-                except KeyError:
-                    logger.warning("Key '%s' for attribute '%s' was not found! HTML on"
-                                   "tsumino.com probably changed!", key, attr)
-                    # TODO custom exc?
-                    raise
+                result[attr] = value
+        if metadata:
+            logger.warning("There are still metadata keys left! The HTML on tsumino.com"
+                           "probably changed! Keys left over: %s", ", ".join(metadata.keys()))
         return result
+
+    def get_cover(self):
+        book_id = self.book_id_from_url(self.url)
+        thumb_url = f"http://www.tsumino.com/Image/Thumb/{book_id}"
+        try:
+            urllib.request.urlretrieve(thumb_url,
+                                       os.path.join("thumbs", str(book_id)))
+        except urllib.request.HTTPError as err:
+            logger.warning(
+                "Thumb for book with id (on page) %s couldnt be downloaded!",
+                book_id)
+            logger.warning("HTTP Error %s: %s: \"%s\"",
+                           err.code, err.reason, thumb_url)
+            return False
+        else:
+            return True
+            logger.info(
+                "Thumb for book with id (on page) %s downloaded successfully!",
+                book_id)
 
     @classmethod
     def extract_info(cls, html):
@@ -106,7 +124,7 @@ class TsuminoExtractor(BaseMangaExtractor):
     @classmethod
     def book_id_from_url(cls, url):
         try:
-            return int(re.match(cls.ID_ONPAGE_RE, url).group(1))
+            return int(re.search(cls.ID_ONPAGE_RE, url).group(3))
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

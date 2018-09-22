@@ -6,7 +6,9 @@ class MangaDBEntry:
     ROW_SET_HELPER = ("id", "title", "title_eng", "url", "id_onpage", "upload_date", "uploader",
                       "pages", "rating", "rating_full", "my_rating", "category", "collection",
                       "groups", "artist", "parody", "character", "last_change", "downloaded")
-    def __init__(self, imported_from, data):
+
+    def __init__(self, manga_db, imported_from, data):
+        self.manga_db = manga_db
         self.imported_from = imported_from
         self.id = None
         self.id_onpage = None
@@ -29,17 +31,21 @@ class MangaDBEntry:
         self.last_change = None
         self.downloaded = None
         self.favorite = None
+        self.lists = None
         self.tags = None
         if isinstance(data, dict):
-            self.update_from_dict(data)
+            self._update_from_dict(data)
         else:
-            self.update_from_row(data)
+            self._update_from_row(data)
         if self.last_change is None:
             self.last_change = datetime.date.today()
 
-    def update_from_dict(self, dic):
+    def _update_from_dict(self, dic):
         self.__dict__.update(dic)
 
-    def update_from_row(self, row):
+    def _update_from_row(self, row):
         for i, key in enumerate(self.ROW_SET_HELPER):
             setattr(self, key, row[i])
+
+    def add_to_db(self):
+        pass
