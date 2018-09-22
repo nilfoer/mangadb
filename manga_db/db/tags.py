@@ -1,8 +1,21 @@
 import logging
 
-from ..manga_db import book_id_from_url
 
 logger = logging.getLogger(__name__)
+
+
+# TODO remove
+import re
+ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
+def book_id_from_url(url):
+    try:
+        return int(re.search(ID_ONPAGE_RE, url).group(3))
+    except IndexError:
+        logger.warning("No book id could be extracted from \"%s\"!", url)
+        # reraise or continue and check if bookid returned in usage code?
+        raise
+
+
 
 
 def add_tags(db_con, tags):

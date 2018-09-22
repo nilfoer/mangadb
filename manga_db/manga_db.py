@@ -1,20 +1,35 @@
+import os
+import logging
 import sqlite3
 
+from . import extractor
 from .manga import MangaDBEntry
+from .db.tags import get_tags_by_book
+
+
+logger = logging.getLogger(__name__)
 
 
 class MangaDB:
     HANDLE_DUPLICATE_BOOK_ACTIONS = ("replace", "keep_both", "keep_old")
 
-    def __init__(self, db_path):
-        self.db_con = self._load_or_create_sql_db(db_path)
+    def __init__(self, root_dir, db_path):
+        self.db_con, _ = self._load_or_create_sql_db(db_path)
+        self.db_con.row_factory = sqlite3.Row
+        self.root_dir = os.path.abspath(os.path.normpath(root_dir))
         self.settings = {
                 # replace, keep_both, keep_old
                 "duplicate_action": None
                 }
 
     def import_book(self, url):
-        pass
+        extractor_cls = extractor.find(url)
+        extr = extractor_cls(url)
+        book_data = extr.get_metadata()
+        # TODO cover
+        book = MangaDBEntry(self, extr.site_name, book_data)
+        # TODO add
+        print(book)
 
     def get_book(self, identifier, id_type):
         if id_type == "id":
@@ -29,19 +44,24 @@ class MangaDB:
         else:
             logger.error("%s is an unsupported identifier type!", id_type)
             return
-        cur = db_con.execute(f'select * from Tsumino WHERE {id_col} = ?',
-                             (identifier, ))
+        cur = self.db_con.execute(f'select * from Tsumino WHERE {id_col} = ?',
+                                  (identifier, ))
         book_info = cur.fetchone()
         if not book_info:
             return
 
-        tags = get_tags_by_book(db_con, identifier, id_type_db).split(",")
+        tags = get_tags_by_book(self.db_con, identifier, id_type_db).split(",")
         # split tags and lists
         lists_book = [tag for tag in tags if tag.startswith("li_")]
         tags = [tag for tag in tags if not tag.startswith("li_")]
 
-        book = MangaDBEntry(self, book_info["imported_from"], book_info)
+        book = MangaDBEntry(self, book_info["imported_from"], book_info,
+                            lists=lists_book, tags=tags)
         return book
+
+    def add_book(self, book):
+        # add/update book in db
+        pass
 
     @staticmethod
     def _load_or_create_sql_db(filename):

@@ -10,6 +10,7 @@ class BaseMangaExtractor:
         'User-Agent':
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
+    URL_PATTERN_RE = ""
 
     def __init__(self, url):
         self.url = url
@@ -22,7 +23,7 @@ class BaseMangaExtractor:
 
     # contrary to @staticmethod classmethod has a reference to the class as first parameter
     @classmethod
-    def get_url(cls, url):
+    def get_html(cls, url):
         res = None
 
         req = urllib.request.Request(url, headers=cls.headers)

@@ -1,5 +1,7 @@
 import logging
 import datetime
+import os.path
+import urllib.request
 import re
 
 import bs4
@@ -11,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 class TsuminoExtractor(BaseMangaExtractor):
     site_name = "tsumino.com"
+    URL_PATTERN_RE = re.compile(r"^(https?://)?(www\.)?tsumino\.com/(Book|Read|Download)/"
+                                r"(Info|View|Index)/(\d+)/?([\w-]+)?")
     ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
     ENG_TITLE_RE = re.compile(r"^(.+) \/")
     metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
@@ -24,6 +28,8 @@ class TsuminoExtractor(BaseMangaExtractor):
     def __init__(self, url):
         super().__init__(url)
         self.url = url
+        self.id_onpage = TsuminoExtractor.book_id_from_url(url)
+        self.thumb_url = f"http://www.tsumino.com/Image/Thumb/{self.id_onpage}"
         self.html = None
         self.metadata = None
 
@@ -37,7 +43,7 @@ class TsuminoExtractor(BaseMangaExtractor):
     def get_metadata(self):
         if self.metadata is None:
             if self.html is None:
-                self.html = TsuminoExtractor.get_url(self.url)
+                self.html = TsuminoExtractor.get_html(self.url)
             self.metadata = self.transform_metadata(TsuminoExtractor.extract_info(self.html))
         return self.metadata
 
@@ -74,24 +80,24 @@ class TsuminoExtractor(BaseMangaExtractor):
                            "probably changed! Keys left over: %s", ", ".join(metadata.keys()))
         return result
 
+    # should this be in the Extractor class or rather in a Downloader or the main MangaDB class?
+    # but mb specific sites require certain headers or whatever?
     def get_cover(self):
-        book_id = self.book_id_from_url(self.url)
-        thumb_url = f"http://www.tsumino.com/Image/Thumb/{book_id}"
         try:
-            urllib.request.urlretrieve(thumb_url,
-                                       os.path.join("thumbs", str(book_id)))
+            urllib.request.urlretrieve(self.thumb_url,
+                                       os.path.join("thumbs", str(self.book_id)))
         except urllib.request.HTTPError as err:
             logger.warning(
                 "Thumb for book with id (on page) %s couldnt be downloaded!",
-                book_id)
+                self.id_onpage)
             logger.warning("HTTP Error %s: %s: \"%s\"",
-                           err.code, err.reason, thumb_url)
+                           err.code, err.reason, self.thumb_url)
             return False
         else:
             return True
             logger.info(
                 "Thumb for book with id (on page) %s downloaded successfully!",
-                book_id)
+                self.id_onpage)
 
     @classmethod
     def extract_info(cls, html):

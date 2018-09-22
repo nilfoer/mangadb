@@ -289,3 +289,14 @@ still too dependent on tsumino so heavy refactoring neccessary for being compati
 
 but solution is okay for current use case so its fine
 __________________________________________________________________________________________________________
+
+N:\coding\tsu-info>manga_db\t.py
+sys.argv == ['N:\\coding\\tsu-info\\manga_db\\t.py']
+
+N:\coding\tsu-info>manga_db\t.py
+current working dir == N:\coding\tsu-info
+
+so when calling a script from cmdline
+sys.argv[0] is absolute path to the called script
+and the cwd in python is the cwd of cmd.exe/the shell
+__________________________________________________________________________________________________________
