@@ -296,7 +296,27 @@ sys.argv == ['N:\\coding\\tsu-info\\manga_db\\t.py']
 N:\coding\tsu-info>manga_db\t.py
 current working dir == N:\coding\tsu-info
 
+N:\coding\tsu-info>manga_db\t.py
+sys.path[0] == N:\coding\tsu-info\manga_db
+
 so when calling a script from cmdline
-sys.argv[0] is absolute path to the called script
+sys.argv[0] is absolute path to the called script,
 and the cwd in python is the cwd of cmd.exe/the shell
+and sys.path[0] is path to the dir which the script is contained in
+
+with runner file t-runner.py that runs test\t.py
+sys.path[0] == N:\coding\tsu-info
+sys.argv[0] == N:\coding\tsu-info\t-runner.py
+os.getcwd() == N:\coding\tsu-info
+__________________________________________________________________________________________________________
+
+tsumino is re-using old ids that were deleted:
+http://www.tsumino.com/Book/Info/31726/mama-wa-roshia-haafu-no-akuyaku-resuraa-icha-rabu-kyuuaihen-my-mom-is-a-half-russian-heel-wrestler-the-sexy-love-dovey-courting-edition
+is now:
+http://www.tsumino.com/Book/Info/31726/secret-fakku
+=> i cant count on id_onpage being unique!!!
+__________________________________________________________________________________________________________
+
+some collections have a "," in their name e.g. Anyway, I Want to Have Sex With...
+=> need to either escape the comma or use a different seperator
 __________________________________________________________________________________________________________

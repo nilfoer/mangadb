@@ -118,7 +118,7 @@ class TsuminoExtractor(BaseMangaExtractor):
                     ]
                     result_dict[tag_id] = data_list
                 elif tag_id == "MyRating":
-                    # TODO(m)
+                    # TODO cant do myrating until we implement auth with tsumino
                     continue
                 else:
                     result_dict[book_dat_div["id"]] = book_dat_div.contents[

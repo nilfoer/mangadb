@@ -16,10 +16,10 @@ class BaseMangaExtractor:
         self.url = url
 
     def get_metadata(self):
-        pass
+        raise NotImplementedError
 
     def get_cover(self):
-        pass
+        raise NotImplementedError
 
     # contrary to @staticmethod classmethod has a reference to the class as first parameter
     @classmethod

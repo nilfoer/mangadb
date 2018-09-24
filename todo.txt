@@ -1,0 +1,27 @@
+- there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
+    since its impractical for searching
+    -> convert site tags to MangaDB tags
+- log adding tags or rather lists
+    mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id
+- logging in webGUI  
+- mb replace "tsumino.com" with a nr or mb foreign key of diff table since for 2700~ entries it incread the size by 1.5MB
+
+--DONE-------------------------------------------------------------------------------------------------
+- some collections have a "," in their name e.g. Anyway, I Want to Have Sex With...
+    => need to either escape the comma or use a different seperator
+- fix booktags missing in production db:
+    reason not found yet but since ive used the db recently and it crashes instanly when viewing a book using the webGUI
+    its likely that it happened when i edited the DB with SQLiteDatabaseBrowser and not when using my code
+    all bookid had been deleted from bridge table BookTags except for entries whoms id didnt exist in Tsumino table anymore
+        get url, dled, favorite from corrupt db only when id > last addition of 2018-07-10 backup -> 2274 (first add is 2275)
+            -> added-books-since-last-valid-backup_all cols_2018-09-23.csv
+            -> added-books-since-last-valid-backup_url,dl,fav_2018-09-23.csv
+        use log lines with:
+            2018-07-10 22:37:32,145 - manga-db  - INFO   - Setting tags for "http://www.tsumino.com/Book/Info/41160/mama-sho-time-dream-express"! Previous tags were: ['li_to-read']
+            2018-07-10 22:37:37,587 - manga-db  - INFO   - The following lists were selected ['li_to-read', 'li_prob-good']
+        to add more than standard list (which also can be seen from previously selected part)    
+        also look out for: 2018-07-10 23:43:09,664 - manga-db  - INFO   - Tried to add book with title that was already in DB: ALICE INN
+            -> all additions since last valid bu with only "li_to-read"
+        adding of tags not logged but
+            20:12:08 - INFO - Tags set() were successfully removed from book with id "2247"
+            means that tags were added or removed -> empty set removed only added tags

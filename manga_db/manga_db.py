@@ -22,14 +22,15 @@ class MangaDB:
                 "duplicate_action": None
                 }
 
-    def import_book(self, url):
+    def import_book(self, url, lists):
         extractor_cls = extractor.find(url)
         extr = extractor_cls(url)
         book_data = extr.get_metadata()
         # TODO cover
-        book = MangaDBEntry(self, extr.site_name, book_data)
+        book = MangaDBEntry(self, extr.site_name, book_data, lists=lists)
         # TODO add
         print(book)
+        return book
 
     def get_book(self, identifier, id_type):
         if id_type == "id":
@@ -97,7 +98,7 @@ class MangaDB:
                      artist TEXT,
                      parody TEXT,
                      character TEXT,
-                     imported_from TEXT,
+                     imported_from TEXT NOT NULL,
                      last_change DATE NOT NULL,
                      downloaded INTEGER,
                      favorite INTEGER)""")
@@ -226,35 +227,28 @@ class MangaDB:
         return conn, c
 
     # TODO
-    def _add_manga_db_entry(self, url, lists, dic, duplicate_action=None):
+    def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
         """Commits changes to db"""
-        book = MangaDBEntry(imported_from, dic)
-        if lists:
-            dic["downloaded"] = 1 if "li_downloaded" in lists else 0
-            dic["favorite"] = 1 if "li_best" in lists else 0
-        else:
-            dic["downloaded"] = 0
-            dic["favorite"] = 0
-
+        db_dict = manga_db_entry.export_for_db()
         lastrowid = None
         with self.db_con:
             try:
                 c = self.db_con.execute(
                     "INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, "
-                    "uploader, pages, rating, rating_full, category, collection, groups, "
-                    "artist, parody, character, imported_from, last_change, downloaded, "
+                    "uploader, pages, rating, rating_full, my_rating, category, collection, "
+                    "groups, artist, parody, character, imported_from, last_change, downloaded, "
                     "favorite) "
                     "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
-                    ":pages, :rating, :rating_full, :category, :collection, "
+                    ":pages, :rating, :rating_full, :my_rating, :category, :collection, "
                     ":groups, :artist, :parody, :character, :imported_from, :last_change, "
-                    ":downloaded, :favorite)", dic)
+                    ":downloaded, :favorite)", db_dict)
             except sqlite3.IntegrityError as error:
                 error_msg = str(error)
                 if "UNIQUE constraint failed" in error_msg:
                     failed_col = error_msg.split(".")[-1]
                     logger.info("Tried to add book with %s that was already in DB: %s",
-                                failed_col, dic[failed_col])
-                    lastrowid = handle_book_not_unique(self.db_con, failed_col, url, lists, dic, action=duplicate_action)
+                                failed_col, db_dict[failed_col])
+                    lastrowid = self._handle_book_not_unique(self.db_con, failed_col, manga_db_entry, action=duplicate_action)
                 else:
                     # were only handling unique constraint fail so reraise if its sth else
                     raise error
