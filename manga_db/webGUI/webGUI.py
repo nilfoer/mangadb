@@ -47,7 +47,7 @@ def thumb_static(filename):
 
 @app.route('/')
 def show_entries():
-    cur = db_con.execute('select * from Tsumino order by id desc LIMIT 150')
+    cur = db_con.execute('select * from Books order by id desc LIMIT 150')
     entries = cur.fetchall()
     return render_template(
         'show_entries.html',
@@ -74,7 +74,7 @@ def show_book_info(id_type, book_id):
             'show_book_info.html',
             error_msg=f"ERROR: Unsupported id_type supplied!")
 
-    cur = db_con.execute(f'select * from Tsumino WHERE {id_col} = ?',
+    cur = db_con.execute(f'select * from Books WHERE {id_col} = ?',
                          (book_id, ))
     book_info = cur.fetchone()
 
@@ -98,7 +98,7 @@ def show_book_info(id_type, book_id):
     books_in_collection = None
     # get other titles of collection
     if book_info["collection"]:
-        cur.execute("SELECT id, title_eng, rating, pages FROM Tsumino WHERE collection = ?", (book_info["collection"],))
+        cur.execute("SELECT id, title_eng, rating, pages FROM Books WHERE collection = ?", (book_info["collection"],))
         books_in_collection = cur.fetchall()
 
     return render_template(
@@ -175,7 +175,7 @@ INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
                         ("url", "URL"))
 @app.route('/WriteInfoTxt/<book_id_internal>', methods=["GET"])
 def write_info_txt_by_id(book_id_internal):
-    cur = db_con.execute('select * from Tsumino WHERE id = ?',
+    cur = db_con.execute('select * from Books WHERE id = ?',
                          (book_id_internal, ))
     book_info = cur.fetchone()
     tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
@@ -212,7 +212,7 @@ def search_books():
         order_by_col = request.args.get('order-by-col', "id")
         asc_desc = request.args.get('asc-desc', "DESC")
 
-    order_by = f"Tsumino.{order_by_col} {asc_desc}"
+    order_by = f"Books.{order_by_col} {asc_desc}"
     books = search_sytnax_parser(
         db_con, searchstr, order_by=order_by, keep_row_fac=True)
 
@@ -249,7 +249,7 @@ def remove_book_favorite(book_id_internal):
 @app.route("/RateBook/<book_id_internal>", methods=["GET"])
 def rate_book_internal(book_id_internal):
     with db_con:
-        db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id = ?",
+        db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
                        (request.args['rating'], book_id_internal))
 
     return redirect(

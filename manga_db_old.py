@@ -68,7 +68,6 @@ opener.addheaders = [(
 urllib.request.install_opener(opener)
 
 
-
 def watch_clip_db_get_info_after(db_book_ids,
                                  fixed_lists=None,
                                  predicate=is_tsu_book_url):
@@ -158,66 +157,6 @@ def watch_clip_db_get_info_after(db_book_ids,
     return filter_duplicate_at_index_of_list_items(0, found)
 
 
-def export_csv_from_sql(filename, db_con):
-    """
-    Fetches and writes all rows (with all cols) in db_con's database to the file filename using
-    writerows() from the csv module
-
-    writer kwargs: dialect='excel', delimiter=";"
-
-    :param filename: Filename or path to file
-    :param db_con: Connection to sqlite db
-    :return: None
-    """
-    # newline="" <- important otherwise weird behaviour with multiline cells (adding \r) etc.
-    with open(filename, "w", newline="", encoding="utf-8") as csvfile:
-        # excel dialect -> which line terminator(\r\n), delimiter(,) to use, when to quote
-        # cells etc.
-        csvwriter = csv.writer(csvfile, dialect="excel", delimiter=";")
-
-        # get rows from db, using joins and aggregate func group_concat to combine data from
-        # bridge table
-        # SELECT Tsumino.*, Tags.* and the inner joins without the group by would return
-        # one row for every tag that a book has
-        # the inner join joins matching (<- matching dependent on ON condition e.g. Tsumino id
-        # matching book_id in BookTags) rows from both tables --> MATCHING rows only
-        # then we group by Tsumino.id and the aggregate function group_concat(X) returns a
-        # string which is the concatenation of all non-NULL values of X --> default delimiter
-        # is "," but customizable with group_concat(X,Y) as Y
-        # rename col group_concat(Tags.name) to tags with AS, but group_concat(Tags.name) tags
-        # would also work
-        c = db_con.execute(
-            """SELECT Tsumino.*, group_concat(Tags.name) AS tags
-                              FROM Tsumino
-                              INNER JOIN BookTags bt ON Tsumino.id = bt.book_id
-                              INNER JOIN Tags ON Tags.tag_id = bt.tag_id
-                              GROUP BY Tsumino.id""")
-        rows = c.fetchall()
-
-        # cursor.description -> sequence of 7-item sequences each containing info describing
-        # one result column
-        col_names = [description[0] for description in c.description]
-        csvwriter.writerow(col_names)  # header
-        # write the all the rows to the file
-        csvwriter.writerows(rows)
-
-
-def rate_manga(db_con, url, rating):
-    """Leaves commiting changes to upper scope!!"""
-    book_id = book_id_from_url(url)
-    db_con.execute("UPDATE Tsumino SET my_rating = ? WHERE id_onpage = ?",
-                   (rating, book_id))
-    logger.info("Successfully updated rating of book with id \"%s\" to \"%s\"",
-                book_id, rating)
-
-
-
-
-def get_all_id_onpage_set(db_con):
-    c = db_con.execute("SELECT id_onpage FROM Tsumino")
-    return set([tupe[0] for tupe in c.fetchall()])
-
-
 def add_book(db_con, url, lists, write_infotxt=False, duplicate_action=None):
     if write_infotxt:
         dic = create_tsubook_info(url)
@@ -242,57 +181,6 @@ def update_book(db_con, url, lists, write_infotxt=False):
         return update_manga_db_entry_from_dict(db_con, url, lists, dic)
     else:
         return None, None
-
-
-def get_books_low_usr_count(db_con, min_users=15, keep_row_fac=False):
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
-
-    c.execute("""SELECT id, id_onpage, url, rating_full FROM Tsumino""")
-    rows = c.fetchall()
-    result = []
-    for row in rows:
-        # 4.44 (25 users / 665 favs)
-        usrs = int(row["rating_full"].split("(")[1].split(" users /")[0])
-        if usrs < min_users:
-            result.append(row)
-
-    return result
-
-
-def remove_book(db_con, identifier, id_type):
-    """Commits changes itself, since it also deletes book thumb anyway!"""
-    book_id = None
-    if id_type == "id_internal":
-        id_col = "id"
-    elif id_type == "id_onpage":
-        id_col = "id_onpage"
-    elif id_type == "url":
-        book_id = book_id_from_url(identifier)
-        id_col = "id_onpage"
-        identifier = book_id
-    else:
-        logger.error("%s is an unsupported identifier type!", id_type)
-        return
-
-    if not book_id:
-        c = db_con.execute(f"SELECT id_onpage FROM Tsumino WHERE {id_col} = ?",
-                           (identifier, ))
-        book_id = c.fetchone()[0]
-
-    with db_con:
-        db_con.execute(f"""DELETE
-                           FROM Tsumino
-                           WHERE
-                           {id_col} = ?""", (identifier, ))
-
-    # also delete book thumb
-    os.remove(os.path.join("thumbs", str(book_id)))
-    logger.debug("Removed thumb with path %s", f"thumbs/{book_id}")
-
-    logger.info("Successfully removed book with %s: %s", id_type, identifier)
 
 
 def process_job_list(db_con, jobs, write_infotxt=False):
@@ -348,13 +236,6 @@ def resume_from_file(filename):
     return result
 
 
-def print_sqlite3_row(row, sep=";"):
-    str_li = []
-    for key in row.keys():
-        str_li.append(f"{key}: {row[key]}")
-    print(sep.join(str_li))
-
-
 CMDLINE_CMDS = ("help", "test", "rate", "watch", "exportcsv", "remove_tags",
                 "add_tags", "search_tags", "resume", "read", "downloaded",
                 "show_tags", "update_book", "add_book", "search_title",
@@ -386,11 +267,11 @@ def main():
         conn, c = load_or_create_sql_db("manga_db.sqlite")
 
         if cmdline[0] == "test":
-            # print([r["pages"] for r in search_book_by_title(conn, "FAKKU", order_by="Tsumino.pages DESC")])
+            # print([r["pages"] for r in search_book_by_title(conn, "FAKKU", order_by="Books.pages DESC")])
             r = search_sytnax_parser(
                 conn,
                 'tags:li_to-read',
-                order_by="Tsumino.rating",
+                order_by="Books.rating",
                 keep_row_fac=False)
             for row in r:
                 print_sqlite3_row(row)

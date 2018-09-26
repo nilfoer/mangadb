@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 def search_tags_intersection(db_con,
                              tags,
-                             order_by="Tsumino.id DESC",
+                             order_by="Books.id DESC",
                              keep_row_fac=False):
     """Searches for entries containing all tags in tags and returns the rows as
     a list of sqlite3.Row objects
@@ -38,18 +38,18 @@ def search_tags_intersection(db_con,
     # query using join on ", " and ["?"] * amount
     # then unpack list with arguments using *tags
 
-    # SQLite Query -> select alls columns in Tsumino
+    # SQLite Query -> select alls columns in Books
     # tagids must match AND name of the tag(singular) must be in tags list
     # bookids must match
-    # results are GROUPed BY Tsumino.id and only entries are returned that occur
+    # results are GROUPed BY Books.id and only entries are returned that occur
     # ? (=nr of tags in tags) times --> matching all tags
-    c.execute(f"""SELECT Tsumino.*
-                  FROM BookTags bt, Tsumino, Tags
+    c.execute(f"""SELECT Books.*
+                  FROM BookTags bt, Books, Tags
                   WHERE bt.tag_id = Tags.tag_id
                   AND (Tags.name IN ({', '.join(['?']*len(tags))}))
-                  AND Tsumino.id = bt.book_id
-                  GROUP BY Tsumino.id
-                  HAVING COUNT( Tsumino.id ) = ?
+                  AND Books.id = bt.book_id
+                  GROUP BY Books.id
+                  HAVING COUNT( Books.id ) = ?
                   ORDER BY {order_by}""", (*tags, len(tags)))
 
     return c.fetchall()
@@ -57,7 +57,7 @@ def search_tags_intersection(db_con,
 
 def search_tags_exclude(db_con,
                         tags,
-                        order_by="Tsumino.id DESC",
+                        order_by="Books.id DESC",
                         keep_row_fac=False):
     db_con.row_factory = sqlite3.Row
     c = db_con.cursor()
@@ -65,12 +65,12 @@ def search_tags_exclude(db_con,
         db_con.row_factory = None
     # select all tsumino.ids that contain these tags (OR, would be AND with HAVING COUNT)
     # -> select all rows whose ids are not in the sub-query
-    c.execute(f"""SELECT Tsumino.*
-                  FROM Tsumino
-                  WHERE Tsumino.id NOT IN (
-                          SELECT Tsumino.id
-                          FROM BookTags bt, Tsumino, Tags
-                          WHERE Tsumino.id = bt.book_id
+    c.execute(f"""SELECT Books.*
+                  FROM Books
+                  WHERE Books.id NOT IN (
+                          SELECT Books.id
+                          FROM BookTags bt, Books, Tags
+                          WHERE Books.id = bt.book_id
                           AND bt.tag_id = Tags.tag_id
                           AND Tags.name IN ({', '.join(['?']*len(tags))})
                 )
@@ -83,27 +83,27 @@ def search_tags_exclude(db_con,
 def search_tags_intersection_exclude(db_con,
                                      tags_and,
                                      tags_ex,
-                                     order_by="Tsumino.id DESC",
+                                     order_by="Books.id DESC",
                                      keep_row_fac=False):
     db_con.row_factory = sqlite3.Row
     c = db_con.cursor()
     if not keep_row_fac:
         db_con.row_factory = None
 
-    c.execute(f"""SELECT Tsumino.*
-                  FROM BookTags bt, Tsumino, Tags
+    c.execute(f"""SELECT Books.*
+                  FROM BookTags bt, Books, Tags
                   WHERE bt.tag_id = Tags.tag_id
                   AND (Tags.name IN ({', '.join(['?']*len(tags_and))}))
-                  AND Tsumino.id = bt.book_id
-                  AND Tsumino.id NOT IN (
-                    SELECT Tsumino.id
-                    FROM BookTags bt, Tsumino, Tags
-                    WHERE Tsumino.id = bt.book_id
+                  AND Books.id = bt.book_id
+                  AND Books.id NOT IN (
+                    SELECT Books.id
+                    FROM BookTags bt, Books, Tags
+                    WHERE Books.id = bt.book_id
                     AND bt.tag_id = Tags.tag_id
                     AND Tags.name IN ({', '.join(['?']*len(tags_ex))})
                   )
-                  GROUP BY Tsumino.id
-                  HAVING COUNT( Tsumino.id ) = ?
+                  GROUP BY Books.id
+                  HAVING COUNT( Books.id ) = ?
                   ORDER BY {order_by}""", (*tags_and, *tags_ex, len(tags_and)))
 
     return c.fetchall()
@@ -111,7 +111,7 @@ def search_tags_intersection_exclude(db_con,
 
 def search_tags_string_parse(db_con,
                              tagstring,
-                             order_by="Tsumino.id DESC",
+                             order_by="Books.id DESC",
                              keep_row_fac=False):
     if "!" in tagstring:
         excl_nr = tagstring.count("!")
@@ -157,7 +157,7 @@ WORD_RE = re.compile(r'([^"^\s]+)\s*|"([^"]+)"\s*')
 
 def search_sytnax_parser(db_con,
                          search_str,
-                         order_by="Tsumino.id DESC",
+                         order_by="Books.id DESC",
                          **kwargs):
     search_options = kwargs
     # Return all non-overlapping matches of pattern in string, as a list of strings.
@@ -192,7 +192,7 @@ def search_sytnax_parser(db_con,
     # validate order_by from user input
     if not validate_order_by_str(order_by):
         logger.warning("Sorting %s is not supported", order_by)
-        order_by = "Tsumino.id DESC"
+        order_by = "Books.id DESC"
 
     if search_str:
         return search_book(db_con, order_by=order_by, **search_options)
@@ -200,20 +200,20 @@ def search_sytnax_parser(db_con,
         return get_all_books(db_con, order_by=order_by, **search_options)
 
 
-def get_all_books(db_con, order_by="Tsumino.id DESC", keep_row_fac=False):
+def get_all_books(db_con, order_by="Books.id DESC", keep_row_fac=False):
     db_con.row_factory = sqlite3.Row
     c = db_con.cursor()
     if not keep_row_fac:
         db_con.row_factory = None
 
-    c.execute(f"""SELECT * FROM Tsumino
+    c.execute(f"""SELECT * FROM Books
                   ORDER BY {order_by}""")
 
     return c.fetchall()
 
 
 def search_book(db_con,
-                order_by="Tsumino.id DESC",
+                order_by="Books.id DESC",
                 keep_row_fac=False,
                 **search_options):
     """Assumes AND condition for search_types, OR etc. not supported (and also not planned!)"""
@@ -265,7 +265,7 @@ def search_book(db_con,
                     row_ids_in_result.add(row["id"])
 
         # sort the result
-        order_by_col = order_by.split(" ")[0].replace("Tsumino.", "")
+        order_by_col = order_by.split(" ")[0].replace("Books.", "")
         result = sorted(result, key=lambda x: x[order_by_col])
         if " DESC" in order_by:
             # sorted orders ascending (at least for chars and numbers) -> reverse for DESC
@@ -278,7 +278,7 @@ def search_book(db_con,
 
 def search_equals_cols_values(db_con,
                               *col_name_value_pairs,
-                              order_by="Tsumino.id DESC",
+                              order_by="Books.id DESC",
                               keep_row_fac=False):
     """Searches for rows that match all the given values for the given rows
     col_name is not meant for user input -> should be validated b4 calling search_col_for_value
@@ -296,7 +296,7 @@ def search_equals_cols_values(db_con,
     else:
         col_names, values = [], []
 
-    c.execute(f"""SELECT * FROM Tsumino
+    c.execute(f"""SELECT * FROM Books
                   WHERE {col_name} = ? {"AND " if len(col_name_value_pairs) > 1 else ""}{" AND ".join(col_names)}
                   ORDER BY {order_by}""", (value, *values))
 
@@ -305,7 +305,7 @@ def search_equals_cols_values(db_con,
 
 def search_like_cols_values(db_con,
                             *col_name_value_pairs,
-                            order_by="Tsumino.id DESC",
+                            order_by="Books.id DESC",
                             keep_row_fac=False):
     """Searches for rows that contain all the values for all the given rows
     col_name is not meant for user input -> should be validated b4 calling search_col_for_value
@@ -325,16 +325,16 @@ def search_like_cols_values(db_con,
     else:
         col_names, values = [], []
 
-    c.execute(f"""SELECT * FROM Tsumino
+    c.execute(f"""SELECT * FROM Books
                   WHERE {col_name} LIKE ? {"AND " if len(col_name_value_pairs) > 1 else ""}{" AND ".join(col_names)}
                   ORDER BY {order_by}""", (f"%{value}%", *values))
 
     return c.fetchall()
 
 
-VALID_ORDER_BY = ("ASC", "DESC", "Tsumino.id", "Tsumino.title_eng",
-                  "Tsumino.upload_date", "Tsumino.pages", "Tsumino.rating",
-                  "Tsumino.my_rating", "Tsumino.last_change")
+VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title_eng",
+                  "Books.upload_date", "Books.pages", "Books.rating",
+                  "Books.my_rating", "Books.last_change")
 
 
 def validate_order_by_str(order_by):
@@ -346,7 +346,7 @@ def validate_order_by_str(order_by):
 
 def search_book_by_title(db_con,
                          title,
-                         order_by="Tsumino.id DESC",
+                         order_by="Books.id DESC",
                          keep_row_fac=False):
     db_con.row_factory = sqlite3.Row
     c = db_con.cursor()
@@ -360,7 +360,7 @@ def search_book_by_title(db_con,
     # In this case you need to use plain string formatting to build your query. If your
     # parameters (in this case sort criterium and order) come from user input you need to
     # validate it first
-    c.execute(f"""SELECT * FROM Tsumino
+    c.execute(f"""SELECT * FROM Books
                   WHERE title LIKE ?
                   ORDER BY {order_by}""", (f"%{title}%", ))
 

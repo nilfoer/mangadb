@@ -4,9 +4,12 @@
 - log adding tags or rather lists
     mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id
 - logging in webGUI  
-- mb replace "tsumino.com" with a nr or mb foreign key of diff table since for 2700~ entries it incread the size by 1.5MB
+- update queries for new cols/indices
+
 
 --DONE-------------------------------------------------------------------------------------------------
+- change Tsumino to Books in queries
+- mb replace "tsumino.com" with a nr or mb foreign key of diff table since for 2700~ entries it incread the size by 1.5MB
 - some collections have a "," in their name e.g. Anyway, I Want to Have Sex With...
     => need to either escape the comma or use a different seperator
 - fix booktags missing in production db:
@@ -24,4 +27,4 @@
             -> all additions since last valid bu with only "li_to-read"
         adding of tags not logged but
             20:12:08 - INFO - Tags set() were successfully removed from book with id "2247"
-            means that tags were added or removed -> empty set removed only added tags
+            means that tags were added or removed -> empty set removed only added tags            

@@ -8,10 +8,10 @@ class MangaDBEntry:
     Fields of data that can have multiple values need to be of type list!!!
     """
 
-    DB_COL_HELPER = ("id", "title", "title_eng", "url", "id_onpage", "upload_date", "uploader",
-                     "pages", "rating", "rating_full", "my_rating", "category", "collection",
-                     "groups", "artist", "parody", "character", "last_change", "downloaded",
-                     "favorite", "imported_from")
+    DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "url", "id_onpage", "upload_date",
+                     "uploader", "pages", "rating", "rating_full", "my_rating", "category",
+                     "collection", "groups", "artist", "parody", "character", "last_change",
+                     "downloaded", "favorite", "imported_from")
     # according to html on tsumino
     # when displayed as anchor there can be multiple
     # if the text is directly in the div there is only one value
@@ -24,6 +24,7 @@ class MangaDBEntry:
         self.id_onpage = None
         self.title = None
         self.title_eng = None
+        self.title_foreign = None
         self.url = None
         self.upload_date = None
         self.uploader = None
@@ -57,7 +58,6 @@ class MangaDBEntry:
         self.__dict__.update(dic)
 
     def _update_from_row(self, row):
-        # TODO apply changes first like comma-sep character string to list etc.
         for key in self.DB_COL_HELPER:
             val = row[key]
             if key in self.MULTI_VALUE_COL:

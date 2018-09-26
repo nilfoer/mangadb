@@ -45,7 +45,7 @@ class MangaDB:
         else:
             logger.error("%s is an unsupported identifier type!", id_type)
             return
-        cur = self.db_con.execute(f'select * from Tsumino WHERE {id_col} = ?',
+        cur = self.db_con.execute(f'select * from Books WHERE {id_col} = ?',
                                   (identifier, ))
         book_info = cur.fetchone()
         if not book_info:
@@ -77,15 +77,26 @@ class MangaDB:
         conn = sqlite3.connect(filename, detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
+        c.execute("""CREATE TABLE IF NOT EXISTS Sites (
+                     id INTEGER PRIMARY KEY ASC,
+                     name TEXT UNIQUE NOT NULL)""")
+        # insert supported sites
+        c.executemany("INSERT OR IGNORE INTO Sites(id, name) VALUES (?, ?)",
+                      extractor.SUPPORTED_SITES)
+
         # create table if it doesnt exist
         # group reserved keyword -> use groups for col name
         # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
-        c.execute("""CREATE TABLE IF NOT EXISTS Tsumino (
+        # FOREIGN KEY ON DEL/UPD RESTRICT disallows deleting/modifying parent
+        # key if it has child key(s)
+        c.execute("""CREATE TABLE IF NOT EXISTS Books (
                      id INTEGER PRIMARY KEY ASC,
                      title TEXT UNIQUE NOT NULL,
-                     title_eng TEXT NOT NULL,
+                     title_eng TEXT UNIQUE,
+                     title_foreign TEXT UNIQUE,
                      url TEXT UNIQUE NOT NULL,
-                     id_onpage INTEGER UNIQUE NOT NULL,
+                     id_onpage INTEGER NOT NULL,
+                     imported_from INTEGER NOT NULL,
                      upload_date DATE NOT NULL,
                      uploader TEXT,
                      pages INTEGER NOT NULL,
@@ -98,15 +109,32 @@ class MangaDB:
                      artist TEXT,
                      parody TEXT,
                      character TEXT,
-                     imported_from TEXT NOT NULL,
                      last_change DATE NOT NULL,
-                     downloaded INTEGER,
-                     favorite INTEGER)""")
+                     downloaded INTEGER NOT NULL,
+                     favorite INTEGER NOT NULL,
+                     FOREIGN KEY (imported_from) REFERENCES Sites(id)
+                        ON DELETE RESTRICT)""")
 
-        # create index for id_onpage so we SQLite can access it with O(log n) instead of O(n)
-        # complexit when using WHERE id_onpage = ? (same exists for PRIMARY KEY)
+        # create index for imported_from,id_onpage so we SQLite can access it
+        # with O(log n) instead of O(n) complexit when using WHERE id_onpage = ?
+        # (same exists for PRIMARY KEY) but using rowid/PK INTEGER ASC is still faster
+        # order is important for composite key index
+        # To utilize a multicolumn index, the query must contain the condition
+        # that has the same column order as defined in the index
+        # querying by just imported_from will work or imported_from,id_onpage
+        # but just id_onpage wont work
+        # by making index unique we get an error if we want to insert values
+        # for imported_from,id_onpage that are already in the table as the same combo
+        # TODO but from sqlite.org: The left-most column is the primary key
+        # used for ordering the rows in the index. The second column is used to
+        # break ties in the left-most column. If there were a third column, it
+        # would be used to break ties for the first two columns
+        # -> more sense to have id_onpage since it will have few cases where there
+        # are still duplicates left whereas imported_from will have TONS
+        # but then i cant sort by site having the speed bonus of the index only
+        # id_onpage alone would work which is of no use
         c.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS book_id_onpage ON Tsumino (id_onpage)"
+            "CREATE UNIQUE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
         )
 
         # was using AUTO_INCREMENT here but it wasnt working (tag_id remained NULL)
@@ -122,7 +150,7 @@ class MangaDB:
                      name TEXT UNIQUE NOT NULL,
                      list_bool INTEGER NOT NULL)""")
 
-        # foreign key book_id is linked to id column in Tsumino table
+        # foreign key book_id is linked to id column in Books table
         # also possible to set actions on UPDATE/DELETE
         # FOREIGN KEY (foreign_key_columns)
         # REFERENCES parent_table(parent_key_columns)
@@ -138,40 +166,40 @@ class MangaDB:
         c.execute("""CREATE TABLE IF NOT EXISTS BookTags(
                      book_id INTEGER NOT NULL,
                      tag_id INTEGER NOT NULL,
-                     FOREIGN KEY (book_id) REFERENCES Tsumino(id)
+                     FOREIGN KEY (book_id) REFERENCES Books(id)
                      ON DELETE CASCADE,
                      FOREIGN KEY (tag_id) REFERENCES Tags(tag_id)
                      ON DELETE CASCADE,
                      PRIMARY KEY (book_id, tag_id))""")
 
-        # trigger that gets executed everytime after a row is updated in Tsumino table
+        # trigger that gets executed everytime after a row is updated in Books table
         # with UPDATE -> old and new values of cols accessible with OLD.colname NEW.colname
         # WHERE id = NEW.id is needed otherwise whole col in table gets set to that value
-        # set last_change to current DATE on update of any col in Tsumino gets updated
+        # set last_change to current DATE on update of any col in Books gets updated
         # could limit to certain rows with WHEN condition (AFTER UPDATE ON table WHEN..)
         # by checking if old and new val for col differ OLD.colname <> NEW.colname
         c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tsumino
-                     AFTER UPDATE ON Tsumino
+                     AFTER UPDATE ON Books
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET last_change = DATE('now', 'localtime')
                         WHERE id = NEW.id;
                      END""")
 
-        # set last_change on Tsumino when new tags get added in bridge table
+        # set last_change on Books when new tags get added in bridge table
         c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags_ins
                      AFTER INSERT ON BookTags
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET last_change = DATE('now', 'localtime')
                         WHERE id = NEW.book_id;
                      END""")
 
-        # set last_change on Tsumino when tags get removed in bridge table
+        # set last_change on Books when tags get removed in bridge table
         c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags_del
                      AFTER DELETE ON BookTags
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET last_change = DATE('now', 'localtime')
                         WHERE id = OLD.book_id;
                      END""")
@@ -183,7 +211,7 @@ class MangaDB:
                                      WHEN NEW.tag_id IN (
                                      SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET downloaded = 1
                         WHERE id = NEW.book_id;
                      END""")
@@ -194,7 +222,7 @@ class MangaDB:
                                      WHEN OLD.tag_id IN (
                                      SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET downloaded = 0
                         WHERE id = OLD.book_id;
                      END""")
@@ -205,7 +233,7 @@ class MangaDB:
                                      WHEN NEW.tag_id IN (
                                      SELECT tag_id FROM Tags WHERE name = 'li_best')
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET favorite = 1
                         WHERE id = NEW.book_id;
                      END""")
@@ -216,7 +244,7 @@ class MangaDB:
                                      WHEN OLD.tag_id IN (
                                      SELECT tag_id FROM Tags WHERE name = 'li_best')
                      BEGIN
-                        UPDATE Tsumino
+                        UPDATE Books
                         SET favorite = 0
                         WHERE id = OLD.book_id;
                      END""")
@@ -233,35 +261,37 @@ class MangaDB:
         lastrowid = None
         with self.db_con:
             try:
-                c = self.db_con.execute(
-                    "INSERT INTO Tsumino (title, title_eng, url, id_onpage, upload_date, "
-                    "uploader, pages, rating, rating_full, my_rating, category, collection, "
-                    "groups, artist, parody, character, imported_from, last_change, downloaded, "
-                    "favorite) "
-                    "VALUES (:title, :title_eng, :url, :id_onpage, :upload_date, :uploader, "
-                    ":pages, :rating, :rating_full, :my_rating, :category, :collection, "
-                    ":groups, :artist, :parody, :character, :imported_from, :last_change, "
-                    ":downloaded, :favorite)", db_dict)
+                c = self.db_con.execute("""
+                    INSERT INTO Books (title, title_eng, title_foreign, url,
+                    id_onpage, upload_date, uploader, pages, rating,
+                    rating_full, my_rating, category, collection, 
+                    groups, artist, parody, character, imported_from,
+                    last_change, downloaded, favorite)
+                    VALUES (:title, :title_eng, :title_foreign, :url, :id_onpage,
+                    :upload_date, :uploader, :pages, :rating, :rating_full,
+                    :my_rating, :category, :collection, :groups, :artist,
+                    :parody, :character, :imported_from, :last_change,
+                    :downloaded, :favorite)""", db_dict)
             except sqlite3.IntegrityError as error:
                 error_msg = str(error)
                 if "UNIQUE constraint failed" in error_msg:
                     failed_col = error_msg.split(".")[-1]
                     logger.info("Tried to add book with %s that was already in DB: %s",
                                 failed_col, db_dict[failed_col])
-                    lastrowid = self._handle_book_not_unique(self.db_con, failed_col, manga_db_entry, action=duplicate_action)
+                    lastrowid = self._handle_book_not_unique(self.db_con,
+                                                             failed_col, manga_db_entry,
+                                                             action=duplicate_action)
                 else:
                     # were only handling unique constraint fail so reraise if its sth else
                     raise error
             else:
                 lastrowid = c.lastrowid
-                # workaround to make concatenation work
-                if lists is None:
-                    lists = []
-                # use cursor.lastrowid to get id of last insert in Tsumino table
-                add_tags_to_book(self.db_con, lastrowid, lists + dic["Tag"])
+                # use cursor.lastrowid to get id of last insert in Books table
+                add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
+                                 manga_db_entry.tags)
 
                 # handle_book_not_unique also handles downloading book thumb in that case
-                dl_book_thumb(url)
+                manga_db_entry.get_cover()
 
                 logger.info("Added book with url \"%s\" to database!", url)
 
@@ -290,7 +320,7 @@ class MangaDB:
 
 
         # @Incomplete just replacing most recent one if action keep_both was used before
-        c = db_con.execute(f"SELECT id, id_onpage, my_rating, title FROM Tsumino WHERE {duplicate_col} = ?",
+        c = db_con.execute(f"SELECT id, id_onpage, my_rating, title FROM Books WHERE {duplicate_col} = ?",
                           (prepared_dic[duplicate_col],))
         row = c.fetchall()
         assert(len(row) == 1)
@@ -314,7 +344,7 @@ class MangaDB:
             # since update_manga_db_entry_from_dict tries to query for id using id_onpage we have to update id_onpage maunally first @Hack @Cleanup
             # also update url since update.. doesnt @Hack
             new_id_onpage = book_id_from_url(url)
-            db_con.execute("UPDATE Tsumino SET id_onpage = ?, url = ? WHERE id = ?",
+            db_con.execute("UPDATE Books SET id_onpage = ?, url = ? WHERE id = ?",
                           (new_id_onpage, url, old_id_internal))
             update_manga_db_entry_from_dict(db_con, url, li_downloaded, dic)
 
@@ -329,7 +359,7 @@ class MangaDB:
                 try:
                     # change title of old book
                     old_title_dupe = f"{old_title} (DUPLICATE {i})"
-                    db_con.execute("UPDATE Tsumino SET title = ? WHERE id = ?", (old_title_dupe,
+                    db_con.execute("UPDATE Books SET title = ? WHERE id = ?", (old_title_dupe,
                                    old_id_internal))
                 except sqlite3.IntegrityError as error:
                     error_msg = str(error)
@@ -357,7 +387,7 @@ class MangaDB:
         lists will ONLY be ADDED not removed"""
         book_id = book_id_from_url(url)
 
-        c = db_con.execute("SELECT id FROM Tsumino WHERE id_onpage = ?",
+        c = db_con.execute("SELECT id FROM Books WHERE id_onpage = ?",
                            (book_id, ))
         # lists from db is string "list1, list2, .."
         id_internal = c.fetchone()[0]
@@ -366,7 +396,7 @@ class MangaDB:
 
         # get previous value for downloaded and fav from db
         c = db_con.execute(
-            "SELECT downloaded, favorite FROM Tsumino WHERE id_onpage = ?",
+            "SELECT downloaded, favorite FROM Books WHERE id_onpage = ?",
             (book_id, ))
         downloaded, favorite = c.fetchone()
         if lists:
@@ -383,7 +413,7 @@ class MangaDB:
         # -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
         # => WARN to redownload book
         c.execute(
-            "SELECT uploader, upload_date, pages FROM Tsumino WHERE id_onpage = ?",
+            "SELECT uploader, upload_date, pages FROM Books WHERE id_onpage = ?",
             (book_id, ))
         res_tuple = c.fetchone()
 
@@ -429,7 +459,7 @@ class MangaDB:
 
         with db_con:
             # dont update: title = :title, title_eng = :title_eng,
-            c.execute("""UPDATE Tsumino SET
+            c.execute("""UPDATE Books SET
                          upload_date = :upload_date, uploader = :uploader, pages = :pages,
                          rating = :rating, rating_full = :rating_full, category = :category,
                          collection = :collection, groups = :groups, artist = :artist,
@@ -457,3 +487,7 @@ class MangaDB:
 
         # c.lastrowid only works for INSERT/REPLACE
         return id_internal, field_change_str
+
+    def get_all_id_onpage_set(self):
+        c = self.db_con.execute("SELECT id_onpage FROM Books")
+        return set([tupe[0] for tupe in c.fetchall()])

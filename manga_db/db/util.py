@@ -56,3 +56,10 @@ def string_to_list(string, escape_char="\\", sep=","):
                 current_item += c
     result.append(current_item)
     return result
+
+
+def print_sqlite3_row(row, sep=";"):
+    str_li = []
+    for key in row.keys():
+        str_li.append(f"{key}: {row[key]}")
+    print(sep.join(str_li))

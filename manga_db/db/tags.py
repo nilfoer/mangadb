@@ -91,14 +91,14 @@ def remove_tags_from_book(db_con, url, tags):
     # AND BookTags.tag_id IN (select tag_id FROM bts)
 
     # delete all rows that contain a tagid where the name col in Tags matches one of the
-    # tags to delete and the book_id matches id of Tsumino table where id_onpage matches our
+    # tags to delete and the book_id matches id of Books table where id_onpage matches our
     # book_id
     db_con.execute(f"""DELETE FROM BookTags WHERE BookTags.tag_id IN
                        (SELECT Tags.tag_id FROM Tags
                        WHERE (Tags.name IN ({', '.join(['?']*len(tags))})))
                        AND BookTags.book_id IN
-                       (SELECT Tsumino.id FROM Tsumino
-                       WHERE Tsumino.id_onpage = ?)""", (*tags, book_id))
+                       (SELECT Books.id FROM Books
+                       WHERE Books.id_onpage = ?)""", (*tags, book_id))
 
     logger.info("Tags %s were successfully removed from book with url \"%s\"",
                 tags, url)
@@ -107,7 +107,7 @@ def remove_tags_from_book(db_con, url, tags):
 def add_tags_to_book_cl(db_con, url, tags):
     book_id = book_id_from_url(url)
     c = db_con.execute(
-        "SELECT Tsumino.id FROM Tsumino WHERE Tsumino.id_onpage = ?",
+        "SELECT Books.id FROM Books WHERE Books.id_onpage = ?",
         (book_id, ))
     id_internal = c.fetchone()[0]
     add_tags_to_book(db_con, id_internal, tags)
@@ -130,14 +130,14 @@ def get_tags_by_book(db_con, identifier, id_type):
         return
 
     if not book_id:
-        c = db_con.execute(f"SELECT id_onpage FROM Tsumino WHERE {id_col} = ?",
+        c = db_con.execute(f"SELECT id_onpage FROM Books WHERE {id_col} = ?",
                            (identifier, ))
         book_id = c.fetchone()[0]
 
     c = db_con.execute(f"""SELECT group_concat(Tags.name)
-                           FROM Tags, BookTags bt, Tsumino
-                           WHERE bt.book_id = Tsumino.id
-                           AND Tsumino.{id_col} = ?
+                           FROM Tags, BookTags bt, Books
+                           WHERE bt.book_id = Books.id
+                           AND Books.{id_col} = ?
                            AND bt.tag_id = Tags.tag_id
                            GROUP BY bt.book_id""", (identifier, ))
     return c.fetchone()[0]
@@ -146,9 +146,9 @@ def get_tags_by_book(db_con, identifier, id_type):
 def get_tags_by_book_url(db_con, url):
     book_id = book_id_from_url(url)
     c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Tsumino
-                          WHERE bt.book_id = Tsumino.id
-                          AND Tsumino.id_onpage = ?
+                          FROM Tags, BookTags bt, Books
+                          WHERE bt.book_id = Books.id
+                          AND Books.id_onpage = ?
                           AND bt.tag_id = Tags.tag_id
                           GROUP BY bt.book_id""", (book_id, ))
     return c.fetchone()[0]
@@ -156,9 +156,9 @@ def get_tags_by_book_url(db_con, url):
 
 def get_tags_by_book_id_onpage(db_con, id_onpage):
     c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Tsumino
-                          WHERE bt.book_id = Tsumino.id
-                          AND Tsumino.id_onpage = ?
+                          FROM Tags, BookTags bt, Books
+                          WHERE bt.book_id = Books.id
+                          AND Books.id_onpage = ?
                           AND bt.tag_id = Tags.tag_id
                           GROUP BY bt.book_id""", (id_onpage, ))
     return c.fetchone()[0]
@@ -166,9 +166,9 @@ def get_tags_by_book_id_onpage(db_con, id_onpage):
 
 def get_tags_by_book_id_internal(db_con, id_internal):
     c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Tsumino
-                          WHERE bt.book_id = Tsumino.id
-                          AND Tsumino.id = ?
+                          FROM Tags, BookTags bt, Books
+                          WHERE bt.book_id = Books.id
+                          AND Books.id = ?
                           AND bt.tag_id = Tags.tag_id
                           GROUP BY bt.book_id""", (id_internal, ))
     return c.fetchone()[0]
