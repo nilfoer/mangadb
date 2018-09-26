@@ -1,6 +1,5 @@
-from manga_db import load_or_create_sql_db
-from manga_db. import extractor
-db_con, _ = load_or_create_sql_db("manga_db.sqlite")
+import sqlite3
+db_con, _ = sqlite3.connect("manga_db.sqlite", detect_types=sqlite3.PARSE_DECLTYPES)
 
 # sqlite doesnt allow to ALTER MODIFY a table
 # -> add col, set value so we can later set to NOT NULL, create new table with added col NOT NULL, copy from old, drop old, rename
@@ -8,10 +7,10 @@ db_con, _ = load_or_create_sql_db("manga_db.sqlite")
 # -> prob with SELECT col1, col2, "tsumino.com"
 # see: http://www.sqlitetutorial.net/sqlite-alter-table/
 with db_con:
-    c = db_con.execute("""ALTER TABLE Books
+    c = db_con.execute("""ALTER TABLE Tsumino
                           ADD COLUMN title_foreign TEXT;""")
     # get titles and fill title_foreignive col
-    id_title = c.execute("SELECT id, title FROM Books").fetchall()
+    id_title = c.execute("SELECT id, title FROM Tsumino").fetchall()
     res_tuples = []
     for rid, title in id_title:
         title = re.match(self.ENG_TITLE_RE, value)
@@ -28,7 +27,7 @@ with db_con:
                 title_foreign = value
         res_tuples.append((title_foreign, rid))
 
-    c.executemany("UPDATE Books SET title_foreign = ? WHERE id = ?", res_tuples)
+    c.executemany("UPDATE Tsumino SET title_foreign = ? WHERE id = ?", res_tuples)
  
     c.execute("""CREATE TABLE IF NOT EXISTS Sites (
                  id INTEGER PRIMARY KEY ASC,
@@ -43,7 +42,9 @@ with db_con:
  
                  BEGIN TRANSACTION;
                   
-                 ALTER TABLE Books RENAME TO temp_table;
+                 UPDATE Tsumino SET downloaded = 0 WHERE downloaded is null;
+                 UPDATE Tsumino SET favorite = 0 WHERE favorite is null;
+                 ALTER TABLE Tsumino RENAME TO temp_table;
                   
                  CREATE TABLE Books
                  (
@@ -73,10 +74,10 @@ with db_con:
                         ON DELETE RESTRICT
                  );
                   
-                 INSERT INTO Books (id, title, title_eng, title_foreign, url, id_onpage, upload_date,
-                          uploader, pages, rating, rating_full, my_rating, category,
-                          collection, groups, artist, parody, character, imported_from,
-                          last_change, downloaded, favorite)
+                 INSERT INTO Books (id, title, title_eng, title_foreign, url, id_onpage,
+                          upload_date, uploader, pages, rating, rating_full, my_rating,
+                          category, collection, groups, artist, parody, character,
+                          imported_from, last_change, downloaded, favorite)
                    SELECT id, title, title_eng, title_foreign, url, id_onpage, upload_date,
                           uploader, pages, rating, rating_full, my_rating, category,
                           collection, groups, artist, parody, character, imported_from,
@@ -91,3 +92,107 @@ with db_con:
     c.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
     )
+
+    # since we changed table name of Tsumino to Books we also have to re-do
+    # BookTags and the triggers since they reference Tsumino and the references
+    # only get (if at all) partly updated
+    # e.g. on trigger AFTER .. ON table-name gets updated but the table name in
+    # the action (between BEGIN..END) doesnt; FOREGIN KEY also doesnt get updated etc.
+    c.executescript("""
+                        PRAGMA foreign_keys=off;
+ 
+                         BEGIN TRANSACTION;
+                          
+                         ALTER TABLE BookTags RENAME TO temp_table;
+                         CREATE TABLE IF NOT EXISTS BookTags(
+                                      book_id INTEGER NOT NULL,
+                                      tag_id INTEGER NOT NULL,
+                                      FOREIGN KEY (book_id) REFERENCES Books(id)
+                                      ON DELETE CASCADE,
+                                      FOREIGN KEY (tag_id) REFERENCES Tags(tag_id)
+                                      ON DELETE CASCADE,
+                                      PRIMARY KEY (book_id, tag_id));
+                         INSERT INTO BookTags (book_id, tag_id)
+                            SELECT book_id, tag_id
+                            FROM temp_table;
+                        DROP temp_table;
+                        DROP TRIGGER IF EXISTS set_last_change_tsumino;
+                        DROP TRIGGER IF EXISTS set_last_change_tags_ins;
+                        DROP TRIGGER IF EXISTS set_last_change_tags_del;
+                        DROP TRIGGER IF EXISTS update_downloaded_on_tags_insert;
+                        DROP TRIGGER IF EXISTS update_downloaded_on_tags_delete;
+                        DROP TRIGGER IF EXISTS update_favorite_on_tags_delete;
+                        DROP TRIGGER IF EXISTS update_favorite_on_tags_insert;
+                        COMMIT;
+                        PRAGMA foreign_keys=on;""")                     
+
+    c.execute("""CREATE TRIGGER set_last_change_tsumino
+                 AFTER UPDATE ON Books
+                 BEGIN
+                    UPDATE Books
+                    SET last_change = DATE('now', 'localtime')
+                    WHERE id = NEW.id;
+                 END""")
+
+    # set last_change on Books when new tags get added in bridge table
+    c.execute("""CREATE TRIGGER set_last_change_tags_ins
+                 AFTER INSERT ON BookTags
+                 BEGIN
+                    UPDATE Books
+                    SET last_change = DATE('now', 'localtime')
+                    WHERE id = NEW.book_id;
+                 END""")
+
+    # set last_change on Books when tags get removed in bridge table
+    c.execute("""CREATE TRIGGER set_last_change_tags_del
+                 AFTER DELETE ON BookTags
+                 BEGIN
+                    UPDATE Books
+                    SET last_change = DATE('now', 'localtime')
+                    WHERE id = OLD.book_id;
+                 END""")
+
+    # also do this the other way around -> if downloaded get set also add "li_downloaded" to tags?
+    # set downloaded to 1 if book gets added to li_downloaded
+    c.execute("""CREATE TRIGGER update_downloaded_on_tags_insert
+                 AFTER INSERT ON BookTags
+                                 WHEN NEW.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
+                 BEGIN
+                    UPDATE Books
+                    SET downloaded = 1
+                    WHERE id = NEW.book_id;
+                 END""")
+
+    # set downloaded to 0 if book gets removed from li_downloaded
+    c.execute("""CREATE TRIGGER update_downloaded_on_tags_delete
+                 AFTER DELETE ON BookTags
+                                 WHEN OLD.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
+                 BEGIN
+                    UPDATE Books
+                    SET downloaded = 0
+                    WHERE id = OLD.book_id;
+                 END""")
+
+    # set favorite to 1 if book gets added to li_best
+    c.execute("""CREATE TRIGGER update_favorite_on_tags_insert
+                 AFTER INSERT ON BookTags
+                                 WHEN NEW.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_best')
+                 BEGIN
+                    UPDATE Books
+                    SET favorite = 1
+                    WHERE id = NEW.book_id;
+                 END""")
+
+    # set favorite to 0 if book gets removed from li_best
+    c.execute("""CREATE TRIGGER update_favorite_on_tags_delete
+                 AFTER DELETE ON BookTags
+                                 WHEN OLD.tag_id IN (
+                                 SELECT tag_id FROM Tags WHERE name = 'li_best')
+                 BEGIN
+                    UPDATE Books
+                    SET favorite = 0
+                    WHERE id = OLD.book_id;
+                 END""")
