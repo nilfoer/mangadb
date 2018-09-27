@@ -1,3 +1,5 @@
+import re
+
 def write_to_txtf(wstring, filename):
     """
     Writes wstring to filename
@@ -41,3 +43,52 @@ def test_filter_duplicate_at_index_of_list_items():
          ("ghi", 3, 3), ("def", 4, 4), ("jkl", 5, 5,)]
     res = filter_duplicate_at_index_of_list_items(0, l)
     return res == [('jkl', 5, 5), ('def', 4, 4), ('ghi', 3, 3), ('abc', 2, 2)]
+
+
+# re.UNICODE is redundant in Python 3 since matches are Unicode by default for strings
+# removed \u10000-\u1BC9F \u1D200-\u1D37F \u20000-\u2FA1FCJK 
+# they somehow matched normal latin chars, mb becaus theyre too high a number
+# but they appear in utf-8
+FOREIGN_RE = re.compile(r"[\u0100-\u02AF\u0370-\u1CFF\u1F00−\u1FFF\u2C00-\u2DFF\u2E80-\uFDFF\uFE30−\uFE4F\uFE70−\uFEFF]")
+# removed \u20000−\u2FA1FCJK
+CJK_ASIAN_RE = re.compile(r"[\u2E80-\uA4CF\uA960−\uA97F\uAA00−\uAA5F\uAA60−\uAA7F\uAA80−\uAADF\uAAE0−\uAAFF\uAC00−\uD7AF\uD7B0−\uD7FF\uF900−\uFAFF\uFE30−\uFE4F]")
+
+
+def contains_asian(string):
+    if CJK_ASIAN_RE.search(string):
+        return True
+    else:
+        return False
+
+
+def contains_foreign(string):
+    if FOREIGN_RE.search(string):
+        return True
+    else:
+        return False
+
+
+def count_asian_chars(string):
+    return len(CJK_ASIAN_RE.findall(string))
+
+
+def count_foreign_chars(string):
+    return len(FOREIGN_RE.findall(string))
+
+
+def is_asian(string, asian_chars_to_string_length=0.5):
+    # findall returns each non-overlapping match in a list
+    asian_char_amount = count_asian_chars(string)
+    if asian_char_amount/len(string) >= asian_chars_to_string_length:
+        return True
+    else:
+        return False
+
+
+def is_foreign(string, foreign_chars_to_string_length=0.5):
+    # findall returns each non-overlapping match in a list
+    foreign_char_amount = count_foreign_chars(string)
+    if foreign_char_amount/len(string) >= foreign_chars_to_string_length:
+        return True
+    else:
+        return False

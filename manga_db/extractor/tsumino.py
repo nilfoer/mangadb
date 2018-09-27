@@ -7,6 +7,7 @@ import re
 import bs4
 
 from .base import BaseMangaExtractor
+from ..util import is_foreign
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class TsuminoExtractor(BaseMangaExtractor):
     URL_PATTERN_RE = re.compile(r"^(https?://)?(www\.)?tsumino\.com/(Book|Read|Download)/"
                                 r"(Info|View|Index)/(\d+)/?([\w-]+)?")
     ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
-    ENG_TITLE_RE = re.compile(r"^(.+) \/ (.+)")
+    TITLE_RE = re.compile(r"^(.+) \/ (.+)")
     metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
             "title": "Title", "uploader": "Uploader", "upload_date": "Uploaded",
             "pages": "Pages", "rating_full": "Rating", "my_rating": "My Rating",
@@ -71,18 +72,17 @@ class TsuminoExtractor(BaseMangaExtractor):
                 result[attr] = datetime.datetime.strptime(value, "%Y %B %d").date()
             elif attr == "title":
                 result[attr] = value
-                title = re.match(self.ENG_TITLE_RE, value)
+                title = re.match(self.TITLE_RE, value)
                 if title:
                     result["title_eng"] = title.group(1)
                     result["title_foreign"] = title.group(2)
                 else:
-                    # if all alphanum chars then title is english
-                    if all((c.isalpha() for c in title)):
-                        result["title_eng"] = value
-                        result["title_foreign"] = None
-                    else:
+                    if is_foreign(value):
                         result["title_eng"] = None
                         result["title_foreign"] = value
+                    else:
+                        result["title_eng"] = value
+                        result["title_foreign"] = None
             else:
                 result[attr] = value
         if metadata:

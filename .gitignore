@@ -33,7 +33,7 @@ build/
 *.*~
 .vscode/
 manga*db.csv
-manga*db.sqlite
+*.sqlite
 thumbs/
 PIL/
 Pillow*/
