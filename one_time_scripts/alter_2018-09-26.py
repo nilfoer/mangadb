@@ -1,5 +1,22 @@
 import sqlite3
-db_con, _ = sqlite3.connect("manga_db.sqlite", detect_types=sqlite3.PARSE_DECLTYPES)
+import re
+db_con = sqlite3.connect("./manga_db.sqlite", detect_types=sqlite3.PARSE_DECLTYPES)
+
+FOREIGN_RE = re.compile(r"[\u0100-\u02AF\u0370-\u1CFF\u1F00−\u1FFF\u2C00-\u2DFF\u2E80-\uFDFF\uFE30−\uFE4F\uFE70−\uFEFF]")
+
+
+def count_foreign_chars(string):
+    return len(FOREIGN_RE.findall(string))
+
+
+def is_foreign(string, foreign_chars_to_string_length=0.5):
+    # findall returns each non-overlapping match in a list
+    foreign_char_amount = count_foreign_chars(string)
+    if foreign_char_amount/len(string) >= foreign_chars_to_string_length:
+        return True
+    else:
+        return False
+
 
 # sqlite doesnt allow to ALTER MODIFY a table
 # -> add col, set value so we can later set to NOT NULL, create new table with added col NOT NULL, copy from old, drop old, rename
@@ -9,32 +26,42 @@ db_con, _ = sqlite3.connect("manga_db.sqlite", detect_types=sqlite3.PARSE_DECLTY
 with db_con:
     c = db_con.execute("""ALTER TABLE Tsumino
                           ADD COLUMN title_foreign TEXT;""")
-    # get titles and fill title_foreignive col
+    # get titles and fill title_foreign col
     id_title = c.execute("SELECT id, title FROM Tsumino").fetchall()
     res_tuples = []
+    TITLE_RE = re.compile(r"^(.+) \/ (.+)")
     for rid, title in id_title:
-        title = re.match(self.ENG_TITLE_RE, value)
-        if title:
-            title_eng = title.group(1)
-            title_foreign = title.group(2)
+        m_title = re.match(TITLE_RE, title)
+        if m_title:
+            title_eng = m_title.group(1)
+            title_foreign = m_title.group(2)
+            if "(DUPLICATE " in title:
+                # split at duplicate otherwise (DUPL.. might be in title_eng or title_foreign
+                title, dupl_nr = title.split("(DUPLICATE ")
+                dupl_nr = dupl_nr.split(")")[0]
+                m_title = re.match(TITLE_RE, title)
+                title_eng = m_title.group(1)
+                title_foreign = m_title.group(2)
+                title_eng = f"{title_eng} (DUPLICATE {dupl_nr})"
+                title_foreign = f"{title_foreign} (DUPLICATE {dupl_nr})"
         else:
-            # if all alphanum chars then title is english
-            if all((c.isalpha() for c in title)):
-                title_eng = value
-                title_foreign = None
-            else:
+            # dont need to check for (DUPL.. since it should be in title_*
+            if is_foreign(title):
                 title_eng = None
-                title_foreign = value
-        res_tuples.append((title_foreign, rid))
+                title_foreign = title
+            else:
+                title_eng = title
+                title_foreign = None
+        res_tuples.append((title_eng, title_foreign, rid))
 
-    c.executemany("UPDATE Tsumino SET title_foreign = ? WHERE id = ?", res_tuples)
+    c.executemany("UPDATE Tsumino SET title_eng = ?, title_foreign = ? WHERE id = ?", res_tuples)
  
     c.execute("""CREATE TABLE IF NOT EXISTS Sites (
                  id INTEGER PRIMARY KEY ASC,
                  name TEXT UNIQUE NOT NULL)""")
     # insert supported sites
     c.executemany("INSERT OR IGNORE INTO Sites(id, name) VALUES (?, ?)",
-                  extractor.SUPPORTED_SITES)
+                  [(1, "tsumino.com")])
 
     # use executescript since there are ";" in the code which seperate statements from each other
     # otherwise -> error: sqlite3.Warning: You can only execute one statement at a time
@@ -42,6 +69,7 @@ with db_con:
  
                  BEGIN TRANSACTION;
                   
+                 UPDATE Tsumino SET imported_from = 1;
                  UPDATE Tsumino SET downloaded = 0 WHERE downloaded is null;
                  UPDATE Tsumino SET favorite = 0 WHERE favorite is null;
                  ALTER TABLE Tsumino RENAME TO temp_table;
@@ -104,7 +132,7 @@ with db_con:
                          BEGIN TRANSACTION;
                           
                          ALTER TABLE BookTags RENAME TO temp_table;
-                         CREATE TABLE IF NOT EXISTS BookTags(
+                         CREATE TABLE BookTags(
                                       book_id INTEGER NOT NULL,
                                       tag_id INTEGER NOT NULL,
                                       FOREIGN KEY (book_id) REFERENCES Books(id)
@@ -115,7 +143,7 @@ with db_con:
                          INSERT INTO BookTags (book_id, tag_id)
                             SELECT book_id, tag_id
                             FROM temp_table;
-                        DROP temp_table;
+                        DROP TABLE temp_table;
                         DROP TRIGGER IF EXISTS set_last_change_tsumino;
                         DROP TRIGGER IF EXISTS set_last_change_tags_ins;
                         DROP TRIGGER IF EXISTS set_last_change_tags_del;

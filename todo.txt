@@ -5,6 +5,8 @@
     mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id
 - logging in webGUI  
 - update queries for new cols/indices
+- check newly added books for dl (on production db)
+- test triggers
 
 
 --DONE-------------------------------------------------------------------------------------------------
