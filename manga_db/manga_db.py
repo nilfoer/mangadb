@@ -1,13 +1,24 @@
 import os
 import logging
 import sqlite3
+import urllib.request
 
 from . import extractor
 from .manga import MangaDBEntry
-from .db.tags import get_tags_by_book
+from .db.tags import get_tags_by_book, add_tags_to_book
 
 
 logger = logging.getLogger(__name__)
+
+# normal urllib user agent is being blocked by tsumino
+# set user agent to use with urrlib
+opener = urllib.request.build_opener()
+opener.addheaders = [(
+    'User-agent',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0')
+]
+# ...and install it globally so it can be used with urlretrieve/open
+urllib.request.install_opener(opener)
 
 
 class MangaDB:
@@ -26,11 +37,10 @@ class MangaDB:
         extractor_cls = extractor.find(url)
         extr = extractor_cls(url)
         book_data = extr.get_metadata()
-        # TODO cover
-        book = MangaDBEntry(self, extr.site_name, book_data, lists=lists)
-        # TODO add
-        print(book)
-        return book
+        extr.get_cover()
+        book = MangaDBEntry(self, extr.site_id, book_data, lists=lists)
+        # TODO add or update?
+        return self.add_book(book)
 
     def get_book(self, identifier, id_type):
         if id_type == "id":
@@ -62,7 +72,138 @@ class MangaDB:
 
     def add_book(self, book):
         # add/update book in db
-        pass
+        # TODO move to MangaDBEntry class?
+        bid = self._add_manga_db_entry(book)
+        book.id = bid
+        return book
+
+    # TODO
+    def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
+        """Commits changes to db"""
+        db_dict = manga_db_entry.export_for_db()
+        lastrowid = None
+        with self.db_con:
+            try:
+                c = self.db_con.execute("""
+                    INSERT INTO Books (title, title_eng, title_foreign, url,
+                    id_onpage, upload_date, uploader, pages, rating,
+                    rating_full, my_rating, category, collection, 
+                    groups, artist, parody, character, imported_from,
+                    last_change, downloaded, favorite)
+                    VALUES (:title, :title_eng, :title_foreign, :url, :id_onpage,
+                    :upload_date, :uploader, :pages, :rating, :rating_full,
+                    :my_rating, :category, :collection, :groups, :artist,
+                    :parody, :character, :imported_from, :last_change,
+                    :downloaded, :favorite)""", db_dict)
+            except sqlite3.IntegrityError as error:
+                error_msg = str(error)
+                if "UNIQUE constraint failed" in error_msg:
+                    failed_col = error_msg.split(".")[-1]
+                    logger.info("Tried to add book with %s that was already in DB: %s",
+                                failed_col, db_dict[failed_col])
+                    lastrowid = self._handle_book_not_unique(self.db_con,
+                                                             failed_col, manga_db_entry,
+                                                             action=duplicate_action)
+                else:
+                    # were only handling unique constraint fail so reraise if its sth else
+                    raise error
+            else:
+                lastrowid = c.lastrowid
+                # use cursor.lastrowid to get id of last insert in Books table
+                add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
+                                 manga_db_entry.tags)
+
+                # handle_book_not_unique also handles downloading book thumb in that case
+                # TODO where should i dl the cover
+                # manga_db_entry.get_cover()
+
+                logger.info("Added book with url \"%s\" to database!", manga_db_entry.url)
+
+        return lastrowid
+        
+    def _handle_book_not_unique(self, duplicate_col, manga_db_entry, lists, action=None):
+        """Only partly commits changes where it calls add_manga or update_manga"""
+        # webGUI cant do input -> use default None and set if None
+        if action is None:
+            # options: replace(==keep_new), keep_both, keep_old
+            while True:
+                action_i = input("Choose the action for handling duplicate "
+                                f"book {prepared_dic['title_eng']}:\n"
+                                 "(0) replace, (1) keep_both, (2) keep_old: ")
+                try:
+                    action = self.HANDLE_DUPLICATE_BOOK_ACTIONS[int(action_i)]
+                except ValueError:
+                    print("Not a valid index!!")
+                else:
+                    break
+
+
+        # @Incomplete just replacing most recent one if action keep_both was used before
+        c = db_con.execute(f"SELECT id, id_onpage, imported_from, my_rating, title"
+                            "FROM Books WHERE {duplicate_col} = ?",
+                            (prepared_dic[duplicate_col],))
+        row = c.fetchall()
+        assert(len(row) == 1)
+        old_id_internal, old_id_onpage, old_imported_from, my_rating, old_title = row[0]
+
+        id_internal = None
+        if action == "keep_old":
+            logger.info("Kept old book with id_onpage: %s", old_id_onpage)
+            # return None here so we know when no action was taken
+            return id_internal
+
+        if action == "replace":
+            logger.info("Replacing book with id_onpage %s. Everything but the lists (only downloaded will be modified -> new lists wont be added!) will be replaced!", old_id_onpage)
+            # only add/remove list downloaded
+            li_downloaded = None
+            if lists and ("li_downloaded" in lists):
+                li_downloaded = ["li_downloaded"]
+            else:
+                remove_tags_from_book_id(self.db_con, old_id_internal, ["li_downloaded"])
+
+            # since update_manga_db_entry_from_dict tries to query for id using id_onpage we have to update id_onpage maunally first @Hack @Cleanup
+            # also update url since update.. doesnt @Hack
+            new_id_onpage = book_id_from_url(url)
+            db_con.execute("UPDATE Books SET id_onpage = ?, url = ? WHERE id = ?",
+                          (new_id_onpage, url, old_id_internal))
+            update_manga_db_entry_from_dict(db_con, url, li_downloaded, dic)
+
+            # also delete book thumb
+            os.remove(os.path.join("thumbs", f"{old_imported_from}_{old_id_onpage}"))
+            logger.debug("Removed thumb with path %s", f"thumbs/{old_id_onpage}")
+
+            id_internal = old_id_internal
+        elif action == "keep_both":
+            i = 1
+            while True:
+                try:
+                    # change title of old book
+                    old_title_dupe = f"{old_title} (DUPLICATE {i})"
+                    db_con.execute("UPDATE Books SET title = ? WHERE id = ?", (old_title_dupe,
+                                   old_id_internal))
+                except sqlite3.IntegrityError as error:
+                    error_msg = str(error)
+                    if "UNIQUE constraint failed" not in error_msg:
+                        # were only handling unique constraint fail so reraise if its sth else
+                        raise error
+                    i += 1
+                else:
+                    break
+            logger.info("Keeping both books, renamed old version to: %s", old_title_dupe)
+
+            id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
+
+        # in both cases (replace and keep_both) use old rating on newly added book
+        rate_manga(db_con, url, my_rating)
+
+        # dl new thumb also for both cases
+        dl_book_thumb(url)
+
+        return id_internal
+
+    def get_all_id_onpage_set(self):
+        c = self.db_con.execute("SELECT id_onpage FROM Books")
+        return set([tupe[0] for tupe in c.fetchall()])
 
     @staticmethod
     def _load_or_create_sql_db(filename):
@@ -89,11 +230,18 @@ class MangaDB:
         # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
         # FOREIGN KEY ON DEL/UPD RESTRICT disallows deleting/modifying parent
         # key if it has child key(s)
+        # title_foreign cant be UNIQUE since some uploads on tsumino had the same asian title
+        # but a different english title/ were a different book; mb because theyre chapters of
+        # a larger book?
+        # for now lets assume the english title is always unique (at least it has been for now for
+        # over 2k books), the alternative would be to only leave title UNIQUE and (which i have to
+        # do anyway) always have the title as english-title / foreign-title -- this may be the better
+        # approach anyway
         c.execute("""CREATE TABLE IF NOT EXISTS Books (
                      id INTEGER PRIMARY KEY ASC,
                      title TEXT UNIQUE NOT NULL,
                      title_eng TEXT UNIQUE,
-                     title_foreign TEXT UNIQUE,
+                     title_foreign TEXT,
                      url TEXT UNIQUE NOT NULL,
                      id_onpage INTEGER NOT NULL,
                      imported_from INTEGER NOT NULL,
@@ -136,6 +284,9 @@ class MangaDB:
         c.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
         )
+        # TODO cant rely on id_onpage,imported_from always being unique since
+        # e.g. tsumino reuses old, unused ids, so i'd have to update
+        # this id by searching for the title or let id_onpage be NULL
 
         # was using AUTO_INCREMENT here but it wasnt working (tag_id remained NULL)
         # SQLite recommends that you should not use AUTOINCREMENT attribute because:
@@ -178,7 +329,7 @@ class MangaDB:
         # set last_change to current DATE on update of any col in Books gets updated
         # could limit to certain rows with WHEN condition (AFTER UPDATE ON table WHEN..)
         # by checking if old and new val for col differ OLD.colname <> NEW.colname
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tsumino
+        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_books
                      AFTER UPDATE ON Books
                      BEGIN
                         UPDATE Books
@@ -253,241 +404,3 @@ class MangaDB:
         conn.commit()
 
         return conn, c
-
-    # TODO
-    def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
-        """Commits changes to db"""
-        db_dict = manga_db_entry.export_for_db()
-        lastrowid = None
-        with self.db_con:
-            try:
-                c = self.db_con.execute("""
-                    INSERT INTO Books (title, title_eng, title_foreign, url,
-                    id_onpage, upload_date, uploader, pages, rating,
-                    rating_full, my_rating, category, collection, 
-                    groups, artist, parody, character, imported_from,
-                    last_change, downloaded, favorite)
-                    VALUES (:title, :title_eng, :title_foreign, :url, :id_onpage,
-                    :upload_date, :uploader, :pages, :rating, :rating_full,
-                    :my_rating, :category, :collection, :groups, :artist,
-                    :parody, :character, :imported_from, :last_change,
-                    :downloaded, :favorite)""", db_dict)
-            except sqlite3.IntegrityError as error:
-                error_msg = str(error)
-                if "UNIQUE constraint failed" in error_msg:
-                    failed_col = error_msg.split(".")[-1]
-                    logger.info("Tried to add book with %s that was already in DB: %s",
-                                failed_col, db_dict[failed_col])
-                    lastrowid = self._handle_book_not_unique(self.db_con,
-                                                             failed_col, manga_db_entry,
-                                                             action=duplicate_action)
-                else:
-                    # were only handling unique constraint fail so reraise if its sth else
-                    raise error
-            else:
-                lastrowid = c.lastrowid
-                # use cursor.lastrowid to get id of last insert in Books table
-                add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
-                                 manga_db_entry.tags)
-
-                # handle_book_not_unique also handles downloading book thumb in that case
-                manga_db_entry.get_cover()
-
-                logger.info("Added book with url \"%s\" to database!", url)
-
-        return lastrowid
-        
-
-    def _handle_book_not_unique(db_con, duplicate_col, url, lists, dic, action=None):
-        """Only partly commits changes where it calls add_manga or update_manga"""
-        # @Cleanup ^^
-        # doing this several times @Hack
-        prepared_dic = prepare_dict_for_db(url, dic)
-
-        # webGUI cant do input -> use default None and set if None
-        if action is None:
-            # options: replace(==keep_new), keep_both, keep_old
-            while True:
-                action_i = input("Choose the action for handling duplicate "
-                                f"book {prepared_dic['title_eng']}:\n"
-                                 "(0) replace, (1) keep_both, (2) keep_old: ")
-                try:
-                    action = HANDLE_DUPLICATE_BOOK_ACTIONS[int(action_i)]
-                except ValueError:
-                    print("Not a valid index!!")
-                else:
-                    break
-
-
-        # @Incomplete just replacing most recent one if action keep_both was used before
-        c = db_con.execute(f"SELECT id, id_onpage, my_rating, title FROM Books WHERE {duplicate_col} = ?",
-                          (prepared_dic[duplicate_col],))
-        row = c.fetchall()
-        assert(len(row) == 1)
-        old_id_internal, old_id_onpage, my_rating, old_title = row[0]
-
-        id_internal = None
-        if action == "keep_old":
-            logger.info("Kept old book with id_onpage: %s", old_id_onpage)
-            # return None here so we know when no action was taken
-            return id_internal
-
-        if action == "replace":
-            logger.info("Replacing book with id_onpage %s. Everything but the lists (only downloaded will be modified -> new lists wont be added!) will be replaced!", old_id_onpage)
-            # only add/remove list downloaded
-            li_downloaded = None
-            if lists and ("li_downloaded" in lists):
-                li_downloaded = ["li_downloaded"]
-            else:
-                remove_tags_from_book_id(db_con, old_id_internal, ["li_downloaded"])
-
-            # since update_manga_db_entry_from_dict tries to query for id using id_onpage we have to update id_onpage maunally first @Hack @Cleanup
-            # also update url since update.. doesnt @Hack
-            new_id_onpage = book_id_from_url(url)
-            db_con.execute("UPDATE Books SET id_onpage = ?, url = ? WHERE id = ?",
-                          (new_id_onpage, url, old_id_internal))
-            update_manga_db_entry_from_dict(db_con, url, li_downloaded, dic)
-
-            # also delete book thumb
-            os.remove(os.path.join("thumbs", str(old_id_onpage)))
-            logger.debug("Removed thumb with path %s", f"thumbs/{old_id_onpage}")
-
-            id_internal = old_id_internal
-        elif action == "keep_both":
-            i = 1
-            while True:
-                try:
-                    # change title of old book
-                    old_title_dupe = f"{old_title} (DUPLICATE {i})"
-                    db_con.execute("UPDATE Books SET title = ? WHERE id = ?", (old_title_dupe,
-                                   old_id_internal))
-                except sqlite3.IntegrityError as error:
-                    error_msg = str(error)
-                    if "UNIQUE constraint failed" not in error_msg:
-                        # were only handling unique constraint fail so reraise if its sth else
-                        raise error
-                    i += 1
-                else:
-                    break
-            logger.info("Keeping both books, renamed old version to: %s", old_title_dupe)
-
-            id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
-
-        # in both cases (replace and keep_both) use old rating on newly added book
-        rate_manga(db_con, url, my_rating)
-
-        # dl new thumb also for both cases
-        dl_book_thumb(url)
-
-        return id_internal
-
-
-    def _update_manga_db_entry_from_dict(db_con, url, lists, dic):
-        """Commits changes to db,
-        lists will ONLY be ADDED not removed"""
-        book_id = book_id_from_url(url)
-
-        c = db_con.execute("SELECT id FROM Books WHERE id_onpage = ?",
-                           (book_id, ))
-        # lists from db is string "list1, list2, .."
-        id_internal = c.fetchone()[0]
-
-        update_dic = prepare_dict_for_db(url, dic)
-
-        # get previous value for downloaded and fav from db
-        c = db_con.execute(
-            "SELECT downloaded, favorite FROM Books WHERE id_onpage = ?",
-            (book_id, ))
-        downloaded, favorite = c.fetchone()
-        if lists:
-            # if there are lists -> set dled/fav to 1 if appropriate list is in lists else
-            # use value from db (since lists just contains lists to ADD)
-            update_dic["downloaded"] = 1 if "li_downloaded" in lists else downloaded
-            update_dic["favorite"] = 1 if "li_best" in lists else favorite
-        else:
-            # no lists to add to -> use values from db
-            update_dic["downloaded"] = downloaded
-            update_dic["favorite"] = favorite
-
-        # seems like book id on tsumino just gets replaced with newer uncensored or fixed version
-        # -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
-        # => WARN to redownload book
-        c.execute(
-            "SELECT uploader, upload_date, pages FROM Books WHERE id_onpage = ?",
-            (book_id, ))
-        res_tuple = c.fetchone()
-
-        field_change_str = []
-        # build line str of changed fields
-        for res_tuple_i, key in ((0, "uploader"), (1, "upload_date"), (2,
-                                                                       "pages")):
-            if res_tuple[res_tuple_i] != update_dic[key]:
-                field_change_str.append(
-                    f"Field \"{key}\" changed from \"{res_tuple[res_tuple_i]}\" "
-                    f"to \"{update_dic[key]}\"!"
-                )
-
-        # check tags seperately due to using bridge table
-        # get column tag names where tag_id in BookTags and Tags match and book_id in BookTags
-        # is the book were looking for
-        c.execute("""SELECT Tags.name
-                     FROM BookTags bt, Tags
-                     WHERE bt.tag_id = Tags.tag_id
-                     AND bt.book_id = ?""", (id_internal, ))
-        # filter lists from tags first
-        tags = set(
-            (tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")))
-        tags_page = set(dic["Tag"])
-        added_tags = None
-        removed_on_page = None
-        # compare sorted to see if tags changed, alternatively convert to set and add -> see
-        # if len() changed
-        if tags != tags_page:
-            added_tags = tags_page - tags
-            removed_on_page = tags - tags_page
-            field_change_str.append(
-                f"Field \"tags\" changed -> Added Tags: \"{', '.join(added_tags)}\"; "
-                f"Removed Tags: \"{', '.join(removed_on_page)}\"!"
-            )
-
-        if field_change_str:
-            field_change_str = '\n'.join(field_change_str)
-            logger.warning(
-                f"Please re-download \"{url}\", since the change of following fields suggest "
-                f"that someone has uploaded a new version:\n{field_change_str}"
-            )
-
-        with db_con:
-            # dont update: title = :title, title_eng = :title_eng,
-            c.execute("""UPDATE Books SET
-                         upload_date = :upload_date, uploader = :uploader, pages = :pages,
-                         rating = :rating, rating_full = :rating_full, category = :category,
-                         collection = :collection, groups = :groups, artist = :artist,
-                         parody = :parody, character = :character, imported_from = :imported_from,
-                         last_change = :last_change, downloaded = :downloaded, favorite = :favorite
-                         WHERE id_onpage = :id_onpage""", update_dic)
-
-            if removed_on_page:
-                # remove tags that are still present in db but were removed on page
-                remove_tags_from_book(db_con, url, removed_on_page)
-
-            tags_lists_to_add = []
-            if lists:
-                # (micro optimization i know) list concat is faster with + compared with extend
-                tags_lists_to_add = tags_lists_to_add + lists
-            if added_tags:
-                # converting set to list and then concat is faster than using s.union(list)
-                tags_lists_to_add = tags_lists_to_add + list(added_tags)
-
-            if tags_lists_to_add:
-                # WARNING lists will only be added, not removed
-                add_tags_to_book(db_con, id_internal, tags_lists_to_add)
-
-            logger.info("Updated book with url \"%s\" in database!", url)
-
-        # c.lastrowid only works for INSERT/REPLACE
-        return id_internal, field_change_str
-
-    def get_all_id_onpage_set(self):
-        c = self.db_con.execute("SELECT id_onpage FROM Books")
-        return set([tupe[0] for tupe in c.fetchall()])

@@ -1,5 +1,7 @@
 import logging
 
+from .. import extractor
+
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,8 @@ def remove_tags_from_book_id(db_con, id_internal, tags):
 
 def remove_tags_from_book(db_con, url, tags):
     """Leave commiting changes to upper scope"""
-    book_id = book_id_from_url(url)
+    extractor_cls = extractor.find(url)
+    book_id = extractor_cls.book_id_from_url(url)
 
     # cant use DELETE FROM with multiple tables or multiple WHERE statements -> use
     # "WITH .. AS" (->Common Table Expressions, but they dont seem to work for me with
@@ -98,7 +101,8 @@ def remove_tags_from_book(db_con, url, tags):
                        WHERE (Tags.name IN ({', '.join(['?']*len(tags))})))
                        AND BookTags.book_id IN
                        (SELECT Books.id FROM Books
-                       WHERE Books.id_onpage = ?)""", (*tags, book_id))
+                       WHERE Books.id_onpage = ?
+                       AND imported_from = ?)""", (*tags, book_id, extractor_cls.site_id))
 
     logger.info("Tags %s were successfully removed from book with url \"%s\"",
                 tags, url)

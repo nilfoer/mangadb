@@ -95,7 +95,7 @@ class TsuminoExtractor(BaseMangaExtractor):
     def get_cover(self):
         try:
             urllib.request.urlretrieve(self.thumb_url,
-                                       os.path.join("thumbs", str(self.book_id)))
+                                       os.path.join("thumbs", f"{self.site_id}_{self.id_onpage}"))
         except urllib.request.HTTPError as err:
             logger.warning(
                 "Thumb for book with id (on page) %s couldnt be downloaded!",

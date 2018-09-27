@@ -1,3 +1,26 @@
+- title_foreign can be duplicate e.g. (in prod. db):
+    select title_foreign, count(title_foreign) from Tsumino group by title_foreign having ( count(title_foreign) > 1 );
+    
+    title_foreign                           count
+    "SDPO～性務官のススメ～"	                "2"
+    "どんな娘もセフレにできちゃう催眠術を手に入れた!?"	"2"
+    "ハイエルフ×ハイスクール"	                    "3"
+    "乱れ咲き海賊女帝"	                    "3"
+    
+    SDPO～性務官のススメ～
+    http://www.tsumino.com/Book/Info/27637/sdpo-seimukan-no-susume-sdpo
+    http://www.tsumino.com/Book/Info/40349/sdpo-seimukan-no-susume-sdpo-sexual-desire-processing-officer-sdpo
+    
+    どんな娘もセフレにできちゃう催眠術を手に入れた!?
+    http://www.tsumino.com/Book/Info/40407/donna-ko-mo-sefri-ni-dekichau-saiminjutsu-o-te-ni-ireta-saimin-shihai-kakudai-h
+    http://www.tsumino.com/Book/Info/40408/donna-ko-mo-sefri-ni-dekichau-saiminjutsu-o-te-ni-ireta-i-ve-obtained-a-hypnotic-power-that-lets-me-turn-any-girl-into-a-sex-friend
+    
+    etc.
+- old tsumino id_onpage get reused so if i have an old book in my db whose got a new id on tsumino but the old id
+    is used for a different book now -> book would get updated with data from a completely different book
+    -> also think about using internal id for thumb names
+- convert multival cols using string_to_list etc.    
+    
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching
     -> convert site tags to MangaDB tags

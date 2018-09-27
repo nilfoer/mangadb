@@ -17,6 +17,8 @@ def is_foreign(string, foreign_chars_to_string_length=0.5):
     else:
         return False
 
+# maybe drop last_change_tsumino trigger b4 altering production db so we dont lose actual
+# last-change dates
 
 # sqlite doesnt allow to ALTER MODIFY a table
 # -> add col, set value so we can later set to NOT NULL, create new table with added col NOT NULL, copy from old, drop old, rename
@@ -79,7 +81,7 @@ with db_con:
                      id INTEGER PRIMARY KEY ASC,
                      title TEXT UNIQUE NOT NULL,
                      title_eng TEXT UNIQUE,
-                     title_foreign TEXT UNIQUE,
+                     title_foreign TEXT,
                      url TEXT UNIQUE NOT NULL,
                      id_onpage INTEGER NOT NULL,
                      imported_from INTEGER NOT NULL,
@@ -154,7 +156,7 @@ with db_con:
                         COMMIT;
                         PRAGMA foreign_keys=on;""")                     
 
-    c.execute("""CREATE TRIGGER set_last_change_tsumino
+    c.execute("""CREATE TRIGGER set_last_change_books
                  AFTER UPDATE ON Books
                  BEGIN
                     UPDATE Books
