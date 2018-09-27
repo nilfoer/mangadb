@@ -111,12 +111,12 @@ class MangaDBEntry:
         c = db_con.execute(
             "SELECT downloaded, favorite, uploader, upload_date, pages FROM Books WHERE id = ?",
             (self.id, ))
-        downloaded, favorite, res_tuple = c.fetchone()
+        row = c.fetchone()
         # if dl/fav==1 update that to db if its 0 else use value from db since
         if not self.favorite:
-            self.downloaded = downloaded
+            self.downloaded = row["downloaded"]
         if not self.favorite:
-            self.favorite = favorite
+            self.favorite = row["favorite"]
 
         update_dic = self.export_for_db()
 
@@ -126,9 +126,9 @@ class MangaDBEntry:
         field_change_str = []
         # build line str of changed fields
         for key in ("uploader", "upload_date", "pages"):
-            if res_tuple[key] != update_dic[key]:
+            if row[key] != update_dic[key]:
                 field_change_str.append(
-                    f"Field \"{key}\" changed from \"{res_tuple[key]}\" "
+                    f"Field \"{key}\" changed from \"{row[key]}\" "
                     f"to \"{update_dic[key]}\"!"
                 )
 
