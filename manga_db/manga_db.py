@@ -24,6 +24,10 @@ urllib.request.install_opener(opener)
 
 class MangaDB:
     HANDLE_DUPLICATE_BOOK_ACTIONS = ("replace", "keep_both", "keep_old")
+    DEFAULT_HEADERS = {
+        'User-Agent':
+        'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
+        }
 
     def __init__(self, root_dir, db_path):
         self.db_con, _ = self._load_or_create_sql_db(db_path)
@@ -34,14 +38,37 @@ class MangaDB:
                 "duplicate_action": None
                 }
 
+    def download_cover(self, url, filename):
+        # TODO use urlopen and add headers
+        try:
+            urllib.request.urlretrieve(url,
+                                       filename)
+        except urllib.request.HTTPError as err:
+            logger.warning("HTTP Error %s: %s: \"%s\"",
+                           err.code, err.reason, self.thumb_url)
+            return False
+        else:
+            return True
+
     def import_book(self, url, lists):
         extractor_cls = extractor.find(url)
         extr = extractor_cls(url)
         book_data = extr.get_metadata()
-        extr.get_cover()
         book = MangaDBEntry(self, extr.site_id, book_data, lists=lists)
         # TODO add or update?
-        return self.add_book(book)
+        bid = self.add_book(book)
+
+        cover_path = os.path.join(self.root_dir, "thumbs", f"{extr.site_id}_{book.id_onpage}")
+        # always pass headers = extr.headers?
+        if self.download_cover(extr.get_cover(), cover_path):
+            logger.info(
+                "Thumb for book (%s,%d) downloaded successfully!",
+                extr.site_name, book.id_onpage)
+        else:
+            logger.warning(
+                "Thumb for book (%s,%d) couldnt be downloaded!",
+                extr.site_name, book.id_onpage)
+        return bid
 
     def get_book(self, identifier, id_type):
         if id_type == "id":
@@ -73,31 +100,26 @@ class MangaDB:
 
     def add_book(self, book):
         # add/update book in db
-        # TODO move to MangaDBEntry class?
         bid = self._add_manga_db_entry(book)
         book.id = bid
         return book
 
-    # TODO
     def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
         """Commits changes to db"""
         add_language(self.db_con, manga_db_entry.language)
         db_dict = manga_db_entry.export_for_db()
+        cols = list(manga_db_entry.DB_COL_HELPER)
+        # special select statement for inserting language id -> remove from list
+        cols.remove("language")
+
         lastrowid = None
         with self.db_con:
             try:
-                c = self.db_con.execute("""
-                    INSERT INTO Books (title, title_eng, title_foreign, url,
-                    id_onpage, upload_date, uploader, pages, rating,
-                    rating_full, my_rating, category, collection, 
-                    groups, artist, parody, character, imported_from,
-                    last_change, downloaded, favorite, language)
-                    VALUES (:title, :title_eng, :title_foreign, :url, :id_onpage,
-                    :upload_date, :uploader, :pages, :rating, :rating_full,
-                    :my_rating, :category, :collection, :groups, :artist,
-                    :parody, :character, :imported_from, :last_change,
-                    :downloaded, :favorite,
-                    (SELECT id FROM Languages WHERE name = :language)""", db_dict)
+                c = self.db_con.execute(f"""
+                        INSERT INTO Books ({','.join(cols)}, language)
+                        VALUES ({','.join((f':{col}' for col in cols))},
+                        (SELECT id FROM Languages WHERE name = :language)
+                        )""", db_dict)
             except sqlite3.IntegrityError as error:
                 error_msg = str(error)
                 if "UNIQUE constraint failed" in error_msg:
@@ -117,13 +139,12 @@ class MangaDB:
                                  manga_db_entry.tags)
 
                 # handle_book_not_unique also handles downloading book thumb in that case
-                # TODO where should i dl the cover
-                # manga_db_entry.get_cover()
 
                 logger.info("Added book with url \"%s\" to database!", manga_db_entry.url)
 
         return lastrowid
         
+    # TODO
     def _handle_book_not_unique(self, duplicate_col, manga_db_entry, lists, action=None):
         """Only partly commits changes where it calls add_manga or update_manga"""
         # webGUI cant do input -> use default None and set if None

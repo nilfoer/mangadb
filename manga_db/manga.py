@@ -17,6 +17,13 @@ class MangaDBEntry:
                      "rating_full", "my_rating", "category", "collection",
                      "groups", "artist", "parody", "character", "last_change", "note",
                      "downloaded", "favorite", "imported_from")
+
+    # dont update: # TODO ?
+    UPDATE_HELPER = ("title", "title_eng", "title_foreign", "url", "id_onpage",
+                     "upload_date", "uploader", "language", "pages", "rating",
+                     "rating_full", "my_rating", "category", "collection",
+                     "groups", "artist", "parody", "character", "note",
+                     "downloaded", "favorite", "imported_from")
     # according to html on tsumino
     # when displayed as anchor there can be multiple
     # if the text is directly in the div there is only one value
@@ -91,7 +98,10 @@ class MangaDBEntry:
                 result[attr] = val
         return result
 
-    def update_in_db(self):
+    def save(self):
+        """
+        Save changes to DB
+        """
         if self.id is None:
             c = self.manga_db.db_con.execute("SELECT id FROM Books WHERE id_onpage = ?"
                                              "AND imported_from = ?",
@@ -167,15 +177,11 @@ class MangaDBEntry:
             )
 
         with db_con:
+            # TODO log changes
             # dont update: title = :title, title_eng = :title_eng,
-            c.execute("""UPDATE Books SET
-                         upload_date = :upload_date, uploader = :uploader, pages = :pages,
-                         rating = :rating, rating_full = :rating_full, category = :category,
-                         collection = :collection, groups = :groups, artist = :artist,
-                         parody = :parody, character = :character, imported_from = :imported_from,
-                         last_change = :last_change, downloaded = :downloaded, favorite = :favorite
-                         note = :note
-                         WHERE id = :id""", update_dic)
+            c.execute(f"""UPDATE Books SET
+                          {','.join((f'{col} = :{col}' for col in self.UPDATE_HELPER))}
+                          WHERE id = :id""", update_dic)
 
             if removed_on_page:
                 # remove tags that are still present in db but were removed on page

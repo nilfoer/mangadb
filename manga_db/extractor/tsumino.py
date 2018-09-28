@@ -88,26 +88,13 @@ class TsuminoExtractor(BaseMangaExtractor):
         if metadata:
             logger.warning("There are still metadata keys left! The HTML on tsumino.com"
                            "probably changed! Keys left over: %s", ", ".join(metadata.keys()))
+        # tsumino only has English books
+        result["language"] = "English"
+
         return result
 
-    # should this be in the Extractor class or rather in a Downloader or the main MangaDB class?
-    # but mb specific sites require certain headers or whatever?
     def get_cover(self):
-        try:
-            urllib.request.urlretrieve(self.thumb_url,
-                                       os.path.join("thumbs", f"{self.site_id}_{self.id_onpage}"))
-        except urllib.request.HTTPError as err:
-            logger.warning(
-                "Thumb for book with id (on page) %s couldnt be downloaded!",
-                self.id_onpage)
-            logger.warning("HTTP Error %s: %s: \"%s\"",
-                           err.code, err.reason, self.thumb_url)
-            return False
-        else:
-            return True
-            logger.info(
-                "Thumb for book with id (on page) %s downloaded successfully!",
-                self.id_onpage)
+        return self.thumb_url
 
     @classmethod
     def extract_info(cls, html):
