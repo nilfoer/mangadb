@@ -57,6 +57,8 @@ def add_tags_to_book(db_con, bid, tags):
     # ==> but better to use SELECT DISTINCT!!
     # The DISTINCT clause is an optional clause of the SELECT statement. The DISTINCT clause
     # allows you to remove the duplicate rows in the result set
+    logger.debug("Added lists '%s' to book with id %d",
+                 [tag for tag in tags if tag.startswith("li_")], bid)
     return c
 
 
@@ -144,35 +146,4 @@ def get_tags_by_book(db_con, identifier, id_type):
                            AND Books.{id_col} = ?
                            AND bt.tag_id = Tags.tag_id
                            GROUP BY bt.book_id""", (identifier, ))
-    return c.fetchone()[0]
-
-
-def get_tags_by_book_url(db_con, url):
-    book_id = book_id_from_url(url)
-    c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Books
-                          WHERE bt.book_id = Books.id
-                          AND Books.id_onpage = ?
-                          AND bt.tag_id = Tags.tag_id
-                          GROUP BY bt.book_id""", (book_id, ))
-    return c.fetchone()[0]
-
-
-def get_tags_by_book_id_onpage(db_con, id_onpage):
-    c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Books
-                          WHERE bt.book_id = Books.id
-                          AND Books.id_onpage = ?
-                          AND bt.tag_id = Tags.tag_id
-                          GROUP BY bt.book_id""", (id_onpage, ))
-    return c.fetchone()[0]
-
-
-def get_tags_by_book_id_internal(db_con, id_internal):
-    c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Books
-                          WHERE bt.book_id = Books.id
-                          AND Books.id = ?
-                          AND bt.tag_id = Tags.tag_id
-                          GROUP BY bt.book_id""", (id_internal, ))
     return c.fetchone()[0]

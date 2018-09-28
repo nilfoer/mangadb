@@ -2,6 +2,14 @@ import sqlite3
 import re
 db_con = sqlite3.connect("./manga_db.sqlite", detect_types=sqlite3.PARSE_DECLTYPES)
 
+MULTI_VALUE_COL = ("category", "collection", "groups", "artist", "parody", "character")
+
+def list_to_string(li, escape_char="\\", sep=","):
+    # cant save [] in db and need to preserve NULL in db -> None
+    if li is None:
+        return None
+    return sep.join(("".join((c if c != sep else escape_char + c for c in string)) if string else string for string in li))
+
 FOREIGN_RE = re.compile(r"[\u0100-\u02AF\u0370-\u1CFF\u1F00−\u1FFF\u2C00-\u2DFF\u2E80-\uFDFF\uFE30−\uFE4F\uFE70−\uFEFF]")
 
 
@@ -57,16 +65,47 @@ with db_con:
         res_tuples.append((title_eng, title_foreign, rid))
 
     c.executemany("UPDATE Tsumino SET title_eng = ?, title_foreign = ? WHERE id = ?", res_tuples)
- 
+
+    # use new string_to_list to updat multi value cols
+    db_con.row_factory = sqlite3.Row
+    c = db_con.execute(f"SELECT id, {', '.join(MULTI_VALUE_COL)} FROM Tsumino")
+    multi_cols = c.fetchall() 
+    new_mult_cols = []
+    for row in multi_cols:
+        _id = row["id"]
+        li = []
+        for col in MULTI_VALUE_COL:
+            if row[col] is not None:
+                if col == "collection":
+                    # assume only single collections
+                    li_c = [row[col]]
+                else:
+                    li_c = row[col].split(", ")
+                multi_li = list_to_string(li_c)
+                li.append(multi_li)
+            else:
+                li.append(None)
+        li.append(_id)
+        new_mult_cols.append(li)
+    c.executemany("""UPDATE Tsumino SET category = ?, collection = ?, groups = ?,
+                     artist = ?, parody = ?, character = ?
+                     WHERE id = ?""", new_mult_cols)
+
     c.execute("""CREATE TABLE IF NOT EXISTS Sites (
                  id INTEGER PRIMARY KEY ASC,
                  name TEXT UNIQUE NOT NULL)""")
     # insert supported sites
     c.executemany("INSERT OR IGNORE INTO Sites(id, name) VALUES (?, ?)",
                   [(1, "tsumino.com")])
+    # creat languages table
+    c.execute("""CREATE TABLE IF NOT EXISTS Languages (
+                 id INTEGER PRIMARY KEY ASC,
+                 name TEXT UNIQUE NOT NULL)""")
+    c.execute("INSERT OR IGNORE INTO Languages(id, name) VALUES (?, ?)", (1, "English"))
 
     # use executescript since there are ";" in the code which seperate statements from each other
     # otherwise -> error: sqlite3.Warning: You can only execute one statement at a time
+    # insert 1 for language column by just using 1 in SELECT statement
     c = db_con.executescript("""PRAGMA foreign_keys=off;
  
                  BEGIN TRANSACTION;
@@ -87,9 +126,10 @@ with db_con:
                      imported_from INTEGER NOT NULL,
                      upload_date DATE NOT NULL,
                      uploader TEXT,
+                     language INTEGER NOT NULL,
                      pages INTEGER NOT NULL,
-                     rating REAL NOT NULL,
-                     rating_full TEXT NOT NULL,
+                     rating REAL,
+                     rating_full TEXT,
                      my_rating REAL,
                      category TEXT,
                      collection TEXT,
@@ -97,19 +137,22 @@ with db_con:
                      artist TEXT,
                      parody TEXT,
                      character TEXT,
+                     note TEXT,
                      last_change DATE NOT NULL,
                      downloaded INTEGER NOT NULL,
                      favorite INTEGER NOT NULL,
                      FOREIGN KEY (imported_from) REFERENCES Sites(id)
+                        ON DELETE RESTRICT,
+                     FOREIGN KEY (language) REFERENCES Languages(id)
                         ON DELETE RESTRICT
                  );
                   
                  INSERT INTO Books (id, title, title_eng, title_foreign, url, id_onpage,
-                          upload_date, uploader, pages, rating, rating_full, my_rating,
-                          category, collection, groups, artist, parody, character,
+                          upload_date, uploader, language, pages, rating, rating_full,
+                          my_rating, category, collection, groups, artist, parody, character,
                           imported_from, last_change, downloaded, favorite)
                    SELECT id, title, title_eng, title_foreign, url, id_onpage, upload_date,
-                          uploader, pages, rating, rating_full, my_rating, category,
+                          uploader, 1, pages, rating, rating_full, my_rating, category,
                           collection, groups, artist, parody, character, imported_from,
                           last_change, downloaded, favorite
                    FROM temp_table;
@@ -120,7 +163,7 @@ with db_con:
                   
                  PRAGMA foreign_keys=on;""")                     
     c.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
+        "CREATE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
     )
 
     # since we changed table name of Tsumino to Books we also have to re-do

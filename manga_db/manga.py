@@ -12,9 +12,10 @@ class MangaDBEntry:
     Fields of data that can have multiple values need to be of type list!!!
     """
 
-    DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "url", "id_onpage", "upload_date",
-                     "uploader", "pages", "rating", "rating_full", "my_rating", "category",
-                     "collection", "groups", "artist", "parody", "character", "last_change",
+    DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "url", "id_onpage",
+                     "upload_date", "uploader", "language", "pages", "rating",
+                     "rating_full", "my_rating", "category", "collection",
+                     "groups", "artist", "parody", "character", "last_change", "note",
                      "downloaded", "favorite", "imported_from")
     # according to html on tsumino
     # when displayed as anchor there can be multiple
@@ -32,6 +33,7 @@ class MangaDBEntry:
         self.url = None
         self.upload_date = None
         self.uploader = None
+        self.language = None
         self.pages = None
         self.rating = None
         # split this up?
@@ -44,6 +46,7 @@ class MangaDBEntry:
         self.parody = None
         self.character = None
         self.last_change = None
+        self.note = None
         self.downloaded = None
         self.favorite = None
         self.lists = None
@@ -103,6 +106,7 @@ class MangaDBEntry:
         return self._update_manga_db_entry()
 
     def _update_manga_db_entry(self):
+        # TODO update all cols?
         """Commits changes to db,
         lists will ONLY be ADDED not removed"""
 
@@ -170,6 +174,7 @@ class MangaDBEntry:
                          collection = :collection, groups = :groups, artist = :artist,
                          parody = :parody, character = :character, imported_from = :imported_from,
                          last_change = :last_change, downloaded = :downloaded, favorite = :favorite
+                         note = :note
                          WHERE id = :id""", update_dic)
 
             if removed_on_page:

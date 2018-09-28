@@ -6,6 +6,7 @@ import urllib.request
 from . import extractor
 from .manga import MangaDBEntry
 from .db.tags import get_tags_by_book, add_tags_to_book
+from .db.mixed_queries import add_language
 
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,7 @@ class MangaDB:
     # TODO
     def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
         """Commits changes to db"""
+        add_language(self.db_con, manga_db_entry.language)
         db_dict = manga_db_entry.export_for_db()
         lastrowid = None
         with self.db_con:
@@ -89,12 +91,13 @@ class MangaDB:
                     id_onpage, upload_date, uploader, pages, rating,
                     rating_full, my_rating, category, collection, 
                     groups, artist, parody, character, imported_from,
-                    last_change, downloaded, favorite)
+                    last_change, downloaded, favorite, language)
                     VALUES (:title, :title_eng, :title_foreign, :url, :id_onpage,
                     :upload_date, :uploader, :pages, :rating, :rating_full,
                     :my_rating, :category, :collection, :groups, :artist,
                     :parody, :character, :imported_from, :last_change,
-                    :downloaded, :favorite)""", db_dict)
+                    :downloaded, :favorite,
+                    (SELECT id FROM Languages WHERE name = :language)""", db_dict)
             except sqlite3.IntegrityError as error:
                 error_msg = str(error)
                 if "UNIQUE constraint failed" in error_msg:
@@ -225,6 +228,11 @@ class MangaDB:
         c.executemany("INSERT OR IGNORE INTO Sites(id, name) VALUES (?, ?)",
                       extractor.SUPPORTED_SITES)
 
+        # creat languages table
+        c.execute("""CREATE TABLE IF NOT EXISTS Languages (
+                     id INTEGER PRIMARY KEY ASC,
+                     name TEXT UNIQUE NOT NULL)""")
+
         # create table if it doesnt exist
         # group reserved keyword -> use groups for col name
         # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
@@ -247,9 +255,10 @@ class MangaDB:
                      imported_from INTEGER NOT NULL,
                      upload_date DATE NOT NULL,
                      uploader TEXT,
+                     language INTEGER NOT NULL,
                      pages INTEGER NOT NULL,
-                     rating REAL NOT NULL,
-                     rating_full TEXT NOT NULL,
+                     rating REAL,
+                     rating_full TEXT,
                      my_rating REAL,
                      category TEXT,
                      collection TEXT,
@@ -257,11 +266,15 @@ class MangaDB:
                      artist TEXT,
                      parody TEXT,
                      character TEXT,
+                     note TEXT,
                      last_change DATE NOT NULL,
                      downloaded INTEGER NOT NULL,
                      favorite INTEGER NOT NULL,
                      FOREIGN KEY (imported_from) REFERENCES Sites(id)
-                        ON DELETE RESTRICT)""")
+                        ON DELETE RESTRICT,
+                     FOREIGN KEY (language) REFERENCES Languages(id)
+                        ON DELETE RESTRICT
+                    )""")
 
         # create index for imported_from,id_onpage so we SQLite can access it
         # with O(log n) instead of O(n) complexit when using WHERE id_onpage = ?
@@ -282,7 +295,7 @@ class MangaDB:
         # but then i cant sort by site having the speed bonus of the index only
         # id_onpage alone would work which is of no use
         c.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
+            "CREATE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
         )
         # TODO cant rely on id_onpage,imported_from always being unique since
         # e.g. tsumino reuses old, unused ids, so i'd have to update
