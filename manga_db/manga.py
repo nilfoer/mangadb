@@ -18,9 +18,9 @@ class MangaDBEntry:
                      "groups", "artist", "parody", "character", "last_change", "note",
                      "downloaded", "favorite", "imported_from")
 
-    # dont update: # TODO ?
+    # dont update: language(inserted manually in sql statement)
     UPDATE_HELPER = ("title", "title_eng", "title_foreign", "url", "id_onpage",
-                     "upload_date", "uploader", "language", "pages", "rating",
+                     "upload_date", "uploader", "pages", "rating",
                      "rating_full", "my_rating", "category", "collection",
                      "groups", "artist", "parody", "character", "note",
                      "downloaded", "favorite", "imported_from")
@@ -103,10 +103,8 @@ class MangaDBEntry:
         Save changes to DB
         """
         if self.id is None:
-            c = self.manga_db.db_con.execute("SELECT id FROM Books WHERE id_onpage = ?"
-                                             "AND imported_from = ?",
-                                             (self.id_onpage, self.imported_from))
-            bid = c.fetchone()
+            bid = self.manga_db.get_book_id_unique((self.id_onpage, self.imported_from),
+                                                   self.title)
             if bid is None:
                 logger.debug("Called update on Book with (id_onpage,imported_from)"
                              "(%d,%d) which was not in DB! Addin Book instead!",
@@ -126,7 +124,7 @@ class MangaDBEntry:
             "SELECT downloaded, favorite, uploader, upload_date, pages FROM Books WHERE id = ?",
             (self.id, ))
         row = c.fetchone()
-        # if dl/fav==1 update that to db if its 0 else use value from db since
+        # if dl/fav==1 update that to db else use value from db since it might be 1 there
         if not self.favorite:
             self.downloaded = row["downloaded"]
         if not self.favorite:
@@ -178,9 +176,9 @@ class MangaDBEntry:
 
         with db_con:
             # TODO log changes
-            # dont update: title = :title, title_eng = :title_eng,
             c.execute(f"""UPDATE Books SET
-                          {','.join((f'{col} = :{col}' for col in self.UPDATE_HELPER))}
+                          {','.join((f'{col} = :{col}' for col in self.UPDATE_HELPER))},
+                          language = (SELECT id FROM Languages WHERE name = :language)
                           WHERE id = :id""", update_dic)
 
             if removed_on_page:

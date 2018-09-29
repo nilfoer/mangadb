@@ -55,48 +55,116 @@ class MangaDB:
         extr = extractor_cls(url)
         book_data = extr.get_metadata()
         book = MangaDBEntry(self, extr.site_id, book_data, lists=lists)
-        # TODO add or update?
-        bid = self.add_book(book)
-
-        cover_path = os.path.join(self.root_dir, "thumbs", f"{extr.site_id}_{book.id_onpage}")
-        # always pass headers = extr.headers?
-        if self.download_cover(extr.get_cover(), cover_path):
-            logger.info(
-                "Thumb for book (%s,%d) downloaded successfully!",
-                extr.site_name, book.id_onpage)
+        bid = self.get_book_id_unique((book.id_onpage, book.imported_from), book.title)
+        if bid is None:
+            bid = self.add_book(book)
+            cover_path = os.path.join(self.root_dir, "thumbs",
+                                      f"{extr.site_id}_{book.id_onpage}")
+            # always pass headers = extr.headers?
+            if self.download_cover(extr.get_cover(), cover_path):
+                logger.info(
+                    "Thumb for book (%s,%d) downloaded successfully!",
+                    extr.site_name, book.id_onpage)
+            else:
+                logger.warning(
+                    "Thumb for book (%s,%d) couldnt be downloaded!",
+                    extr.site_name, book.id_onpage)
         else:
-            logger.warning(
-                "Thumb for book (%s,%d) couldnt be downloaded!",
-                extr.site_name, book.id_onpage)
+            # update book
+            book.id = bid
+            book.save()
+
         return bid
 
-    def get_book(self, identifier, id_type):
-        if id_type == "id":
-            id_col = "id"
-            id_type_db = "id_internal"
-        elif id_type == "onpage":
-            id_col = "id_onpage"
-            id_type_db = "id_onpage"
-        elif id_type == "url":
-            # TODO
-            pass
+    def _validate_indentifiers_types(self, identifiers_types):
+        if "url" in identifiers_types:
+            return True
+        elif "id_onpage" in identifiers_types and "imported_from" in identifiers_types:
+            return True
+        elif "title" in identifiers_types:
+            return True
         else:
-            logger.error("%s is an unsupported identifier type!", id_type)
-            return
-        cur = self.db_con.execute(f'select * from Books WHERE {id_col} = ?',
-                                  (identifier, ))
-        book_info = cur.fetchone()
-        if not book_info:
+            logger.error("Unsupported identifiers supplied or identifier missing:\n"
+                         "Identifiers need to be either 'url', 'id_onpage and imported_from', "
+                         "or 'title(_eng)' otherwise use the search:\n%s\n", identifiers_types)
+            return False
+
+    def get_books(self, identifiers_types):
+        if not self._validate_indentifiers_types(identifiers_types):
             return
 
-        tags = get_tags_by_book(self.db_con, identifier, id_type_db).split(",")
+        # get id_onpage and imported_from rather than using url to speed up search
+        if "url" in identifiers_types:
+            url = identifiers_types.pop("url")
+            extractor_cls = extractor.find(url)
+            bid = extractor_cls.book_id_from_url(url)
+            identifiers_types["id_onpage"] = bid
+            identifiers_types["imported_from"] = extractor_cls.site_id
+
+        where_clause = " AND ".join((f"{key} = :{key}" for key in identifiers_types))
+        cur = self.db_con.execute(f'SELECT * FROM Books WHERE {where_clause}',
+                                  identifiers_types)
+        rows = cur.fetchall()
+        if not rows:
+            return
+
+        for book_info in rows:
+            yield self._book_from_row(book_info)
+
+    def get_book(self, _id):
+        """Only id or title can guarantee uniqueness and querying using the title
+           would be slower"""
+        c = self.db_con.execute("SELECT * FROM Books WHERE id = ?", (_id,))
+        book = self._book_from_row(c.fetchone())
+        return book
+
+    def _book_from_row(self, row):
+        tags = get_tags_by_book(self.db_con, row["id"]).split(",")
         # split tags and lists
         lists_book = [tag for tag in tags if tag.startswith("li_")]
         tags = [tag for tag in tags if not tag.startswith("li_")]
 
-        book = MangaDBEntry(self, book_info["imported_from"], book_info,
+        book = MangaDBEntry(self, row["imported_from"], row,
                             lists=lists_book, tags=tags)
         return book
+
+    def get_book_id(self, id_onpage_site_id_tuple, title=None):
+        """
+        Returns internal db id(s) for book with given identifiers or None
+        Title is needed to uniquely identify a book in the db since the id_onpage
+        might have been replaced by a different book
+        :return: List of row(s) with cols id, title"""
+        c = self.db_con.execute("SELECT id, title FROM Books WHERE id_onpage = ? "
+                                "AND imported_from = ?", id_onpage_site_id_tuple)
+        matching = c.fetchall()
+        # even if it only returns one we dont know if the id on the page got re-used
+        # -> check titles
+        if len(matching) > 1:
+            logger.debug("Returned %d rows for %s:\n%s", len(matching),
+                         id_onpage_site_id_tuple, "\n".join((t[1] for t in matching)))
+        if title is None:
+            return matching
+        else:
+            for match in matching:
+                if match[1] == title:
+                    return [match]
+            return None
+
+    def get_book_id_unique(self, id_onpage_site_id_tuple, title):
+        """
+        Returns ONE internal db id for book with given identifiers or None
+        Title is needed to uniquely identify a book in the db since the id_onpage
+        might have been replaced by a different book
+        :return: book id"""
+        c = self.db_con.execute("SELECT id, title FROM Books WHERE id_onpage = ? "
+                                "AND imported_from = ?", id_onpage_site_id_tuple)
+        matching = c.fetchall()
+        # even if it only returns one we dont know if the id on the page got re-used
+        # -> check titles
+        for match in matching:
+            if match[1] == title:
+                return match[0]
+        return None
 
     def add_book(self, book):
         # add/update book in db
@@ -137,8 +205,6 @@ class MangaDB:
                 # use cursor.lastrowid to get id of last insert in Books table
                 add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
                                  manga_db_entry.tags)
-
-                # handle_book_not_unique also handles downloading book thumb in that case
 
                 logger.info("Added book with url \"%s\" to database!", manga_db_entry.url)
 

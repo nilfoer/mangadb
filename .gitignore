@@ -46,3 +46,4 @@ bootstrap*
 dependencies/
 tsumino_dir_info.json
 old_code/
+manga_db_testing.ipynb

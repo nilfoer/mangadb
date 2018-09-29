@@ -21,6 +21,10 @@ class BaseMangaExtractor:
     def get_cover(self):
         raise NotImplementedError
 
+    @classmethod
+    def book_id_from_url(cls, url):
+        raise NotImplementedError
+
     # contrary to @staticmethod classmethod has a reference to the class as first parameter
     @classmethod
     def get_html(cls, url):

@@ -107,29 +107,11 @@ def add_tags_to_book_cl(db_con, url, tags):
                 tags, url)
 
 
-def get_tags_by_book(db_con, identifier, id_type):
-    book_id = None
-    if id_type == "id_internal":
-        id_col = "id"
-    elif id_type == "id_onpage":
-        id_col = "id_onpage"
-    elif id_type == "url":
-        book_id = book_id_from_url(identifier)
-        id_col = "id_onpage"
-        identifier = book_id
-    else:
-        logger.error("%s is an unsupported identifier type!", id_type)
-        return
-
-    if not book_id:
-        c = db_con.execute(f"SELECT id_onpage FROM Books WHERE {id_col} = ?",
-                           (identifier, ))
-        book_id = c.fetchone()[0]
-
-    c = db_con.execute(f"""SELECT group_concat(Tags.name)
-                           FROM Tags, BookTags bt, Books
-                           WHERE bt.book_id = Books.id
-                           AND Books.{id_col} = ?
-                           AND bt.tag_id = Tags.tag_id
-                           GROUP BY bt.book_id""", (identifier, ))
+def get_tags_by_book(db_con, _id):
+    c = db_con.execute("""SELECT group_concat(Tags.name)
+                          FROM Tags, BookTags bt, Books
+                          WHERE bt.book_id = Books.id
+                          AND Books.id = ?
+                          AND bt.tag_id = Tags.tag_id
+                          GROUP BY bt.book_id""", (_id, ))
     return c.fetchone()[0]

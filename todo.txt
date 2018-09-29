@@ -1,6 +1,7 @@
 - old tsumino id_onpage get reused so if i have an old book in my db whose got a new id on tsumino but the old id
     is used for a different book now -> book would get updated with data from a completely different book
     -> also think about using internal id for thumb names
+    they also can get re-used, but im the one re-using them so the old cover/book-entry would already be deleted
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching
     -> convert site tags to MangaDB tags
@@ -13,7 +14,30 @@
 - test triggers
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
-- mb split updating from user action vs. updating from import    
+- mb split updating from user action vs. updating from import 
+- remove UNIQUE from url, since:
+    url with english title for tsumino is unique: "http://www.tsumino.com/Book/Info/43150/junyou-kanmusu-ikemesu-shibari-"
+        Title: Junyou Kanmusu Ikemesu Shibari
+            special chars but - just get pruned or replaced by - ?:
+            Fate/Gentle Order 3 「Alter」 -> http://www.tsumino.com/Book/Info/42989/fate-gentle-order-3-alter-
+            HGUC# 09 Waga Uruwashiki Chichi e no ××× / HGUC#09 我が麗しき父への××× -> http://www.tsumino.com/Book/Info/42994/hguc-09-waga-uruwashiki-chichi-e-no-hguc-09-
+            "Kyouei" Tokusei no Servant to / 「競泳」特性のサーヴァントと -> http://www.tsumino.com/Book/Info/43003/-kyouei-tokusei-no-servant-to-
+            Boku Dake no Yuuyami | Only My Twilight Ch. 1-4, 7-9 / 僕だけの夕闇 第1-4, 7-9話 -> http://www.tsumino.com/Book/Info/36724/boku-dake-no-yuuyami-only-my-twilight-ch-1-4-7-9-1-4-7-9
+            Märchen ☆ Box / メルヘン☆ぼっくす -> http://www.tsumino.com/Book/Info/42929/m-rchen-box-
+            BUT CAREFUL
+            url to book from index differs from url you get when hitting return when reading
+            index: http://www.tsumino.com/Book/Info/42929/m-rchen-box-
+            reader: http://www.tsumino.com/Book/Info/42929/marchen-box
+            
+            Fate/Gentle Order 3「lily」
+            index: http://www.tsumino.com/Book/Info/42933/fate-gentle-order-3-lily-
+            reader : http://www.tsumino.com/Book/Info/42933/fate-gentle-order-3lily
+            
+            Kaoru de GO! / カオルでGO!
+            index: http://www.tsumino.com/Book/Info/42934/kaoru-de-go-go-
+            reader : http://www.tsumino.com/Book/Info/42934/kaoru-de-go-go
+    but without it it might collide with book that got the deleted and now re-used id_onpage
+    and different sites dont even have the title in the url
 
 
 --DONE-------------------------------------------------------------------------------------------------
