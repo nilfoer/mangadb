@@ -58,8 +58,7 @@ class MangaDB:
         bid = self.get_book_id_unique((book.id_onpage, book.imported_from), book.title)
         if bid is None:
             bid = self.add_book(book)
-            cover_path = os.path.join(self.root_dir, "thumbs",
-                                      f"{extr.site_id}_{book.id_onpage}")
+            cover_path = os.path.join(self.root_dir, "thumbs", f"{bid}")
             # always pass headers = extr.headers?
             if self.download_cover(extr.get_cover(), cover_path):
                 logger.info(
@@ -70,6 +69,7 @@ class MangaDB:
                     "Thumb for book (%s,%d) couldnt be downloaded!",
                     extr.site_name, book.id_onpage)
         else:
+            logger.info("Book at '%s' will be updated to id %d", url, bid)
             # update book
             book.id = bid
             book.save()
@@ -304,102 +304,36 @@ class MangaDB:
         :param filename: Filename string/path to file
         :return: connection to sqlite3 db and cursor instance
         """
-        # PARSE_DECLTYPES -> parse types and search for converter function for it instead of searching for converter func for specific column name
+        # PARSE_DECLTYPES -> parse types and search for converter function for
+        # it instead of searching for converter func for specific column name
         conn = sqlite3.connect(filename, detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
-        c.execute("""CREATE TABLE IF NOT EXISTS Sites (
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS Sites (
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS Languages (
                      id INTEGER PRIMARY KEY ASC,
-                     name TEXT UNIQUE NOT NULL)""")
-        # insert supported sites
+                     name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS Censorship (
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS Status(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+                     """)
         c.executemany("INSERT OR IGNORE INTO Sites(id, name) VALUES (?, ?)",
                       extractor.SUPPORTED_SITES)
-
-        # creat languages table
-        c.execute("""CREATE TABLE IF NOT EXISTS Languages (
-                     id INTEGER PRIMARY KEY ASC,
-                     name TEXT UNIQUE NOT NULL)""")
-
-        # create table if it doesnt exist
-        # group reserved keyword -> use groups for col name
-        # SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
-        # FOREIGN KEY ON DEL/UPD RESTRICT disallows deleting/modifying parent
-        # key if it has child key(s)
-        # title_foreign cant be UNIQUE since some uploads on tsumino had the same asian title
-        # but a different english title/ were a different book; mb because theyre chapters of
-        # a larger book?
-        # for now lets assume the english title is always unique (at least it has been for now for
-        # over 2k books), the alternative would be to only leave title UNIQUE and (which i have to
-        # do anyway) always have the title as english-title / foreign-title -- this may be the better
-        # approach anyway
-        c.execute("""CREATE TABLE IF NOT EXISTS Books (
-                     id INTEGER PRIMARY KEY ASC,
-                     title TEXT UNIQUE NOT NULL,
-                     title_eng TEXT UNIQUE,
-                     title_foreign TEXT,
-                     url TEXT UNIQUE NOT NULL,
-                     id_onpage INTEGER NOT NULL,
-                     imported_from INTEGER NOT NULL,
-                     upload_date DATE NOT NULL,
-                     uploader TEXT,
-                     language INTEGER NOT NULL,
-                     pages INTEGER NOT NULL,
-                     rating REAL,
-                     rating_full TEXT,
-                     my_rating REAL,
-                     category TEXT,
-                     collection TEXT,
-                     groups TEXT,
-                     artist TEXT,
-                     parody TEXT,
-                     character TEXT,
-                     note TEXT,
-                     last_change DATE NOT NULL,
-                     downloaded INTEGER NOT NULL,
-                     favorite INTEGER NOT NULL,
-                     FOREIGN KEY (imported_from) REFERENCES Sites(id)
-                        ON DELETE RESTRICT,
-                     FOREIGN KEY (language) REFERENCES Languages(id)
-                        ON DELETE RESTRICT
-                    )""")
-
-        # create index for imported_from,id_onpage so we SQLite can access it
-        # with O(log n) instead of O(n) complexit when using WHERE id_onpage = ?
-        # (same exists for PRIMARY KEY) but using rowid/PK INTEGER ASC is still faster
-        # order is important for composite key index
-        # To utilize a multicolumn index, the query must contain the condition
-        # that has the same column order as defined in the index
-        # querying by just imported_from will work or imported_from,id_onpage
-        # but just id_onpage wont work
-        # by making index unique we get an error if we want to insert values
-        # for imported_from,id_onpage that are already in the table as the same combo
-        # TODO but from sqlite.org: The left-most column is the primary key
-        # used for ordering the rows in the index. The second column is used to
-        # break ties in the left-most column. If there were a third column, it
-        # would be used to break ties for the first two columns
-        # -> more sense to have id_onpage since it will have few cases where there
-        # are still duplicates left whereas imported_from will have TONS
-        # but then i cant sort by site having the speed bonus of the index only
-        # id_onpage alone would work which is of no use
-        c.execute(
-            "CREATE INDEX IF NOT EXISTS id_onpage_on_site ON Books (id_onpage, imported_from)"
-        )
-        # TODO cant rely on id_onpage,imported_from always being unique since
-        # e.g. tsumino reuses old, unused ids, so i'd have to update
-        # this id by searching for the title or let id_onpage be NULL
-
-        # was using AUTO_INCREMENT here but it wasnt working (tag_id remained NULL)
-        # SQLite recommends that you should not use AUTOINCREMENT attribute because:
-        # The AUTOINCREMENT keyword imposes extra CPU, memory, disk space, and disk I/O overhead
-        # and should be avoided if not strictly needed. It is usually not needed.
-        # (comment Moe: --> PRIMARY KEY implies AUTOINCREMENT)
-        # In addition, the way SQLite assigns a value for the AUTOINCREMENT column is slightly
-        # different from the way it used for rowid column. -> wont reuse unused ints when
-        # max nr(9223372036854775807; signed 64bit) is used -> error db full
-        c.execute("""CREATE TABLE IF NOT EXISTS Tags(
-                     tag_id INTEGER PRIMARY KEY ASC,
-                     name TEXT UNIQUE NOT NULL,
-                     list_bool INTEGER NOT NULL)""")
+        cen_stats = [("Unknown",), ("Censored",), ("Decensored",), ("Uncensored",)]
+        c.executemany("INSERT OR IGNORE INTO Censorship(name) VALUES (?)", cen_stats)
+        status = [("Unknown",), ("Ongoing",), ("Completed",), ("Unreleased",),
+                  ("Hiatus",)]
+        c.executemany("INSERT OR IGNORE INTO Status(name) VALUES (?)", status)
 
         # foreign key book_id is linked to id column in Books table
         # also possible to set actions on UPDATE/DELETE
@@ -414,14 +348,151 @@ class MangaDB:
         # in SQLite they can be 0 (contrary to normal SQL)
         # ON DELETE CASCADE, wenn der eintrag des FK in der primärtabelle gelöscht wird dann auch
         # in dieser (detailtabelle) die einträge löschen -> Löschweitergabe
-        c.execute("""CREATE TABLE IF NOT EXISTS BookTags(
-                     book_id INTEGER NOT NULL,
-                     tag_id INTEGER NOT NULL,
-                     FOREIGN KEY (book_id) REFERENCES Books(id)
-                     ON DELETE CASCADE,
-                     FOREIGN KEY (tag_id) REFERENCES Tags(tag_id)
-                     ON DELETE CASCADE,
-                     PRIMARY KEY (book_id, tag_id))""")
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS Books(
+                    id INTEGER PRIMARY KEY ASC,
+                    title TEXT UNIQUE NOT NULL,
+                    title_eng TEXT UNIQUE,
+                    title_foreign TEXT,
+                    language_id INTEGER NOT NULL,
+                    pages INTEGER NOT NULL,
+                    status_id INTERGER NOT NULL,
+                    my_rating REAL,
+                    note TEXT,
+                    last_change DATE NOT NULL,
+                    favorite INTEGER NOT NULL,
+                    FOREIGN KEY (language_id) REFERENCES Languages(id)
+                       ON DELETE RESTRICT,
+                    FOREIGN KEY (status_id) REFERENCES Status(id)
+                       ON DELETE RESTRICT
+                );
+            CREATE TABLE IF NOT EXISTS Tags(
+                    tag_id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL,
+                    list_bool INTEGER NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookTags(
+                    book_id INTEGER NOT NULL,
+                    tag_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (tag_id) REFERENCES Tags(tag_id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, tag_id)
+                 );
+            CREATE TABLE IF NOT EXISTS ExternalInfo(
+                    id INTEGER PRIMARY KEY ASC,
+                    -- url could be built from id but idk if thats true for all sites
+                    -- so keep it for now
+                    url TEXT NOT NULL,
+                    id_onpage INTEGER NOT NULL,
+                    imported_from INTEGER NOT NULL,
+                    upload_date DATE NOT NULL,
+                    uploader TEXT,
+                    censor_id INTEGER NOT NULL,
+                    rating REAL,
+                    ratings INTEGER, -- number of users that rated the book
+                    favorites INTEGER,
+                    downloaded INTEGER NOT NULL,
+                    last_update DATE NOT NULL,
+                    FOREIGN KEY (imported_from) REFERENCES Sites(id)
+                       ON DELETE RESTRICT,
+                    FOREIGN KEY (censor_id) REFERENCES Censorship(id)
+                       ON DELETE RESTRICT
+                );
+            CREATE TABLE IF NOT EXISTS ExternalInfoBooks(
+                    book_id INTEGER NOT NULL,
+                    ext_info_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (ext_info_id) REFERENCES ExternalInfo(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, ext_info_id)
+                );
+            CREATE TABLE IF NOT EXISTS Collection(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookCollection(
+                    book_id INTEGER NOT NULL,
+                    collection_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (collection_id) REFERENCES Collection(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, collection_id)
+                );
+
+            CREATE TABLE IF NOT EXISTS Category(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookCategory(
+                    book_id INTEGER NOT NULL,
+                    category_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (category_id) REFERENCES Category(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, category_id)
+                );
+            -- Group protected keyword in sql
+            CREATE TABLE IF NOT EXISTS Groups(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookGroups(
+                    book_id INTEGER NOT NULL,
+                    group_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (group_id) REFERENCES Groups(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, group_id)
+                );
+            CREATE TABLE IF NOT EXISTS Artist(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookArtist(
+                    book_id INTEGER NOT NULL,
+                    artist_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (artist_id) REFERENCES Artist(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, artist_id)
+                );
+            CREATE TABLE IF NOT EXISTS Parody(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookParody(
+                    book_id INTEGER NOT NULL,
+                    parody_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (parody_id) REFERENCES Parody(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, parody_id)
+                );
+            CREATE TABLE IF NOT EXISTS Character(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookCharacter(
+                    book_id INTEGER NOT NULL,
+                    character_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (character_id) REFERENCES Character(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, character_id)
+                );
+                 """)
+
+        c.execute("CREATE INDEX IF NOT EXISTS id_onpage_on_site ON ExternalInfo"
+                  "(id_onpage, imported_from)")
 
         # trigger that gets executed everytime after a row is updated in Books table
         # with UPDATE -> old and new values of cols accessible with OLD.colname NEW.colname
@@ -455,27 +526,12 @@ class MangaDB:
                         WHERE id = OLD.book_id;
                      END""")
 
-        # also do this the other way around -> if downloaded get set also add "li_downloaded" to tags?
-        # set downloaded to 1 if book gets added to li_downloaded
-        c.execute("""CREATE TRIGGER IF NOT EXISTS update_downloaded_on_tags_insert
-                     AFTER INSERT ON BookTags
-                                     WHEN NEW.tag_id IN (
-                                     SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
+        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_update_ext_info
+                     AFTER UPDATE ON ExternalInfo
                      BEGIN
-                        UPDATE Books
-                        SET downloaded = 1
-                        WHERE id = NEW.book_id;
-                     END""")
-
-        # set downloaded to 0 if book gets removed from li_downloaded
-        c.execute("""CREATE TRIGGER IF NOT EXISTS update_downloaded_on_tags_delete
-                     AFTER DELETE ON BookTags
-                                     WHEN OLD.tag_id IN (
-                                     SELECT tag_id FROM Tags WHERE name = 'li_downloaded')
-                     BEGIN
-                        UPDATE Books
-                        SET downloaded = 0
-                        WHERE id = OLD.book_id;
+                        UPDATE ExternalInfo
+                        SET last_update = DATE('now', 'localtime')
+                        WHERE id = NEW.id;
                      END""")
 
         # set favorite to 1 if book gets added to li_best

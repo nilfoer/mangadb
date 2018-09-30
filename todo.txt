@@ -1,7 +1,4 @@
-- old tsumino id_onpage get reused so if i have an old book in my db whose got a new id on tsumino but the old id
-    is used for a different book now -> book would get updated with data from a completely different book
-    -> also think about using internal id for thumb names
-    they also can get re-used, but im the one re-using them so the old cover/book-entry would already be deleted
+- create indices for Tags.name, Category.name etc.?  
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching
     -> convert site tags to MangaDB tags
@@ -15,6 +12,9 @@
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
 - mb split updating from user action vs. updating from import 
+
+
+--DONE-------------------------------------------------------------------------------------------------
 - remove UNIQUE from url, since:
     url with english title for tsumino is unique: "http://www.tsumino.com/Book/Info/43150/junyou-kanmusu-ikemesu-shibari-"
         Title: Junyou Kanmusu Ikemesu Shibari
@@ -38,9 +38,23 @@
             reader : http://www.tsumino.com/Book/Info/42934/kaoru-de-go-go
     but without it it might collide with book that got the deleted and now re-used id_onpage
     and different sites dont even have the title in the url
-
-
---DONE-------------------------------------------------------------------------------------------------
+- cant have id_onpage and imported_from as just single values if i want to support multiple sites,
+    unless i always want to associate a book with an external site
+    but id rather have books be independent from external sites
+        -> only be able to import information from ext site
+        -> and have external info (beyond basic book info: e.g. uploader, de/un/censored, downloaded etc.)
+    => ExtInfo table and bridge table ExtInfoBook
+- old tsumino id_onpage get reused so if i have an old book in my db whose got a new id on tsumino but the old id
+    is used for a different book now -> book would get updated with data from a completely different book
+    -> also think about using internal id for thumb names
+    they also can get re-used, but im the one re-using them so the old cover/book-entry would already be deleted
+  => use title to uniquely identify book
+- on nhentai,hitomi there are several books with the same title and varying amounts of pages (from an ongoing manga/doujinshi)
+    not so on tsumino
+    on happypandax (manga mangager) only columns that are unique are thing you create yourself to attribute to mangas
+        e.g.: language(name), artist(name), category(name) etc.
+        titles, urls etc. are not
+  => for now only title (and url on ext info) remains unique
 - remove NOT NULL from rating, rating_full since they are not present on different manga sites (e.g. hitomi.la, nhentai.net dont have a rating system)
         SQLite uses dynamic typing i.e. the datatype of a value is associated with the value itself, not with its 
         container. It does not enforce data type constraints

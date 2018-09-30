@@ -320,3 +320,58 @@ ________________________________________________________________________________
 some collections have a "," in their name e.g. Anyway, I Want to Have Sex With...
 => need to either escape the comma or use a different seperator
 __________________________________________________________________________________________________________
+
+# create index for imported_from,id_onpage so we SQLite can access it
+# with O(log n) instead of O(n) complexit when using WHERE id_onpage = ?
+# (same exists for PRIMARY KEY) but using rowid/PK INTEGER ASC is still faster
+# order is important for composite key index
+# To utilize a multicolumn index, the query must contain the condition
+# that has the same column order as defined in the index
+# querying by just imported_from will work or imported_from,id_onpage
+# but just id_onpage wont work
+# by making index unique we get an error if we want to insert values
+# for imported_from,id_onpage that are already in the table as the same combo
+# but from sqlite.org: The left-most column is the primary key
+# used for ordering the rows in the index. The second column is used to
+# break ties in the left-most column. If there were a third column, it
+# would be used to break ties for the first two columns
+# -> more sense to have id_onpage since it will have few cases where there
+# are still duplicates left whereas imported_from will have TONS
+# but then i cant sort by site having the speed bonus of the index only
+# id_onpage alone would work which is of no use
+__________________________________________________________________________________________________________
+
+# create index for imported_from,id_onpage so we SQLite can access it
+# with O(log n) instead of O(n) complexit when using WHERE id_onpage = ?
+# (same exists for PRIMARY KEY) but using rowid/PK INTEGER ASC is still faster
+# order is important for composite key index
+# To utilize a multicolumn index, the query must contain the condition
+# that has the same column order as defined in the index
+# querying by just imported_from will work or imported_from,id_onpage
+# but just id_onpage wont work
+# by making index unique we get an error if we want to insert values
+# for imported_from,id_onpage that are already in the table as the same combo
+# TODO but from sqlite.org: The left-most column is the primary key
+# used for ordering the rows in the index. The second column is used to
+# break ties in the left-most column. If there were a third column, it
+# would be used to break ties for the first two columns
+# -> more sense to have id_onpage since it will have few cases where there
+# are still duplicates left whereas imported_from will have TONS
+# but then i cant sort by site having the speed bonus of the index only
+# id_onpage alone would work which is of no use
+__________________________________________________________________________________________________________
+
+# create table if it doesnt exist
+# group reserved keyword -> use groups for col name
+# SQLite does not have a separate Boolean -> stored as integers 0 (false) and 1 (true).
+# FOREIGN KEY ON DEL/UPD RESTRICT disallows deleting/modifying parent
+# key if it has child key(s)
+# title_foreign cant be UNIQUE since some uploads on tsumino had the same asian title
+# but a different english title/ were a different book; mb because theyre chapters of
+# a larger book?
+# for now lets assume the english title is always unique (at least it has been for now for
+# over 2k books), the alternative would be to only leave title UNIQUE and (which i have to
+# do anyway) always have the title as english-title / foreign-title -- this may be the better
+# approach anyway
+__________________________________________________________________________________________________________
+

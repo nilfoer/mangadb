@@ -93,6 +93,9 @@ class MangaDBEntry:
             val = getattr(self, attr)
             # col/attr where multiple values could occur is always a list
             if isinstance(val, list):
+                if attr not in self.MULTI_VALUE_COL:
+                    raise TypeError(f"Type was list for attr {attr} but its not a multi-value "
+                                    f"column: {val}")
                 result[attr] = list_to_string(val)
             else:
                 result[attr] = val
@@ -115,6 +118,8 @@ class MangaDBEntry:
 
     def _update_manga_db_entry(self):
         # TODO update all cols?
+        # TODO log changes
+        # TODO remove lists, with def param remove_lists=False
         """Commits changes to db,
         lists will ONLY be ADDED not removed"""
 
@@ -152,8 +157,7 @@ class MangaDBEntry:
                      WHERE bt.tag_id = Tags.tag_id
                      AND bt.book_id = ?""", (self.id, ))
         # filter lists from tags first
-        tags = set(
-            (tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")))
+        tags = set((tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")))
         tags_page = set(self.tags)
         added_tags = None
         removed_on_page = None
@@ -175,7 +179,6 @@ class MangaDBEntry:
             )
 
         with db_con:
-            # TODO log changes
             c.execute(f"""UPDATE Books SET
                           {','.join((f'{col} = :{col}' for col in self.UPDATE_HELPER))},
                           language = (SELECT id FROM Languages WHERE name = :language)

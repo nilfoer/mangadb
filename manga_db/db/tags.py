@@ -114,4 +114,5 @@ def get_tags_by_book(db_con, _id):
                           AND Books.id = ?
                           AND bt.tag_id = Tags.tag_id
                           GROUP BY bt.book_id""", (_id, ))
-    return c.fetchone()[0]
+    result = c.fetchone()
+    return result[0] if result else None
