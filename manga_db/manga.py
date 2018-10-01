@@ -2,8 +2,8 @@ import logging
 import datetime
 
 from .db.row import DBRow
-from .db.tags import remove_tags_from_book_id, add_tags_to_book
 from .ext_info import ExternalInfo
+from .constants import STATUS_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +19,6 @@ class MangaDBEntry(DBRow):
     JOINED_COLUMNS = ('category', 'collection', 'groups', 'artist', 'parody', 'character',
                       'lists', 'tags', 'ext_infos')
 
-    # last_change and last_update get updated by trigger
-    # dont update: language(inserted manually in sql statement)
-    UPDATE_HELPER = ("title", "title_eng", "title_foreign", "url", "id_onpage",
-                     "upload_date", "uploader", "pages", "rating",
-                     "rating_full", "my_rating", "category", "collection",
-                     "groups", "artist", "parody", "character", "note",
-                     "downloaded", "favorite", "imported_from")
-
     def __init__(self, manga_db, data, **kwargs):
         self.id = None
         self.title = None
@@ -37,19 +29,25 @@ class MangaDBEntry(DBRow):
         self.status_id = None
         self.my_rating = None
         # --START-- Muliple values, mb as properties?
-        self.category = None
-        self.collection = None
-        self.groups = None
-        self.artist = None
-        self.parody = None
-        self.character = None
-        self.lists = None
-        self.tags = None
-        self.ext_infos = None
+        self._category = None
+        self._collection = None
+        self._groups = None
+        self._artist = None
+        self._parody = None
+        self._character = None
+        self._lists = None
+        self._tags = None
+        self._ext_infos = None
         # --END-- Muliple values
         self.last_change = None
         self.note = None
         self.favorite = None
+        # assoc column: (set of adds, sets of removes)
+        self._changes = {col: (set(), set()) for col in self.JOINED_COLUMNS
+                         if col != "ext_infos"}
+        # dynamically create functions that add/remove to joined cols
+        # and log the changes
+        self._init_add_assoc_column_methods()
 
         # call to Base class init after assigning all the attributes !IMPORTANT!
         # if called b4 assigning the attributes the ones initalized with data
@@ -58,18 +56,96 @@ class MangaDBEntry(DBRow):
 
         if self.last_change is None:
             self.last_change = datetime.date.today()
-        # id==None -> imported and not from DB
-        if self.id is None:
-            if self.lists:
-                self.favorite = 1 if "li_best" in self.lists else 0
-            else:
-                self.favorite = 0
 
     def _from_row(self, row):
         for key in self.DB_COL_HELPER:
             setattr(self, key, row[key])
         for col, val in self.get_associated_columns().items():
-            setattr(self, col, val)
+            setattr(self, "_" + col, val)
+
+    @classmethod
+    def _init_add_assoc_column_methods(cls):
+        # ext_infos handled seperately
+        for col in cls.JOINED_COLUMNS:
+            if col == "ext_infos":
+                continue
+            # addition func needed due to scoping of for block
+            # otherwise all funcs would only use the last value for col
+            cls.gen_add_assoc_col_f(cls, col)
+
+    @staticmethod
+    def gen_add_assoc_col_f(cls, col):
+        # generate function that adds to col and logs the changes
+        def add_to_assoc_col(self, value):
+            self._changes[col][0].add(value)
+            col_li = getattr(self, f"_{col}")
+            if col_li is None:
+                # col_li =.. doesnt work since its just None and not a mutable type
+                setattr(self, f"_{col}", [value])
+            else:
+                col_li.append(value)
+            return getattr(self, col)
+        # set function on class so its callable with self.add_{col}
+        # needs to be added to class, doesnt work with adding to self
+        setattr(cls, f"add_{col}", add_to_assoc_col)
+
+    @property
+    def category(self):
+        return self._category
+
+    @property
+    def collection(self):
+        return self._collection
+
+    @property
+    def groups(self):
+        return self._groups
+
+    @property
+    def artist(self):
+        return self._artist
+
+    @property
+    def parody(self):
+        return self._parody
+
+    @property
+    def character(self):
+        return self._character
+
+    @property
+    def tags(self):
+        return self._tags
+
+    @property
+    def lists(self):
+        return self._list
+
+    def update_ext_infos(self):
+        self._ext_infos = self._fetch_external_infos()
+        return self._ext_infos
+
+    @property
+    def ext_infos(self):
+        if self.id is None:
+            logger.warning("Couldn't get external info cause id is None")
+            return
+        if self._ext_infos is None:
+            self._ext_infos = self._fetch_external_infos()
+        return self._ext_infos
+
+    def _fetch_external_infos(self):
+        ext_infos = []
+        c = self.manga_db.db_con.execute("""
+                        SELECT ei.*
+                        FROM ExternalInfo ei, ExternalInfoBooks eib, Books
+                        WHERE Books.id = eib.book_id
+                        AND ei.id = eib.ext_info_id
+                        AND Books.id = ?""", (self.id,))
+        for row in c.fetchall():
+            ei = ExternalInfo(self, row)
+            ext_infos.append(ei)
+        return ext_infos
 
     def get_associated_columns(self):
         """
@@ -85,9 +161,10 @@ class MangaDBEntry(DBRow):
             "parody": None,
             "character": None
             }
-        
+
         # split tags and lists
-        result["tags"], result["lists"] = self._fetch_tags_lists()
+        result["tags"] = self._fetch_associated_column("Tag", "tag_id")
+        result["lists"] = self._fetch_associated_column("List", "list_id")
         result["category"] = self._fetch_associated_column("Category", "category_id")
         result["collection"] = self._fetch_associated_column("Collection", "collection_id")
         result["groups"] = self._fetch_associated_column("Groups", "group_id")
@@ -96,23 +173,6 @@ class MangaDBEntry(DBRow):
         result["character"] = self._fetch_associated_column("Character", "character_id")
         result["ext_infos"] = self._fetch_external_infos()
         return result
-
-    def _fetch_tags_lists(self):
-        # group_concat(x,y) concat x on char y
-        c = self.manga_db.db_con.execute("""SELECT group_concat(Tags.name, ';')
-                                            FROM Tags, BookTags bt, Books
-                                            WHERE bt.book_id = Books.id
-                                            AND Books.id = ?
-                                            AND bt.tag_id = Tags.tag_id
-                                            GROUP BY bt.book_id""", (self.id, ))
-        result = c.fetchone()
-        if result:
-            tags = result[0].split(";")
-            tags = [tag for tag in tags if tag.startswith("li_")]
-            lists = [tag for tag in tags if not tag.startswith("li_")]
-            return tags, lists
-        else:
-            return None, None
 
     def _fetch_associated_column(self, table_name, bridge_col_name):
         c = self.manga_db.db_con.execute(f"""SELECT group_concat(x.name, ';')
@@ -155,44 +215,15 @@ class MangaDBEntry(DBRow):
         else:
             logger.warning("Type of status needs to be string!")
 
-    def get_external_infos(self):
-        if self.id is None:
-            logger.warning("Couldn't get external info cause id is None")
-            return
-        if self.ext_infos is None:
-            self.ext_infos = self._fetch_external_infos()
-        return self.ext_infos
-
-    def _fetch_external_infos(self):
-        ext_infos = []
-        c = self.manga_db.db_con.execute("""
-                        SELECT ei.*
-                        FROM ExternalInfo ei, ExternalInfoBooks eib, Books
-                        WHERE Books.id = eib.book_id
-                        AND ei.id = eib.ext_info_id
-                        AND Books.id = ?""", (self.id,))
-        for row in c.fetchall():
-            ei = ExternalInfo(self, row)
-            ext_infos.append(ei)
-        return ext_infos
-
     def export_for_db(self):
         """
-        Returns a dict with all the attributes of self that are stored in the DB
-        which are formatted for saving to the DB: e.g. lists but (user)lists and tags
-        joined on ", "
+        Returns a dict with all the attributes of self that are stored in the row directly
         """
         result = {"lists": self.lists, "tags": self.tags}
         for attr in self.DB_COL_HELPER:
             val = getattr(self, attr)
             # col/attr where multiple values could occur is always a list
-            if isinstance(val, list):
-                if attr not in self.MULTI_VALUE_COL:
-                    raise TypeError(f"Type was list for attr {attr} but its not a multi-value "
-                                    f"column: {val}")
-                result[attr] = list_to_string(val)
-            else:
-                result[attr] = val
+            result[attr] = val
         return result
 
     def save(self):
@@ -210,9 +241,42 @@ class MangaDBEntry(DBRow):
                 return self.manga_db.add_book(self)
         return self._update_manga_db_entry()
 
+    def _add_associated_column_values(self, table_name, bridge_col_name, values):
+        c = self.db_con.executemany(f"INSERT OR IGNORE INTO {table_name}(name) VALUES (?)",
+                                    values)
+        c.executemany(f"""INSERT OR IGNORE INTO Book{table_name}(book_id, {bridge_col_name})
+                          SELECT ?, {table_name}.id
+                          FROM {table_name}
+                          WHERE {table_name}.name = ?""", (zip([self.id] * len(values), values)))
+        logger.debug("Added '%s' to associated column '%s'", ", ".join(values), table_name)
+
+    def _remove_associated_column_values(self, table_name, bridge_col_name, values):
+        self.db_con.executemany(f"""
+                DELETE FROM Book{table_name}
+                WHERE Book{table_name}.tag_id IN
+                   (
+                   SELECT {table_name}.id FROM {table_name}
+                   WHERE
+                   ({table_name}.name IN ({', '.join(['?']*len(values))}))
+                   )
+                AND Book{table_name}.book_id = ?""", (*values, self.id))
+        logger.debug("Removed '%s' from associated column '%s'", values, table_name)
+
+    def diff_normal_cols(self, row):
+        changed_str = []
+        changed_cols = []
+        for col in self.DB_COL_HELPER:
+            if col == "id":
+                assert self.id == row["id"]
+                continue
+            self_attr = getattr(self, col)
+            if row[col] != self_attr:
+                changed_str.append(f"Column '{col}' changed from '{self_attr}' to '{row[col]}'")
+                changed_cols.append(col)
+        return "\n".join(changed_str), changed_cols
+
     def _update_manga_db_entry(self):
         # TODO update all cols?
-        # TODO log changes
         # TODO remove lists, with def param remove_lists=False
         """Commits changes to db,
         lists will ONLY be ADDED not removed"""
@@ -220,81 +284,28 @@ class MangaDBEntry(DBRow):
         db_con = self.manga_db.db_con
         # get previous value for downloaded and fav from db
         c = db_con.execute(
-            "SELECT downloaded, favorite, uploader, upload_date, pages FROM Books WHERE id = ?",
+            "SELECT * FROM Books WHERE id = ?",
             (self.id, ))
         row = c.fetchone()
-        # if dl/fav==1 update that to db else use value from db since it might be 1 there
-        if not self.favorite:
-            self.downloaded = row["downloaded"]
+        changed_str, changed_cols = self.diff_normal_cols(row)
+        logger.info("Updating Book with id '%d' with the following changes:\n%s", self.id,
+                    changed_str)
+
+        # if fav==1 update that to db else use value from db since it might be 1 there
         if not self.favorite:
             self.favorite = row["favorite"]
 
         update_dic = self.export_for_db()
 
-        # seems like book id on tsumino just gets replaced with newer uncensored or fixed version
-        # -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
-        # => WARN to redownload book
-        field_change_str = []
-        # build line str of changed fields
-        for key in ("uploader", "upload_date", "pages"):
-            if row[key] != update_dic[key]:
-                field_change_str.append(
-                    f"Field \"{key}\" changed from \"{row[key]}\" "
-                    f"to \"{update_dic[key]}\"!"
-                )
-
-        # check tags seperately due to using bridge table
-        # get column tag names where tag_id in BookTags and Tags match and book_id in BookTags
-        # is the book were looking for
-        c.execute("""SELECT Tags.name
-                     FROM BookTags bt, Tags
-                     WHERE bt.tag_id = Tags.tag_id
-                     AND bt.book_id = ?""", (self.id, ))
-        # filter lists from tags first
-        tags = set((tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")))
-        tags_page = set(self.tags)
-        added_tags = None
-        removed_on_page = None
-        # compare sorted to see if tags changed, alternatively convert to set and add -> see
-        # if len() changed
-        if tags != tags_page:
-            added_tags = tags_page - tags
-            removed_on_page = tags - tags_page
-            field_change_str.append(
-                f"Field \"tags\" changed -> Added Tags: \"{', '.join(added_tags)}\"; "
-                f"Removed Tags: \"{', '.join(removed_on_page)}\"!"
-            )
-
-        if field_change_str:
-            field_change_str = '\n'.join(field_change_str)
-            logger.warning(
-                f"Please re-download \"{self.url}\", since the change of following fields suggest "
-                f"that someone has uploaded a new version:\n{field_change_str}"
-            )
-
         with db_con:
             c.execute(f"""UPDATE Books SET
-                          {','.join((f'{col} = :{col}' for col in self.UPDATE_HELPER))},
-                          language = (SELECT id FROM Languages WHERE name = :language)
+                          {','.join((f'{col} = :{col}' for col in changed_cols))}
                           WHERE id = :id""", update_dic)
 
-            if removed_on_page:
-                # remove tags that are still present in db but were removed on page
-                remove_tags_from_book_id(db_con, self.id, removed_on_page)
-
-            tags_lists_to_add = []
-            if self.lists:
-                # (micro optimization i know) list concat is faster with + compared with extend
-                tags_lists_to_add = tags_lists_to_add + self.lists
-            if added_tags:
-                # converting set to list and then concat is faster than using s.union(list)
-                tags_lists_to_add = tags_lists_to_add + list(added_tags)
-
-            if tags_lists_to_add:
-                # WARNING lists will only be added, not removed
-                add_tags_to_book(db_con, self.id, tags_lists_to_add)
-
-            logger.info("Updated book with url \"%s\" in database!", self.url)
+            # update changes on JOINED_COLUMNS(except ext_infos)
+            for col, added_removed in self._changes.items():
+                added, removed = added_removed
+                # TODO
 
         # c.lastrowid only works for INSERT/REPLACE
         return self.id, field_change_str

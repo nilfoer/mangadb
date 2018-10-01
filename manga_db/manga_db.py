@@ -6,7 +6,6 @@ import urllib.request
 from . import extractor
 from .manga import MangaDBEntry
 from .ext_info import ExternalInfo
-from .db.tags import add_tags_to_book
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +47,7 @@ class MangaDB:
             result[row["name"]] = row["id"]
         return result
 
+    # used in extractor to get language id if language isnt in db itll be added
     def add_language(self, language):
         if language not in self.language_map:
             with self.db_con:
@@ -187,37 +187,23 @@ class MangaDB:
         _id = c.fetchone()
         return _id[0] if _id else None
 
-    def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
+    def _add_manga_db_entry(self, manga_db_entry):
         """Commits changes to db"""
         db_dict = manga_db_entry.export_for_db()
         cols = list(manga_db_entry.DB_COL_HELPER)
 
         lastrowid = None
         with self.db_con:
-            try:
-                c = self.db_con.execute(f"""
-                        INSERT INTO Books ({','.join(cols)})
-                        VALUES ({','.join((f':{col}' for col in cols))}
-                        )""", db_dict)
-            except sqlite3.IntegrityError as error:
-                error_msg = str(error)
-                if "UNIQUE constraint failed" in error_msg:
-                    failed_col = error_msg.split(".")[-1]
-                    logger.info("Tried to add book with %s that was already in DB: %s",
-                                failed_col, db_dict[failed_col])
-                    lastrowid = self._handle_book_not_unique(self.db_con,
-                                                             failed_col, manga_db_entry,
-                                                             action=duplicate_action)
-                else:
-                    # were only handling unique constraint fail so reraise if its sth else
-                    raise error
-            else:
-                lastrowid = c.lastrowid
-                # use cursor.lastrowid to get id of last insert in Books table
-                add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
-                                 manga_db_entry.tags)
+            c = self.db_con.execute(f"""
+                    INSERT INTO Books ({','.join(cols)})
+                    VALUES ({','.join((f':{col}' for col in cols))}
+                    )""", db_dict)
+            lastrowid = c.lastrowid
+            # use cursor.lastrowid to get id of last insert in Books table
+            add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
+                             manga_db_entry.tags)
 
-                logger.info("Added book with title \"%s\" to database!", manga_db_entry.title)
+            logger.info("Added book with title \"%s\" to database!", manga_db_entry.title)
 
         return lastrowid
         
@@ -330,17 +316,29 @@ class MangaDB:
                     FOREIGN KEY (status_id) REFERENCES Status(id)
                        ON DELETE RESTRICT
                 );
-            CREATE TABLE IF NOT EXISTS Tags(
-                    tag_id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL,
-                    list_bool INTEGER NOT NULL
+            CREATE TABLE IF NOT EXISTS List(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
                 );
-            CREATE TABLE IF NOT EXISTS BookTags(
+            CREATE TABLE IF NOT EXISTS BookList(
+                    book_id INTEGER NOT NULL,
+                    list_id INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                    ON DELETE CASCADE,
+                    FOREIGN KEY (list_id) REFERENCES List(id)
+                    ON DELETE CASCADE,
+                    PRIMARY KEY (book_id, list_id)
+                );
+            CREATE TABLE IF NOT EXISTS Tag(
+                    id INTEGER PRIMARY KEY ASC,
+                    name TEXT UNIQUE NOT NULL
+                );
+            CREATE TABLE IF NOT EXISTS BookTag(
                     book_id INTEGER NOT NULL,
                     tag_id INTEGER NOT NULL,
                     FOREIGN KEY (book_id) REFERENCES Books(id)
                     ON DELETE CASCADE,
-                    FOREIGN KEY (tag_id) REFERENCES Tags(tag_id)
+                    FOREIGN KEY (tag_id) REFERENCES Tag(id)
                     ON DELETE CASCADE,
                     PRIMARY KEY (book_id, tag_id)
                  );
@@ -386,7 +384,6 @@ class MangaDB:
                     ON DELETE CASCADE,
                     PRIMARY KEY (book_id, collection_id)
                 );
-
             CREATE TABLE IF NOT EXISTS Category(
                     id INTEGER PRIMARY KEY ASC,
                     name TEXT UNIQUE NOT NULL
@@ -474,8 +471,8 @@ class MangaDB:
                      END""")
 
         # set last_change on Books when new tags get added in bridge table
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags_ins
-                     AFTER INSERT ON BookTags
+        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tag_ins
+                     AFTER INSERT ON BookTag
                      BEGIN
                         UPDATE Books
                         SET last_change = DATE('now', 'localtime')
@@ -483,8 +480,26 @@ class MangaDB:
                      END""")
 
         # set last_change on Books when tags get removed in bridge table
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tags_del
-                     AFTER DELETE ON BookTags
+        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tag_del
+                     AFTER DELETE ON BookTag
+                     BEGIN
+                        UPDATE Books
+                        SET last_change = DATE('now', 'localtime')
+                        WHERE id = OLD.book_id;
+                     END""")
+
+        # set last_change on Books when new lists get added in bridge table
+        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_list_ins
+                     AFTER INSERT ON BookList
+                     BEGIN
+                        UPDATE Books
+                        SET last_change = DATE('now', 'localtime')
+                        WHERE id = NEW.book_id;
+                     END""")
+
+        # set last_change on Books when lists get removed in bridge table
+        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_list_del
+                     AFTER DELETE ON BookList
                      BEGIN
                         UPDATE Books
                         SET last_change = DATE('now', 'localtime')
@@ -497,28 +512,6 @@ class MangaDB:
                         UPDATE ExternalInfo
                         SET last_update = DATE('now', 'localtime')
                         WHERE id = NEW.id;
-                     END""")
-
-        # set favorite to 1 if book gets added to li_best
-        c.execute("""CREATE TRIGGER IF NOT EXISTS update_favorite_on_tags_insert
-                     AFTER INSERT ON BookTags
-                                     WHEN NEW.tag_id IN (
-                                     SELECT tag_id FROM Tags WHERE name = 'li_best')
-                     BEGIN
-                        UPDATE Books
-                        SET favorite = 1
-                        WHERE id = NEW.book_id;
-                     END""")
-
-        # set favorite to 0 if book gets removed from li_best
-        c.execute("""CREATE TRIGGER IF NOT EXISTS update_favorite_on_tags_delete
-                     AFTER DELETE ON BookTags
-                                     WHEN OLD.tag_id IN (
-                                     SELECT tag_id FROM Tags WHERE name = 'li_best')
-                     BEGIN
-                        UPDATE Books
-                        SET favorite = 0
-                        WHERE id = OLD.book_id;
                      END""")
 
         # commit changes
