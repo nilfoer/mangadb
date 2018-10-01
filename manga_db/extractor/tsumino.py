@@ -70,6 +70,13 @@ class TsuminoExtractor(BaseMangaExtractor):
                 result[attr] = float(rat_full.group(1))
                 result["ratings"] = int(rat_full.group(2))
                 result["favorites"] = int(rat_full.group(3))
+            elif attr == "uploader":
+                if isinstance(value, list):
+                    if len(value) > 1:
+                        logger.error("More than one uploader: %s", value)
+                    result["uploader"] = value[0]
+                else:
+                    result["uploader"] = value
             elif attr == "upload_date":
                 result[attr] = datetime.datetime.strptime(value, "%Y %B %d").date()
             elif attr == "title":

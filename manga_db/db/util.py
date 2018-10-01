@@ -63,3 +63,11 @@ def print_sqlite3_row(row, sep=";"):
     for key in row.keys():
         str_li.append(f"{key}: {row[key]}")
     print(sep.join(str_li))
+
+
+def joined_col_name_to_query_names(col_name):
+    table_name = col_name.capitalize()
+    bridge_col_name = f"{col_name}_id"
+    if bridge_col_name == "groups_id":
+        bridge_col_name = "group_id"
+    return table_name, bridge_col_name

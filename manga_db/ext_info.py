@@ -12,6 +12,8 @@ class ExternalInfo(DBRow):
     DB_COL_HELPER = ("id", "url", "id_onpage", "imported_from", "upload_date", "uploader",
                      "censor_id", "rating", "ratings", "favorites", "downloaded", "last_update")
 
+    NOT_NULL_COLS = ("url", "id_onpage", "imported_from", "upload_date", "censor_id")
+
     def __init__(self, manga_db_entry, data, **kwargs):
         self.manga_db_entry = manga_db_entry
         self.id = None
@@ -24,6 +26,7 @@ class ExternalInfo(DBRow):
         self.rating = None
         self.ratings = None
         self.favorites = None
+        # 0 or 1
         self.downloaded = None
         self.last_update = None
 
@@ -34,73 +37,95 @@ class ExternalInfo(DBRow):
 
         if self.last_update is None:
             self.last_update = datetime.date.today()
+        if self.downloaded is None:
+            # downloaded cant be None, assume its not downloaded if its None
+            self.downloaded = 0
+
+    def __eq__(self, other):
+        return all(self.id_onpage == other.id_onpage, self.imported_from == other.imported_from,
+                   self.uploader == other.uploader, self.upload_date == other.upload_date,
+                   self.downloaded == other.downloaded)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     @property
     def censorship(self):
         return CENSOR_IDS[self.censor_id]
 
     @censorship.setter
-    def status(self, value):
+    def censorship(self, value):
         self.censor_id = CENSOR_IDS[value]
 
+    def save(self):
+        # idea is that ExternalInfo only gets edited when also editing MangaDBEntry
+        # and except downloaded everything else is edited by importing
+        if self.id is None:
+            if self.manga_db_entry is None or self.manga_db_entry.id is None:
+                raise ValueError("ExternalInfo can only be saved with an id and MangaDBEntry.id!")
+            return self._add_entry()
+        else:
+            return self._update_entry()
+
+    def _add_entry(self):
+        db_dict = self.export_for_db()
+        cols = [col for col in self.DB_COL_HELPER if col != "id"]
+
+        with self.manga_db.db_con:
+            c = self.manga_db.db_con.execute(f"""
+                    INSERT INTO ExternalInfo ({','.join(cols)})
+                    VALUES ({','.join((f':{col}' for col in cols))}
+                    )""", db_dict)
+            self.id = c.lastrowid
+            # insert connection in bridge table
+            c.execute("""INSERT INTO ExternalInfoBooks(book_id, ext_info_id)
+                         VALUES (?, ?)""", (self.manga_db_entry.id, self.id))
+        return self.id, None
+
+    def diff_normal_cols(self, row):
+        changed_str = []
+        changed_cols = []
+        for col in self.DB_COL_HELPER:
+            if col == "id":
+                assert self.id == row["id"]
+                continue
+            self_attr = getattr(self, col)
+            if row[col] != self_attr:
+                changed_str.append(f"Column '{col}' changed from '{row[col]}' to '{self_attr}'")
+                changed_cols.append(col)
+        return "\n".join(changed_str), changed_cols
+
     def _update_entry(self):
-        # @CopyPasta
+        db_con = self.manga_db.db_con
+        # get previous value for downloaded and fav from db
+        c = db_con.execute(
+            "SELECT * FROM ExternalInfo WHERE id = ?",
+            (self.id, ))
+        row = c.fetchone()
+        field_change_str, changed_cols = self.diff_normal_cols(row)
+
+        update_dic = self.export_for_db()
+
         # seems like book id on tsumino just gets replaced with newer uncensored or fixed version
         # -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
         # => WARN to redownload book
-        field_change_str = []
-        # build line str of changed fields
-        for key in ("uploader", "upload_date", "pages"):
-            if row[key] != update_dic[key]:
-                field_change_str.append(
-                    f"Field \"{key}\" changed from \"{row[key]}\" "
-                    f"to \"{update_dic[key]}\"!"
-                )
+        redl_on_field_change = ("censor_id", "uploader", "upload_date", "pages")
+        if any((True for col in changed_cols if col in redl_on_field_change)):
+            # automatic joining of strings only works inside ()
+            field_change_str = (f"Please re-download \"{self.url}\", since the "
+                                "change of the following fields suggest that someone has "
+                                f"uploaded a new version:\n{field_change_str}")
+            logger.warning(field_change_str)
+            # set downloaded to 0 since its a diff version
+            update_dic["downloaded"] = 0
+        else:
+            logger.info("Updating ExternalInfo with id '%d' with the following changes:"
+                        "\n%s", self.id, field_change_str)
 
-        # check tags seperately due to using bridge table
-        # get column tag names where tag_id in BookTags and Tags match and book_id in BookTags
-        # is the book were looking for
-        c.execute("""SELECT Tags.name
-                     FROM BookTags bt, Tags
-                     WHERE bt.tag_id = Tags.tag_id
-                     AND bt.book_id = ?""", (self.id, ))
-        # filter lists from tags first
-        tags = set((tup[0] for tup in c.fetchall() if not tup[0].startswith("li_")))
-        tags_page = set(self.tags)
-        added_tags = None
-        removed_on_page = None
-        # compare sorted to see if tags changed, alternatively convert to set and add -> see
-        # if len() changed
-        if tags != tags_page:
-            added_tags = tags_page - tags
-            removed_on_page = tags - tags_page
-            field_change_str.append(
-                f"Field \"tags\" changed -> Added Tags: \"{', '.join(added_tags)}\"; "
-                f"Removed Tags: \"{', '.join(removed_on_page)}\"!"
-            )
-
-        if field_change_str:
-            field_change_str = '\n'.join(field_change_str)
-            logger.warning(
-                f"Please re-download \"{self.url}\", since the change of following fields suggest "
-                f"that someone has uploaded a new version:\n{field_change_str}"
-            )
         with db_con:
-            if removed_on_page:
-                # remove tags that are still present in db but were removed on page
-                remove_tags_from_book_id(db_con, self.id, removed_on_page)
-
-            tags_lists_to_add = []
-            if self.lists:
-                # (micro optimization i know) list concat is faster with + compared with extend
-                tags_lists_to_add = tags_lists_to_add + self.lists
-            if added_tags:
-                # converting set to list and then concat is faster than using s.union(list)
-                tags_lists_to_add = tags_lists_to_add + list(added_tags)
-
-            if tags_lists_to_add:
-                # WARNING lists will only be added, not removed
-                add_tags_to_book(db_con, self.id, tags_lists_to_add)
-
-            logger.info("Updated book with url \"%s\" in database!", self.url)
-
+            if changed_cols:
+                c.execute(f"""UPDATE ExternalInfo SET
+                              {','.join((f'{col} = :{col}' for col in changed_cols))}
+                              WHERE id = :id""", update_dic)
+            logger.info("Updated ext_info with url \"%s\" in database!", self.url)
+        return self.id, field_change_str

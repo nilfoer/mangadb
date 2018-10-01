@@ -6,6 +6,9 @@ class DBRow:
     # attributes in class of rows that can be associated to this type of row using bridge tables
     JOINED_COLUMNS = ()
 
+    # cols that cant be NULL (and arent set in __init__)
+    NOT_NULL_COLS = ()
+
     def __init__(self, manga_db, data, **kwargs):
         self.manga_db = manga_db
         # !!! assign None to all your columns as instance attributes !!!
@@ -48,7 +51,16 @@ class DBRow:
         return dic
 
     def export_for_db(self):
-        raise NotImplementedError
+        """
+        Returns a dict with all the attributes of self that are stored in the row directly
+        """
+        result = {}
+        for attr in self.DB_COL_HELPER:
+            val = getattr(self, attr)
+            if (attr in self.NOT_NULL_COLS) and val is None:
+                raise ValueError(f"'self.{attr}' can't be NULL when exporting for DB!")
+            result[attr] = val
+        return result
 
     def save(self):
         """

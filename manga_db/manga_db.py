@@ -81,7 +81,10 @@ class MangaDB:
         extractor_cls = extractor.find(url)
         extr = extractor_cls(self, url)
         data = extr.get_metadata()
-        book = MangaDBEntry(self, data, lists=lists)
+        # add lists to data since add/remove methods on MangaDBEntry are for updating
+        # not for initializing/adding to db
+        data.update({"list": lists})
+        book = MangaDBEntry(self, data)
         ext_info = ExternalInfo(book, data)
         book.ext_infos = [ext_info]
         return book, extr.get_cover()
@@ -98,12 +101,11 @@ class MangaDB:
             book = book
         else:
             logger.error("Either url and lists or book and thumb_url have to be supplied")
-            return None
+            return None, None
 
         bid = self.get_book_id(book.title)
         if bid is None:
-            self.add_book(book)
-            bid = book.id
+            bid, _ = book.save()
             cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
             # always pass headers = extr.headers?
             if self.download_cover(thumb_url, cover_path):
@@ -114,12 +116,6 @@ class MangaDB:
             logger.info("Book at url '%s' was already in DB!")
 
         return bid, book
-
-    def add_book(self, book):
-        bid = self._add_manga_db_entry(book)
-        book.id = bid
-
-        return book
 
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
@@ -186,63 +182,7 @@ class MangaDB:
         c = self.db_con.execute("SELECT id FROM Books WHERE title = ?", (title,))
         _id = c.fetchone()
         return _id[0] if _id else None
-
-    def _add_manga_db_entry(self, manga_db_entry):
-        """Commits changes to db"""
-        db_dict = manga_db_entry.export_for_db()
-        cols = list(manga_db_entry.DB_COL_HELPER)
-
-        lastrowid = None
-        with self.db_con:
-            c = self.db_con.execute(f"""
-                    INSERT INTO Books ({','.join(cols)})
-                    VALUES ({','.join((f':{col}' for col in cols))}
-                    )""", db_dict)
-            lastrowid = c.lastrowid
-            # use cursor.lastrowid to get id of last insert in Books table
-            add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
-                             manga_db_entry.tags)
-
-            logger.info("Added book with title \"%s\" to database!", manga_db_entry.title)
-
-        return lastrowid
         
-    def remove_book(self, _id):
-        """Commits changes itself, since it also deletes book thumb anyway!"""
-        book_id = None
-        if id_type == "id_internal":
-            id_col = "id"
-        elif id_type == "id_onpage":
-            id_col = "id_onpage"
-        elif id_type == "url":
-            book_id = book_id_from_url(identifier)
-            id_col = "id_onpage"
-            identifier = book_id
-        else:
-            logger.error("%s is an unsupported identifier type!", id_type)
-            return
-
-        if not book_id:
-            c = db_con.execute(f"SELECT id_onpage FROM Books WHERE {id_col} = ?",
-                               (identifier, ))
-            book_id = c.fetchone()[0]
-
-        with db_con:
-            db_con.execute(f"""DELETE
-                               FROM Books
-                               WHERE
-                               {id_col} = ?""", (identifier, ))
-
-        # also delete book thumb
-        os.remove(os.path.join("thumbs", str(book_id)))
-        logger.debug("Removed thumb with path %s", f"thumbs/{book_id}")
-
-        logger.info("Successfully removed book with %s: %s", id_type, identifier)
-
-    def get_all_id_onpage_set(self):
-        c = self.db_con.execute("SELECT id_onpage FROM Books")
-        return set([tupe[0] for tupe in c.fetchall()])
-
     @staticmethod
     def _load_or_create_sql_db(filename):
         """

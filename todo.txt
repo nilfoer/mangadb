@@ -3,19 +3,20 @@
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching
     -> convert site tags to MangaDB tags
-- log adding tags or rather lists <- done
-    mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id
-    -> NO, would require extra query unless i pass manga_db_entry?
 - logging in webGUI  
 - update queries for new cols/indices
 - check newly added books for dl (on production db)
 - test triggers
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
-- mb split updating from user action vs. updating from import 
+- split updating from user action vs. updating from import
 
 
 --DONE-------------------------------------------------------------------------------------------------
+- log adding tags or rather lists <- done
+    mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id
+    -> NO, would require extra query unless i pass manga_db_entry?
+- change to sets for joined cols -> POSTPONED till it gets too slow
 - remove UNIQUE from url, since:
     url with english title for tsumino is unique: "http://www.tsumino.com/Book/Info/43150/junyou-kanmusu-ikemesu-shibari-"
         Title: Junyou Kanmusu Ikemesu Shibari
