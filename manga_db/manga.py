@@ -1,86 +1,113 @@
 import logging
 import datetime
 
-from .db.tags import remove_tags_from_book_id, add_tags_to_book
-from .db.util import list_to_string, string_to_list
+from .db.row import DBRow
+from .db.tags import remove_tags_from_book_id, add_tags_to_book, get_tags_by_book
+from .constants import CENSOR_IDS, STATUS_IDS
+from .ext_info import ExternalInfo
 
 logger = logging.getLogger(__name__)
 
 
-class MangaDBEntry:
+class MangaDBEntry(DBRow):
     """
     Fields of data that can have multiple values need to be of type list!!!
     """
 
-    DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "url", "id_onpage",
-                     "upload_date", "uploader", "language", "pages", "rating",
-                     "rating_full", "my_rating", "category", "collection",
-                     "groups", "artist", "parody", "character", "last_change", "note",
-                     "downloaded", "favorite", "imported_from")
+    DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "language_id", "pages",
+                     "status_id", "my_rating", "note", "favorite", "last_change")
 
+    # last_change and last_update get updated by trigger
     # dont update: language(inserted manually in sql statement)
     UPDATE_HELPER = ("title", "title_eng", "title_foreign", "url", "id_onpage",
                      "upload_date", "uploader", "pages", "rating",
                      "rating_full", "my_rating", "category", "collection",
                      "groups", "artist", "parody", "character", "note",
                      "downloaded", "favorite", "imported_from")
-    # according to html on tsumino
-    # when displayed as anchor there can be multiple
-    # if the text is directly in the div there is only one value
-    MULTI_VALUE_COL = ("category", "collection", "groups", "artist", "parody", "character")
 
-    def __init__(self, manga_db, imported_from, data, **kwargs):
-        self.manga_db = manga_db
-        self.imported_from = imported_from
+    def __init__(self, manga_db, data, **kwargs):
         self.id = None
-        self.id_onpage = None
         self.title = None
         self.title_eng = None
         self.title_foreign = None
-        self.url = None
-        self.upload_date = None
-        self.uploader = None
-        self.language = None
+        self.language_id = None
         self.pages = None
-        self.rating = None
-        # split this up?
-        self.rating_full = None
+        self.status_id = None
         self.my_rating = None
+        # --START-- Muliple values
         self.category = None
         self.collection = None
         self.groups = None
         self.artist = None
         self.parody = None
         self.character = None
-        self.last_change = None
-        self.note = None
-        self.downloaded = None
-        self.favorite = None
         self.lists = None
         self.tags = None
-        if isinstance(data, dict):
-            self._from_dict(data)
-        else:
-            self._from_row(data)
+        self.ext_infos = None
+        # --END-- Muliple values
+        self.last_change = None
+        self.note = None
+        self.favorite = None
+
+        # call to Base class init after assigning all the attributes !IMPORTANT!
+        # if called b4 assigning the attributes the ones initalized with data
+        # from the base class will be reset to None
+        super().__init__(manga_db, data, **kwargs)
+
         if self.last_change is None:
             self.last_change = datetime.date.today()
-        # so we can pass e.g. tag-list that isnt included in slite3.Row as kwarg
-        for k, v in kwargs.items():
-            setattr(self, k, v)
         # id==None -> imported and not from DB
-        if self.id is None and self.lists:
-            self.downloaded = 1 if "li_downloaded" in self.lists else 0
-            self.favorite = 1 if "li_best" in self.lists else 0
+        if self.id is None:
+            if self.lists:
+                self.favorite = 1 if "li_best" in self.lists else 0
+            else:
+                self.favorite = 0
 
-    def _from_dict(self, dic):
-        self.__dict__.update(dic)
+    @property
+    def language(self):
+        return self.manga_db.language_map[self.language_id]
 
-    def _from_row(self, row):
-        for key in self.DB_COL_HELPER:
-            val = row[key]
-            if key in self.MULTI_VALUE_COL:
-                val = string_to_list(val)
-            setattr(self, key, val)
+    @language.setter
+    def language(self, value):
+        if isinstance(value, str):
+            self.manga_db.add_language(value)
+            self.language_id = self.manga_db.language_map[value]
+        else:
+            logger.warning("Type of language needs to be string!")
+
+    @property
+    def status(self):
+        return STATUS_IDS[self.status_id]
+
+    @status.setter
+    def status(self, value):
+        if isinstance(value, str):
+            try:
+                self.status_id = STATUS_IDS[value]
+            except KeyError:
+                logger.warning("No such status: %s", value)
+        else:
+            logger.warning("Type of status needs to be string!")
+
+    def get_external_infos(self):
+        if self.id is None:
+            logger.warning("Couldn't get external info cause id is None")
+            return
+        if self.ext_infos is None:
+            ext_infos = []
+            c = self.manga_db.db_con.execute("""
+                            SELECT ei.*
+                            FROM ExternalInfo ei, ExternalInfoBooks eib, Books
+                            WHERE Books.id = eib.book_id
+                            AND ei.id = eib.ext_info_id
+                            AND Books.id = ?""", (self.id,))
+            for row in c.fetchall():
+                ei = ExternalInfo(self, row)
+                ext_infos.append(ei)
+            self.ext_infos = ext_infos
+            return ext_infos
+        else:
+            return self.ext_infos()
 
     def export_for_db(self):
         """

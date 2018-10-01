@@ -50,6 +50,8 @@ with db_con:
                         )""")
     cen_stats = [("Unknown",), ("Censored",), ("Decensored",), ("Uncensored",)]
     c.executemany("INSERT OR IGNORE INTO Censorship(name) VALUES (?)", cen_stats)
+
+    c.execute("INSERT OR IGNORE INTO Languages(name) VALUES (?)", ("English",))
     # create and fill external info and bridge table
     c = db_con.execute("""
                         CREATE TABLE ExternalInfo
@@ -192,7 +194,8 @@ with db_con:
                 CREATE TABLE Artist
                 (
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL,
+                    favorite INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE TABLE BookArtist
                 (

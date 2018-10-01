@@ -12,7 +12,8 @@ class BaseMangaExtractor:
         }
     URL_PATTERN_RE = ""
 
-    def __init__(self, url):
+    def __init__(self, manga_db, url):
+        self.manga_db = manga_db
         self.url = url
 
     def get_metadata(self):

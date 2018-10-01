@@ -5,8 +5,8 @@ import urllib.request
 
 from . import extractor
 from .manga import MangaDBEntry
+from .ext_info import ExternalInfo
 from .db.tags import get_tags_by_book, add_tags_to_book
-from .db.mixed_queries import add_language
 
 
 logger = logging.getLogger(__name__)
@@ -23,20 +23,42 @@ urllib.request.install_opener(opener)
 
 
 class MangaDB:
-    HANDLE_DUPLICATE_BOOK_ACTIONS = ("replace", "keep_both", "keep_old")
     DEFAULT_HEADERS = {
         'User-Agent':
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
 
-    def __init__(self, root_dir, db_path):
+    def __init__(self, root_dir, db_path, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path)
         self.db_con.row_factory = sqlite3.Row
         self.root_dir = os.path.abspath(os.path.normpath(root_dir))
+        self.language_map = self._get_language_map()
         self.settings = {
                 # replace, keep_both, keep_old
                 "duplicate_action": None
                 }
+        if settings is not None:
+            self.settings.update(settings)
+
+    def _get_language_map(self):
+        c = self.db_con.execute("SELECT id, name FROM Languages")
+        result = {}
+        for row in c.fetchall():
+            result[row["id"]] = row["name"]
+            result[row["name"]] = row["id"]
+        return result
+
+    def add_language(self, language):
+        if language not in self.language_map:
+            with self.db_con:
+                c = self.db_con.execute("INSERT OR IGNORE INTO Languages (name) VALUES (?)",
+                                        (language,))
+            if c.lastrowid:
+                self.language_map[language] = c.lastrowid
+                self.language_map[c.lastrowid] = language
+            return c.lastrowid
+        else:
+            return self.language_map[language]
 
     def download_cover(self, url, filename):
         # TODO use urlopen and add headers
@@ -50,24 +72,27 @@ class MangaDB:
         else:
             return True
 
+    # TODO
     def import_book(self, url, lists):
         extractor_cls = extractor.find(url)
-        extr = extractor_cls(url)
-        book_data = extr.get_metadata()
-        book = MangaDBEntry(self, extr.site_id, book_data, lists=lists)
-        bid = self.get_book_id_unique((book.id_onpage, book.imported_from), book.title)
+        extr = extractor_cls(self, url)
+        data = extr.get_metadata()
+        # @Hack tags etc. not in DB_COL_HELPER
+        book_data = {col: data[col] for col in MangaDBEntry.DB_COL_HELPER if col != "id" and col != "note" and col != "favorite" and col != "last_change"}
+        book = MangaDBEntry(self, book_data, lists=lists, tags=data["tags"])
+        ext_info_data = {col: data[col] for col in ExternalInfo.DB_COL_HELPER if col != "id" and col != "downloaded" and col != "last_update"}
+        ext_info = ExternalInfo(book, ext_info_data)
+        book.ext_infos = [ext_info]
+
+        bid = self.get_book_id(book.title)
         if bid is None:
-            bid = self.add_book(book)
-            cover_path = os.path.join(self.root_dir, "thumbs", f"{bid}")
+            self.add_book(book)
+            cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
             # always pass headers = extr.headers?
             if self.download_cover(extr.get_cover(), cover_path):
-                logger.info(
-                    "Thumb for book (%s,%d) downloaded successfully!",
-                    extr.site_name, book.id_onpage)
+                logger.info("Thumb for book %s downloaded successfully!", book.title)
             else:
-                logger.warning(
-                    "Thumb for book (%s,%d) couldnt be downloaded!",
-                    extr.site_name, book.id_onpage)
+                logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
         else:
             logger.info("Book at '%s' will be updated to id %d", url, bid)
             # update book
@@ -83,27 +108,38 @@ class MangaDB:
             return True
         elif "title" in identifiers_types:
             return True
+        elif "id" in identifiers_types:
+            return True
         else:
             logger.error("Unsupported identifiers supplied or identifier missing:\n"
                          "Identifiers need to be either 'url', 'id_onpage and imported_from', "
-                         "or 'title(_eng)' otherwise use the search:\n%s\n", identifiers_types)
+                         "id or 'title(_eng)' otherwise use the search:\n%s\n",
+                         identifiers_types)
             return False
 
     def get_books(self, identifiers_types):
         if not self._validate_indentifiers_types(identifiers_types):
             return
 
+        if "id" in identifiers_types:
+            return self.get_book(identifiers_types["id"])
+        elif "title" in identifiers_types:
+            return self.get_book(title=identifiers_types["title"])
         # get id_onpage and imported_from rather than using url to speed up search
-        if "url" in identifiers_types:
+        elif "url" in identifiers_types:
             url = identifiers_types.pop("url")
             extractor_cls = extractor.find(url)
             bid = extractor_cls.book_id_from_url(url)
             identifiers_types["id_onpage"] = bid
             identifiers_types["imported_from"] = extractor_cls.site_id
 
-        where_clause = " AND ".join((f"{key} = :{key}" for key in identifiers_types))
-        cur = self.db_con.execute(f'SELECT * FROM Books WHERE {where_clause}',
-                                  identifiers_types)
+        cur = self.db_con.execute(f"""
+                    SELECT Books.*
+                    FROM Books, ExternalInfo ei, ExternalInfoBooks eib
+                    WHERE ei.id_onpage = :id_onpage
+                    AND ei.imported_from = :imported_from
+                    AND ei.id = eib.ext_info_id
+                    AND Books.id = eib.book_id""", identifiers_types)
         rows = cur.fetchall()
         if not rows:
             return
@@ -111,60 +147,36 @@ class MangaDB:
         for book_info in rows:
             yield self._book_from_row(book_info)
 
-    def get_book(self, _id):
+    def get_book(self, _id=None, title=None):
         """Only id or title can guarantee uniqueness and querying using the title
            would be slower"""
-        c = self.db_con.execute("SELECT * FROM Books WHERE id = ?", (_id,))
+        if _id:
+            c = self.db_con.execute("SELECT * FROM Books WHERE id = ?", (_id,))
+        elif title:
+            c = self.db_con.execute("SELECT * FROM Books WHERE title = ?", (title,))
+        else:
+            logger.error("At least one of id or title needs to be supplied!")
+
         book = self._book_from_row(c.fetchone())
         return book
 
     def _book_from_row(self, row):
+        # TODO add this as func to MangaDBEntry
         tags = get_tags_by_book(self.db_con, row["id"]).split(",")
         # split tags and lists
         lists_book = [tag for tag in tags if tag.startswith("li_")]
         tags = [tag for tag in tags if not tag.startswith("li_")]
 
-        book = MangaDBEntry(self, row["imported_from"], row,
-                            lists=lists_book, tags=tags)
+        book = MangaDBEntry(self, row, lists=lists_book, tags=tags)
         return book
 
-    def get_book_id(self, id_onpage_site_id_tuple, title=None):
+    def get_book_id(self, title):
         """
-        Returns internal db id(s) for book with given identifiers or None
-        Title is needed to uniquely identify a book in the db since the id_onpage
-        might have been replaced by a different book
-        :return: List of row(s) with cols id, title"""
-        c = self.db_con.execute("SELECT id, title FROM Books WHERE id_onpage = ? "
-                                "AND imported_from = ?", id_onpage_site_id_tuple)
-        matching = c.fetchall()
-        # even if it only returns one we dont know if the id on the page got re-used
-        # -> check titles
-        if len(matching) > 1:
-            logger.debug("Returned %d rows for %s:\n%s", len(matching),
-                         id_onpage_site_id_tuple, "\n".join((t[1] for t in matching)))
-        if title is None:
-            return matching
-        else:
-            for match in matching:
-                if match[1] == title:
-                    return [match]
-            return None
-
-    def get_book_id_unique(self, id_onpage_site_id_tuple, title):
+        Returns internal db id for book with given title or None
         """
-        Returns ONE internal db id for book with given identifiers or None
-        Title is needed to uniquely identify a book in the db since the id_onpage
-        might have been replaced by a different book
-        :return: book id"""
-        c = self.db_con.execute("SELECT id, title FROM Books WHERE id_onpage = ? "
-                                "AND imported_from = ?", id_onpage_site_id_tuple)
-        matching = c.fetchall()
-        # even if it only returns one we dont know if the id on the page got re-used
-        # -> check titles
-        for match in matching:
-            if match[1] == title:
-                return match[0]
-        return None
+        c = self.db_con.execute("SELECT id FROM Books WHERE title = ?", (title,))
+        _id = c.fetchone()
+        return _id[0] if _id else None
 
     def add_book(self, book):
         # add/update book in db
@@ -174,19 +186,15 @@ class MangaDB:
 
     def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
         """Commits changes to db"""
-        add_language(self.db_con, manga_db_entry.language)
         db_dict = manga_db_entry.export_for_db()
         cols = list(manga_db_entry.DB_COL_HELPER)
-        # special select statement for inserting language id -> remove from list
-        cols.remove("language")
 
         lastrowid = None
         with self.db_con:
             try:
                 c = self.db_con.execute(f"""
-                        INSERT INTO Books ({','.join(cols)}, language)
-                        VALUES ({','.join((f':{col}' for col in cols))},
-                        (SELECT id FROM Languages WHERE name = :language)
+                        INSERT INTO Books ({','.join(cols)})
+                        VALUES ({','.join((f':{col}' for col in cols))}
                         )""", db_dict)
             except sqlite3.IntegrityError as error:
                 error_msg = str(error)
@@ -206,90 +214,41 @@ class MangaDB:
                 add_tags_to_book(self.db_con, lastrowid, manga_db_entry.lists +
                                  manga_db_entry.tags)
 
-                logger.info("Added book with url \"%s\" to database!", manga_db_entry.url)
+                logger.info("Added book with title \"%s\" to database!", manga_db_entry.title)
 
         return lastrowid
         
-    # TODO
-    def _handle_book_not_unique(self, duplicate_col, manga_db_entry, lists, action=None):
-        """Only partly commits changes where it calls add_manga or update_manga"""
-        # webGUI cant do input -> use default None and set if None
-        if action is None:
-            # options: replace(==keep_new), keep_both, keep_old
-            while True:
-                action_i = input("Choose the action for handling duplicate "
-                                f"book {prepared_dic['title_eng']}:\n"
-                                 "(0) replace, (1) keep_both, (2) keep_old: ")
-                try:
-                    action = self.HANDLE_DUPLICATE_BOOK_ACTIONS[int(action_i)]
-                except ValueError:
-                    print("Not a valid index!!")
-                else:
-                    break
+    def remove_book(self, _id):
+        """Commits changes itself, since it also deletes book thumb anyway!"""
+        book_id = None
+        if id_type == "id_internal":
+            id_col = "id"
+        elif id_type == "id_onpage":
+            id_col = "id_onpage"
+        elif id_type == "url":
+            book_id = book_id_from_url(identifier)
+            id_col = "id_onpage"
+            identifier = book_id
+        else:
+            logger.error("%s is an unsupported identifier type!", id_type)
+            return
 
+        if not book_id:
+            c = db_con.execute(f"SELECT id_onpage FROM Books WHERE {id_col} = ?",
+                               (identifier, ))
+            book_id = c.fetchone()[0]
 
-        # @Incomplete just replacing most recent one if action keep_both was used before
-        c = db_con.execute(f"SELECT id, id_onpage, imported_from, my_rating, title"
-                            "FROM Books WHERE {duplicate_col} = ?",
-                            (prepared_dic[duplicate_col],))
-        row = c.fetchall()
-        assert(len(row) == 1)
-        old_id_internal, old_id_onpage, old_imported_from, my_rating, old_title = row[0]
+        with db_con:
+            db_con.execute(f"""DELETE
+                               FROM Books
+                               WHERE
+                               {id_col} = ?""", (identifier, ))
 
-        id_internal = None
-        if action == "keep_old":
-            logger.info("Kept old book with id_onpage: %s", old_id_onpage)
-            # return None here so we know when no action was taken
-            return id_internal
+        # also delete book thumb
+        os.remove(os.path.join("thumbs", str(book_id)))
+        logger.debug("Removed thumb with path %s", f"thumbs/{book_id}")
 
-        if action == "replace":
-            logger.info("Replacing book with id_onpage %s. Everything but the lists (only downloaded will be modified -> new lists wont be added!) will be replaced!", old_id_onpage)
-            # only add/remove list downloaded
-            li_downloaded = None
-            if lists and ("li_downloaded" in lists):
-                li_downloaded = ["li_downloaded"]
-            else:
-                remove_tags_from_book_id(self.db_con, old_id_internal, ["li_downloaded"])
-
-            # since update_manga_db_entry_from_dict tries to query for id using id_onpage we have to update id_onpage maunally first @Hack @Cleanup
-            # also update url since update.. doesnt @Hack
-            new_id_onpage = book_id_from_url(url)
-            db_con.execute("UPDATE Books SET id_onpage = ?, url = ? WHERE id = ?",
-                          (new_id_onpage, url, old_id_internal))
-            update_manga_db_entry_from_dict(db_con, url, li_downloaded, dic)
-
-            # also delete book thumb
-            os.remove(os.path.join("thumbs", f"{old_imported_from}_{old_id_onpage}"))
-            logger.debug("Removed thumb with path %s", f"thumbs/{old_id_onpage}")
-
-            id_internal = old_id_internal
-        elif action == "keep_both":
-            i = 1
-            while True:
-                try:
-                    # change title of old book
-                    old_title_dupe = f"{old_title} (DUPLICATE {i})"
-                    db_con.execute("UPDATE Books SET title = ? WHERE id = ?", (old_title_dupe,
-                                   old_id_internal))
-                except sqlite3.IntegrityError as error:
-                    error_msg = str(error)
-                    if "UNIQUE constraint failed" not in error_msg:
-                        # were only handling unique constraint fail so reraise if its sth else
-                        raise error
-                    i += 1
-                else:
-                    break
-            logger.info("Keeping both books, renamed old version to: %s", old_title_dupe)
-
-            id_internal = add_manga_db_entry_from_dict(db_con, url, lists, dic)
-
-        # in both cases (replace and keep_both) use old rating on newly added book
-        rate_manga(db_con, url, my_rating)
-
-        # dl new thumb also for both cases
-        dl_book_thumb(url)
-
-        return id_internal
+        logger.info("Successfully removed book with %s: %s", id_type, identifier)
 
     def get_all_id_onpage_set(self):
         c = self.db_con.execute("SELECT id_onpage FROM Books")
@@ -328,7 +287,9 @@ class MangaDB:
                 );
                      """)
         c.executemany("INSERT OR IGNORE INTO Sites(id, name) VALUES (?, ?)",
-                      extractor.SUPPORTED_SITES)
+                      [(key, val) for key, val in extractor.SUPPORTED_SITES.items()
+                       if isinstance(key, int)])
+        c.execute("INSERT OR IGNORE INTO Languages(name) VALUES (?)", ("English",))
         cen_stats = [("Unknown",), ("Censored",), ("Decensored",), ("Uncensored",)]
         c.executemany("INSERT OR IGNORE INTO Censorship(name) VALUES (?)", cen_stats)
         status = [("Unknown",), ("Ongoing",), ("Completed",), ("Unreleased",),
@@ -452,7 +413,8 @@ class MangaDB:
                 );
             CREATE TABLE IF NOT EXISTS Artist(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL,
+                    favorite INTEGER NOT NULL DEFAULT 0
                 );
             CREATE TABLE IF NOT EXISTS BookArtist(
                     book_id INTEGER NOT NULL,

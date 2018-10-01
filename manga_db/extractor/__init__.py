@@ -15,10 +15,12 @@ modules.remove("base")
 # holds extractor classes already imported extractor modules
 _cache = []
 
-SUPPORTED_SITES = (
+SUPPORTED_SITES = {
         # site id, site name
-        (1, "tsumino.com"),
-        )
+        1: "tsumino.com",
+        # site name, id
+        "tsumino.com": 1
+        }
 
 
 def find(url):
