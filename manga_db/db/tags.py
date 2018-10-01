@@ -105,14 +105,3 @@ def add_tags_to_book_cl(db_con, url, tags):
     add_tags_to_book(db_con, id_internal, tags)
     logger.info("Tags %s were successfully added to book with url \"%s\"",
                 tags, url)
-
-
-def get_tags_by_book(db_con, _id):
-    c = db_con.execute("""SELECT group_concat(Tags.name)
-                          FROM Tags, BookTags bt, Books
-                          WHERE bt.book_id = Books.id
-                          AND Books.id = ?
-                          AND bt.tag_id = Tags.tag_id
-                          GROUP BY bt.book_id""", (_id, ))
-    result = c.fetchone()
-    return result[0] if result else None

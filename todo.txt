@@ -1,3 +1,4 @@
+- check that not null fields are set (at least when saving?)
 - create indices for Tags.name, Category.name etc.?  
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching

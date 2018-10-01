@@ -2,8 +2,7 @@ import logging
 import datetime
 
 from .db.row import DBRow
-from .db.tags import remove_tags_from_book_id, add_tags_to_book, get_tags_by_book
-from .constants import CENSOR_IDS, STATUS_IDS
+from .db.tags import remove_tags_from_book_id, add_tags_to_book
 from .ext_info import ExternalInfo
 
 logger = logging.getLogger(__name__)
@@ -16,6 +15,9 @@ class MangaDBEntry(DBRow):
 
     DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "language_id", "pages",
                      "status_id", "my_rating", "note", "favorite", "last_change")
+
+    JOINED_COLUMNS = ('category', 'collection', 'groups', 'artist', 'parody', 'character',
+                      'lists', 'tags', 'ext_infos')
 
     # last_change and last_update get updated by trigger
     # dont update: language(inserted manually in sql statement)
@@ -34,7 +36,7 @@ class MangaDBEntry(DBRow):
         self.pages = None
         self.status_id = None
         self.my_rating = None
-        # --START-- Muliple values
+        # --START-- Muliple values, mb as properties?
         self.category = None
         self.collection = None
         self.groups = None
@@ -62,6 +64,70 @@ class MangaDBEntry(DBRow):
                 self.favorite = 1 if "li_best" in self.lists else 0
             else:
                 self.favorite = 0
+
+    def _from_row(self, row):
+        for key in self.DB_COL_HELPER:
+            setattr(self, key, row[key])
+        for col, val in self.get_associated_columns().items():
+            setattr(self, col, val)
+
+    def get_associated_columns(self):
+        """
+        Gets columns that are associated to this row by a bridge table
+        """
+        result = {
+            "lists": None,
+            "tags": None,
+            "category": None,
+            "collection": None,
+            "groups": None,
+            "artist": None,
+            "parody": None,
+            "character": None
+            }
+        
+        # split tags and lists
+        result["tags"], result["lists"] = self._fetch_tags_lists()
+        result["category"] = self._fetch_associated_column("Category", "category_id")
+        result["collection"] = self._fetch_associated_column("Collection", "collection_id")
+        result["groups"] = self._fetch_associated_column("Groups", "group_id")
+        result["artist"] = self._fetch_associated_column("Artist", "artist_id")
+        result["parody"] = self._fetch_associated_column("Parody", "parody_id")
+        result["character"] = self._fetch_associated_column("Character", "character_id")
+        result["ext_infos"] = self._fetch_external_infos()
+        return result
+
+    def _fetch_tags_lists(self):
+        # group_concat(x,y) concat x on char y
+        c = self.manga_db.db_con.execute("""SELECT group_concat(Tags.name, ';')
+                                            FROM Tags, BookTags bt, Books
+                                            WHERE bt.book_id = Books.id
+                                            AND Books.id = ?
+                                            AND bt.tag_id = Tags.tag_id
+                                            GROUP BY bt.book_id""", (self.id, ))
+        result = c.fetchone()
+        if result:
+            tags = result[0].split(";")
+            tags = [tag for tag in tags if tag.startswith("li_")]
+            lists = [tag for tag in tags if not tag.startswith("li_")]
+            return tags, lists
+        else:
+            return None, None
+
+    def _fetch_associated_column(self, table_name, bridge_col_name):
+        c = self.manga_db.db_con.execute(f"""SELECT group_concat(x.name, ';')
+                                             FROM {table_name} x, Book{table_name} bx, Books
+                                             WHERE bx.book_id = Books.id
+                                             AND Books.id = ?
+                                             AND bx.{bridge_col_name} = x.id
+                                             GROUP BY bx.book_id""", (self.id, ))
+        result = c.fetchone()
+        return result[0].split(";") if result else []
+
+    def update(self):
+        """Discards changes and updates from DB"""
+        # TODO
+        raise NotImplementedError
 
     @property
     def language(self):
@@ -94,20 +160,21 @@ class MangaDBEntry(DBRow):
             logger.warning("Couldn't get external info cause id is None")
             return
         if self.ext_infos is None:
-            ext_infos = []
-            c = self.manga_db.db_con.execute("""
-                            SELECT ei.*
-                            FROM ExternalInfo ei, ExternalInfoBooks eib, Books
-                            WHERE Books.id = eib.book_id
-                            AND ei.id = eib.ext_info_id
-                            AND Books.id = ?""", (self.id,))
-            for row in c.fetchall():
-                ei = ExternalInfo(self, row)
-                ext_infos.append(ei)
-            self.ext_infos = ext_infos
-            return ext_infos
-        else:
-            return self.ext_infos()
+            self.ext_infos = self._fetch_external_infos()
+        return self.ext_infos
+
+    def _fetch_external_infos(self):
+        ext_infos = []
+        c = self.manga_db.db_con.execute("""
+                        SELECT ei.*
+                        FROM ExternalInfo ei, ExternalInfoBooks eib, Books
+                        WHERE Books.id = eib.book_id
+                        AND ei.id = eib.ext_info_id
+                        AND Books.id = ?""", (self.id,))
+        for row in c.fetchall():
+            ei = ExternalInfo(self, row)
+            ext_infos.append(ei)
+        return ext_infos
 
     def export_for_db(self):
         """

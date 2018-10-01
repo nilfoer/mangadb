@@ -6,7 +6,7 @@ import urllib.request
 from . import extractor
 from .manga import MangaDBEntry
 from .ext_info import ExternalInfo
-from .db.tags import get_tags_by_book, add_tags_to_book
+from .db.tags import add_tags_to_book
 
 
 logger = logging.getLogger(__name__)
@@ -60,46 +60,66 @@ class MangaDB:
         else:
             return self.language_map[language]
 
-    def download_cover(self, url, filename):
+    def download_cover(self, url, filename, overwrite=False):
         # TODO use urlopen and add headers
-        try:
-            urllib.request.urlretrieve(url,
-                                       filename)
-        except urllib.request.HTTPError as err:
-            logger.warning("HTTP Error %s: %s: \"%s\"",
-                           err.code, err.reason, self.thumb_url)
-            return False
+        if not os.path.isfile(filename) or overwrite:
+            try:
+                urllib.request.urlretrieve(url,
+                                           filename)
+            except urllib.request.HTTPError as err:
+                logger.warning("HTTP Error %s: %s: \"%s\"",
+                               err.code, err.reason, self.thumb_url)
+                return False
+            else:
+                return True
         else:
-            return True
+            logger.debug("Thumb at '%s' was skipped since the path already exists: '%s'",
+                         url, filename)
+            return None
 
-    # TODO
-    def import_book(self, url, lists):
+    def retrieve_book_data(self, url, lists):
         extractor_cls = extractor.find(url)
         extr = extractor_cls(self, url)
         data = extr.get_metadata()
-        # @Hack tags etc. not in DB_COL_HELPER
-        book_data = {col: data[col] for col in MangaDBEntry.DB_COL_HELPER if col != "id" and col != "note" and col != "favorite" and col != "last_change"}
-        book = MangaDBEntry(self, book_data, lists=lists, tags=data["tags"])
-        ext_info_data = {col: data[col] for col in ExternalInfo.DB_COL_HELPER if col != "id" and col != "downloaded" and col != "last_update"}
-        ext_info = ExternalInfo(book, ext_info_data)
+        book = MangaDBEntry(self, data, lists=lists)
+        ext_info = ExternalInfo(book, data)
         book.ext_infos = [ext_info]
+        return book, extr.get_cover()
+
+    def import_book(self, url=None, lists=None, book=None, thumb_url=None):
+        """
+        Imports book into DB and downloads cover
+        Either url and lists or book and thumb_url has to be supplied
+        """
+        thumb_url = thumb_url
+        if url and lists is not None:
+            book, thumb_url = self.retrieve_book_data(url, lists)
+        elif book and thumb_url:
+            book = book
+        else:
+            logger.error("Either url and lists or book and thumb_url have to be supplied")
+            return None
 
         bid = self.get_book_id(book.title)
         if bid is None:
             self.add_book(book)
+            bid = book.id
             cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
             # always pass headers = extr.headers?
-            if self.download_cover(extr.get_cover(), cover_path):
+            if self.download_cover(thumb_url, cover_path):
                 logger.info("Thumb for book %s downloaded successfully!", book.title)
             else:
                 logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
         else:
-            logger.info("Book at '%s' will be updated to id %d", url, bid)
-            # update book
-            book.id = bid
-            book.save()
+            logger.info("Book at url '%s' was already in DB!")
 
-        return bid
+        return bid, book
+
+    def add_book(self, book):
+        bid = self._add_manga_db_entry(book)
+        book.id = bid
+
+        return book
 
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
@@ -145,7 +165,7 @@ class MangaDB:
             return
 
         for book_info in rows:
-            yield self._book_from_row(book_info)
+            yield MangaDBEntry(self, book_info)
 
     def get_book(self, _id=None, title=None):
         """Only id or title can guarantee uniqueness and querying using the title
@@ -157,18 +177,7 @@ class MangaDB:
         else:
             logger.error("At least one of id or title needs to be supplied!")
 
-        book = self._book_from_row(c.fetchone())
-        return book
-
-    def _book_from_row(self, row):
-        # TODO add this as func to MangaDBEntry
-        tags = get_tags_by_book(self.db_con, row["id"]).split(",")
-        # split tags and lists
-        lists_book = [tag for tag in tags if tag.startswith("li_")]
-        tags = [tag for tag in tags if not tag.startswith("li_")]
-
-        book = MangaDBEntry(self, row, lists=lists_book, tags=tags)
-        return book
+        return MangaDBEntry(self, c.fetchone())
 
     def get_book_id(self, title):
         """
@@ -177,12 +186,6 @@ class MangaDB:
         c = self.db_con.execute("SELECT id FROM Books WHERE title = ?", (title,))
         _id = c.fetchone()
         return _id[0] if _id else None
-
-    def add_book(self, book):
-        # add/update book in db
-        bid = self._add_manga_db_entry(book)
-        book.id = bid
-        return book
 
     def _add_manga_db_entry(self, manga_db_entry, duplicate_action=None):
         """Commits changes to db"""

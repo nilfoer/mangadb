@@ -3,6 +3,9 @@ class DBRow:
     # tuple of all column names
     DB_COL_HELPER = ()
 
+    # attributes in class of rows that can be associated to this type of row using bridge tables
+    JOINED_COLUMNS = ()
+
     def __init__(self, manga_db, data, **kwargs):
         self.manga_db = manga_db
         # !!! assign None to all your columns as instance attributes !!!
@@ -16,11 +19,33 @@ class DBRow:
             setattr(self, k, v)
 
     def _from_dict(self, dic):
-        self.__dict__.update(dic)
+        # only update fields that are in cls.get_column_names()
+        self.__dict__.update(self.filter_dict(dic))
 
     def _from_row(self, row):
         for key in self.DB_COL_HELPER:
             setattr(self, key, row[key])
+
+    @classmethod
+    def get_column_names(cls):
+        """
+        Returns tuple of strings containing all column names, including the ones
+        that can be attributed to the type of row using e.g. bridge tables
+        """
+        return cls.DB_COL_HELPER + cls.JOINED_COLUMNS
+
+    @classmethod
+    def filter_dict(cls, data):
+        """
+        Filters out all data fields that are not in cls.get_column_names()
+        """
+        dic = {}
+        for col in cls.get_column_names():
+            try:
+                dic[col] = data[col]
+            except KeyError:
+                pass
+        return dic
 
     def export_for_db(self):
         raise NotImplementedError
