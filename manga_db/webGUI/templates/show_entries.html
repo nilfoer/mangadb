@@ -57,39 +57,49 @@
 <div id="foundBooks">
 <div id="foundBooksWrapper">
 <div id="foundBooksInner">
-    {% for entry in entries %}
+    {% for book in books %}
     <div class="col-md-2 col-sm-4 col-xs-6 col-no-padding">
     <div class="book-grid-item-container">
     <div class="book-grid-item">
-	    {% if entry.favorite %}
+	    {% if book.favorite %}
 	    <div class="ribbon blue"><span><i class="fa fa-thumbs-up"></i> FAVE</span></div>
 	    {% endif %}
 
-    <a href={{ entry.url|safe }}>
+    <a href={{ url_for('show_book_info', book_id=book.id) }}>
 	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
-    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{ url_for('thumb_static', filename=entry.id_onpage) }} class="lazyload">
+    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{ url_for('thumb_static', filename=book.id) }} class="lazyload">
     <div class="overlay">
         <div class="overlay-data">
             <div class="overlay-title">
-                {{ entry.title }}
+                {{ book.title }}
             </div>
             <div class="overlay-sub">
-                {{ entry.pages }} pages
+                {{ book.pages }} pages
             </div>
+	    {% if book.my_rating %}
             <div class="overlay-rate">
                 {# To cast to a string in an expression, you use x|string() instead of str(x) #}
-                {% for _ in range( entry.rating|round|int() ) %}
+                {% for _ in range( book.my_rating|round|int() ) %}
                 {# &#9733; would also works but looks better with Fontawesome #}
                 <span class="fa fa-star"></span>
                 {% endfor %}
             </div>
+	    {% elif book.ext_infos %}
+            <div class="overlay-rate">
+                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
+                {% for _ in range( book.ext_infos[0].rating|round|int() ) %}
+                {# &#9733; would also works but looks better with Fontawesome #}
+                <span class="fa fa-star"></span>
+                {% endfor %}
+            </div>
+	    {% endif %}
         </div>
-	<a href={{ url_for('show_book_info', id_type='id', book_id=entry.id) }}  class="set-backToIndex overlay-button status-none">
+	<a href={{ url_for('show_book_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">
                         VIEW INFO
         </a>
     </div>
     <div class="title status-none">
-    <span class="title-text">{{ entry.title_eng }}</span>
+    <span class="title-text">{{ book.title_eng }}</span>
     </div>
     </a>
 

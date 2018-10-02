@@ -1,3 +1,6 @@
+- webGUI, search, export(but i think sqlite has export to csv integrated), cli, URLcollector
+- webGUI: mb add some ext info to normal display like rating on ext info when displaying thumbs or collection (if it has ext info)
+- mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
 - check that not null fields are set (at least when saving?)
 - create indices for Tags.name, Category.name etc.?  
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",

@@ -3,17 +3,19 @@ File: webGUI.py
 Description: Creates webGUI for manga_db using flask
 """
 
-import sqlite3
-
+import os.path
 from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory
 
-from manga_db import load_or_create_sql_db, get_tags_by_book, add_tags_to_book, \
-        remove_tags_from_book_id, LISTS, get_tags_by_book_id_internal, book_id_from_url, \
-        add_book, update_book, get_all_id_onpage_set, search_sytnax_parser
-from tsu_info_getter import write_inf_txt
+from ..manga_db import MangaDB
+#from ..manga import MangaDBEntry
+from ..db.search import search_sytnax_parser
+#from tsu_info_getter import write_inf_txt
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
 
+
+
+# config logging b4 this line vv
 app = Flask(__name__)  # create the application instance :)
 
 # Load default config and override config from an environment variable
@@ -23,19 +25,15 @@ app.config.update(
         SECRET_KEY='development key',
         USERNAME='admin',
         PASSWORD='default'))
-# path to thumbs folder
-app.config['THUMBS_FOLDER'] = "thumbs"
 
 # blueprint = Blueprint('thumbs', __name__, static_url_path='/thumbs', static_folder='/thumbs')
 # app.register_blueprint(blueprint)
 
-db_con, _ = load_or_create_sql_db("manga_db.sqlite")
-db_con.row_factory = sqlite3.Row
+mdb = MangaDB(".", "manga_db.sqlite")
+db_con = mdb.db_con
 
-# set with all id_onpage to check if book is in db without having to query for every check
-# -> if later more than one -> dict (key is pagename) of sets
-all_book_id_onpage = get_all_id_onpage_set(db_con)
-
+# path to thumbs folder
+app.config['THUMBS_FOLDER'] = os.path.join(mdb.root_dir, "thumbs")
 
 # create route for thumbs/static data that isnt in static, can be used in template with
 # /thumbs/path/filename or with url_for(thumb_static, filename='filename')
@@ -47,67 +45,42 @@ def thumb_static(filename):
 
 @app.route('/')
 def show_entries():
-    cur = db_con.execute('select * from Books order by id desc LIMIT 150')
-    entries = cur.fetchall()
+    books = mdb.get_x_books(150)
     return render_template(
         'show_entries.html',
-        entries=entries,
+        books=books,
         order_col_libox="id",
         asc_desc="DESC")
 
 
-LISTS_DIC = {li: None for li in LISTS}
-# int:blabla -> means var blabla has to be of type int
-@app.route('/book/<string:id_type>/<int:book_id>')
-def show_book_info(id_type, book_id):
-    lists_all = LISTS_DIC.copy()
+def create_list_dict(manga_db, book):
+    list_dict = {row[0]: False for row in manga_db.fetch_list_names()}
+    list_dict.update({name: True for name in book.list})
+    return list_dict
 
-    if id_type == "id":
-        id_col = "id"
-        id_type_db = "id_internal"
-    elif id_type == "ext":
-        id_col = "id_onpage"
-        id_type_db = "id_onpage"
-    else:
-        # could also use flash(f"ERROR...")
+
+@app.route('/book/<int:book_id>')
+def show_book_info(book_id):
+    book = mdb.get_book(book_id)
+    if book is None:
         return render_template(
             'show_book_info.html',
-            error_msg=f"ERROR: Unsupported id_type supplied!")
+            error_msg=f"No book with id {book_id} was found in DB!")
 
-    cur = db_con.execute(f'select * from Books WHERE {id_col} = ?',
-                         (book_id, ))
-    book_info = cur.fetchone()
+    lists_dict = create_list_dict(mdb, book)
 
-    # handle book not being in db yet
-    if not book_info:
-        return render_template(
-            'show_book_info.html',
-            error_msg=f"No book with {id_col} {book_id}"
-            " was found in DB!")
-
-    tags = get_tags_by_book(db_con, book_id, id_type_db).split(",")
-    # split tags and lists
-    lists_book = {tag: True for tag in tags if tag.startswith("li_")}
-    # upd dic with all lists with lists that are set on this book
-    lists_all.update(lists_book)
-    lists_book = lists_all
-    favorite = lists_book["li_best"]
-
-    tags = [tag for tag in tags if not tag.startswith("li_")]
-
-    books_in_collection = None
-    # get other titles of collection
-    if book_info["collection"]:
-        cur.execute("SELECT id, title_eng, rating, pages FROM Books WHERE collection = ?", (book_info["collection"],))
-        books_in_collection = cur.fetchall()
+    collections = None
+    if book.collection:
+        collections = []
+        for collection in book.collection:
+            books_in_collection = mdb.get_collection_info(collection)
+            collections.append((collection, books_in_collection))
 
     return render_template(
         'show_book_info.html',
-        book_info=book_info,
-        books_in_collection=books_in_collection,
-        tags=tags,
-        favorite=favorite,
-        lists_book=lists_book)
+        book=book,
+        lists_dict = lists_dict,
+        collections=collections)
 
 
 @app.route('/jump', methods=["GET", "POST"])
@@ -133,16 +106,16 @@ def jump_to_book_by_url():
             all_book_id_onpage.add(book_id_onpage)
 
     return redirect(
-        url_for('show_book_info', id_type="ext", book_id=book_id_onpage))
+        url_for('show_book_info', book_id=book_id_onpage))
 
 
-@app.route("/SetDL/<book_id_internal>", methods=["GET"])
-def set_dl(book_id_internal):
+@app.route("/SetDL/<book_id>", methods=["GET"])
+def set_dl(book_id):
     with db_con:
         # add_tags_to_book doesnt commit changes
-        add_tags_to_book(db_con, book_id_internal, ["li_downloaded"])
+        add_tags_to_book(db_con, book_id, ["li_downloaded"])
     return redirect(
-        url_for("show_book_info", id_type="id", book_id=book_id_internal))
+        url_for("show_book_info", book_id=book_id))
 
 
 # mb add /<site>/<id> later when more than 1 site supported
@@ -163,7 +136,7 @@ def update_book_by_id_onpage(book_id_onpage):
         flash("WARNING - Connection problem or book wasnt found on page!!!")
 
     return redirect(
-        url_for('show_book_info', id_type="ext", book_id=book_id_onpage))
+        url_for('show_book_info', book_id=book_id_onpage))
 
 
 INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
@@ -173,12 +146,12 @@ INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
                         ("artist", "Artist"), ("parody", "Parody"),
                         ("character", "Character"), ("tag", "Tag"),
                         ("url", "URL"))
-@app.route('/WriteInfoTxt/<book_id_internal>', methods=["GET"])
-def write_info_txt_by_id(book_id_internal):
+@app.route('/WriteInfoTxt/<book_id>', methods=["GET"])
+def write_info_txt_by_id(book_id):
     cur = db_con.execute('select * from Books WHERE id = ?',
-                         (book_id_internal, ))
+                         (book_id, ))
     book_info = cur.fetchone()
-    tags = get_tags_by_book_id_internal(db_con, book_id_internal).split(",")
+    tags = get_tags_by_book_id_internal(db_con, book_id).split(",")
     tags = ", ".join(
         (tag for tag in sorted(tags) if not tag.startswith("li_")))
 
@@ -197,7 +170,7 @@ def write_info_txt_by_id(book_id_internal):
     write_inf_txt("\n".join(info_str), book_info["title"], path=LOCAL_DOWNLOAD)
 
     return redirect(
-        url_for('show_book_info', id_type="id", book_id=book_id_internal))
+        url_for('show_book_info', book_id=book_id))
 
 
 @app.route("/search", methods=["GET", "POST"])
@@ -224,49 +197,49 @@ def search_books():
         asc_desc=asc_desc)
 
 
-@app.route("/AddFavorite/<book_id_internal>")
-def add_book_favorite(book_id_internal):
+@app.route("/AddFavorite/<book_id>")
+def add_book_favorite(book_id):
     with db_con:
         # add_tags_to_book doesnt commit changes
-        add_tags_to_book(db_con, book_id_internal, ["li_best"])
+        add_tags_to_book(db_con, book_id, ["li_best"])
     flash("Successfully added Book to Favorites!")
 
     return redirect(
-        url_for("show_book_info", id_type="id", book_id=book_id_internal))
+        url_for("show_book_info", book_id=book_id))
 
 
-@app.route("/RemoveFavorite/<book_id_internal>")
-def remove_book_favorite(book_id_internal):
+@app.route("/RemoveFavorite/<book_id>")
+def remove_book_favorite(book_id):
     with db_con:
         # add_tags_to_book doesnt commit changes
-        remove_tags_from_book_id(db_con, book_id_internal, ["li_best"])
+        remove_tags_from_book_id(db_con, book_id, ["li_best"])
     flash("Successfully removed Book from Favorites!")
 
     return redirect(
-        url_for("show_book_info", id_type="id", book_id=book_id_internal))
+        url_for("show_book_info", book_id=book_id))
 
 
-@app.route("/RateBook/<book_id_internal>", methods=["GET"])
-def rate_book_internal(book_id_internal):
+@app.route("/RateBook/<book_id>", methods=["GET"])
+def rate_book_internal(book_id):
     with db_con:
         db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
-                       (request.args['rating'], book_id_internal))
+                       (request.args['rating'], book_id))
 
     return redirect(
-        url_for("show_book_info", id_type="id", book_id=book_id_internal))
+        url_for("show_book_info", book_id=book_id))
 
 
 @app.route("/SetLists", methods=["POST"])
 def set_lists_book():
-    book_id_internal = request.form["book_id_internal"]
+    book_id = request.form["book_id"]
 
-    lists_book_prev = get_tags_by_book_id_internal(db_con,
-                                                   book_id_internal).split(",")
+    lists_book_prev = get_tags_by_book_id(db_con,
+                                                   book_id).split(",")
     # convert to set for diff operation later
     lists_book_prev = set(
         (tag for tag in lists_book_prev if tag.startswith("li_")))
 
-    # requests.form -> Dict[('book_id_internal', '25'), ('li_to-read', 'on'),
+    # requests.form -> Dict[('book_id', '25'), ('li_to-read', 'on'),
     # ('li_downloaded', 'on'), ('li_best', 'on')]
     # all checked lists (from page) are present as keys in request.form
     # if list also is in lists_book_prev -> list tag already set -> dont need to set it
@@ -278,8 +251,8 @@ def set_lists_book():
     lists_to_add = lists_checked - lists_book_prev
 
     with db_con:
-        add_tags_to_book(db_con, book_id_internal, lists_to_add)
-        remove_tags_from_book_id(db_con, book_id_internal, lists_to_remove)
+        add_tags_to_book(db_con, book_id, lists_to_add)
+        remove_tags_from_book_id(db_con, book_id, lists_to_remove)
 
     flash(
         f"Successfully added these lists: {', '.join(lists_to_add) if lists_to_add else 'None'}. "
@@ -288,8 +261,12 @@ def set_lists_book():
     )
 
     return redirect(
-        url_for("show_book_info", id_type="id", book_id=book_id_internal))
+        url_for("show_book_info", book_id=book_id))
+
+
+def main():
+    app.run()
 
 
 if __name__ == "__main__":
-    app.run()
+    main()

@@ -3,155 +3,200 @@
 
 <div id="rootContainer" class="container-fluid">
 <div style="margin: 5px auto;"></div>
-{% if book_info %}
+{% if book %}
 <div class="book-page-container">
 	<div class="row row-no-margin">
 	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
-		<a href={{ book_info.url|safe }}>
-		<img alt="{{ book_info.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book_info.id_onpage) }}>
-		</a>
+		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book.id) }}>
 	</div>
 	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 		<div class="row row-no-margin">
-			<div class="book-title">{{ book_info.title }}</div>
+			<div class="book-title">{{ book.title }}</div>
 		<hr>
 		</div>
 		<div class="book-info-container" style="border-spacing: 3px;">
 		<div class="book-line">
 		<div class="book-info">Title</div>
 		<div class="book-data" id="Title">
-			{{ book_info.title }}
+			{{ book.title }}
 		</div>
 		</div>
+		<div class="book-line">
+		<div class="book-info">Pages</div>
+		<div class="book-data" id="Pages">
+			{{ book.pages }}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">My Rating</div>
+		<div class="book-data" id="MyRating">
+			{% for n in range(5) %}
+			{# check for my_rating being None and set all stars active as long as rating>n #}
+			{% if book.my_rating and (book.my_rating > n) %}
+			<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
+			{% else %}
+			<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
+			{% endif %}
+			{% endfor %}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Category</div>
+		<div class="book-data" id="Category">
+		{% for cat in book.category %}
+		<a class="book-tag" href="#">
+			{{ cat }}
+		</a>
+		{% endfor %}
+		</div>
+		</div>
+		{% if book.collection %}
+		<div class="book-line">
+		<div class="book-info">Collection</div>
+		<div class="book-data" id="Collection">
+		{% for collection in book.collection %}
+			<a class="book-tag" href="{{ url_for('search_books', searchstring='collection:\"' + collection + '\"') }}">
+			{{ collection }}
+			</a>
+		{% endfor %}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Status</div>
+		<div class="book-data" id="Status">
+			{{ book.status }}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Language</div>
+		<div class="book-data" id="Language">
+			{{ book.language }}
+		</div>
+		</div>
+		{% endif %}
+		{% if book.groups %}
+			<div class="book-line">
+			<div class="book-info">Group</div>
+			<div class="book-data" id="Group">
+				{% for group in book.groups %}
+					<a class="book-tag" href="{{ url_for('search_books', searchstring='groups:\"' + group + '\"') }}">
+						{{ group }}
+					</a>
+				{% endfor %}
+			</div>
+			</div>
+		{% endif %}
+		{% if book.artist %}
+		<div class="book-line">
+		<div class="book-info">Artist</div>
+		<div class="book-data" id="Artist">
+			{% for artist in book.artist %}
+				<a class="book-tag" href="{{ url_for('search_books', searchstring='artist:\"' + artist + '\"') }}">
+					{{ artist }}
+				</a>
+			{% endfor %}
+		</div>
+		</div>
+		{% endif %}
+		{% if book.parody %}
+			<div class="book-line">
+			<div class="book-info">Parody</div>
+			<div class="book-data" id="Parody">
+			{% for parody in book.parody %}
+				<a class="book-tag" href="#">
+					{{ parody }}
+				</a>
+			{% endfor %}
+			</div>
+			</div>
+		{% endif %}
+		{% if book.character %}
+			<div class="book-line">
+			<div class="book-info">Character</div>
+			<div class="book-data" id="Character">
+				{% for char in book.character %}
+					<a class="book-tag" href="{{ url_for('search_books', searchstring='character:\"' + char + '\"') }}">
+						{{ char }}
+					</a>
+				{% endfor %}
+			</div>
+			</div>
+		{% endif %}
+		<div class="book-line">
+		<div class="book-info">Tag</div>
+		<div class="book-data" id="Tag">
+			{% for tag in book.tag %}
+				{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
+				<a class="book-tag" href="{{ url_for('search_books', searchstring='tags:\"' + tag + '\"') }}">
+					{{ tag }}
+				</a>
+			{% endfor %}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Note</div>
+		<div class="book-data" id="Note">
+		{% for line in book.note.splitlines() %}
+			{{ line }}<br />
+		{% endfor %}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info"></div>
+		<div class="book-data" id="">
+		{% if favorite %}
+		<a href={{ url_for('remove_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
+		{% else %}
+		<a href={{ url_for('add_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
+		{% endif %}
+
+		<a href="{{ url_for('write_info_txt_by_id', book_id=book.id) }}" class="book-read-button button-stack red-color">
+		<i class="fas fa-file-alt"></i>
+		Write info.txt
+		</a>
+
+		<a href="/" id="backToIndex" class="book-read-button button-stack">
+		<i class="fa fa-home"> </i>
+		BACK TO INDEX
+		</a>
+		</div>
+		</div>
+	</div> {# book info container #}
+</div> {# book-info-wrap #}
+</div> {# row end #}
+<div class="row">
+<div class="col-md-12">
+	TODO
+	{#
 		<div class="book-line">
 		<div class="book-info">Uploader</div>
 		<div class="book-data" id="Uploader">
 		<a class="book-tag" href="#">
-			{{ book_info.uploader }}
+			{{ book.uploader }}
 		</a>
 		</div>
 		</div>
 		<div class="book-line">
 		<div class="book-info">Uploaded</div>
 		<div class="book-data" id="Uploaded">
-			{{ book_info.upload_date }}
-		</div>
-		</div>
-		<div class="book-line">
-		<div class="book-info">Pages</div>
-		<div class="book-data" id="Pages">
-			{{ book_info.pages }}
+			{{ book.upload_date }}
 		</div>
 		</div>
 		<div class="book-line">
 		<div class="book-info">Rating</div>
 		<div class="book-data" id="Rating">
-			{{ book_info.rating_full }}
-		</div>
-	</div>
-	<div class="book-line">
-	<div class="book-info">My Rating</div>
-	<div class="book-data" id="MyRating">
-		{% for n in range(5) %}
-		{# check for my_rating being None and set all stars active as long as rating>n #}
-		{% if book_info.my_rating and (book_info.my_rating > n) %}
-		<a href={{ url_for('rate_book_internal', book_id_internal=book_info.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
-		{% else %}
-		<a href={{ url_for('rate_book_internal', book_id_internal=book_info.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
-		{% endif %}
-		{% endfor %}
-	</div>
-	</div>
-	<div class="book-line">
-	<div class="book-info">Category</div>
-	<div class="book-data" id="Category">
-	<a class="book-tag" href="#">
-		{{ book_info.category }}
-	</a>
-	</div>
-	</div>
-	{% if book_info.collection %}
-		<div class="book-line">
-		<div class="book-info">Collection</div>
-		<div class="book-data" id="Collection">
-		<a class="book-tag" href="{{ url_for('search_books', searchstring='collection:\"' + book_info.collection + '\"') }}">
-			{{ book_info.collection }}
-		</a>
+			{{ book.rating_full }}
 		</div>
 		</div>
-	{% endif %}
-	{% if book_info.groups %}
-		<div class="book-line">
-		<div class="book-info">Group</div>
-		<div class="book-data" id="Group">
-			{% for group in book_info.groups.split(",") %}
-				<a class="book-tag" href="{{ url_for('search_books', searchstring='groups:\"' + group + '\"') }}">
-					{{ group }}
-				</a>
-			{% endfor %}
-		</div>
-		</div>
-	{% endif %}
-	{% if book_info.artist %}
-	<div class="book-line">
-	<div class="book-info">Artist</div>
-	<div class="book-data" id="Artist">
-		{% for artist in book_info.artist.split(",") %}
-			<a class="book-tag" href="{{ url_for('search_books', searchstring='artist:\"' + artist + '\"') }}">
-				{{ artist }}
-			</a>
-		{% endfor %}
-	</div>
-	</div>
-	{% endif %}
-	{% if book_info.parody %}
-		<div class="book-line">
-		<div class="book-info">Parody</div>
-		<div class="book-data" id="Parody">
-		<a class="book-tag" href="#">
-			{{ book_info.parody }}
-		</a>
-		</div>
-		</div>
-	{% endif %}
-	{% if book_info.character %}
-		<div class="book-line">
-		<div class="book-info">Character</div>
-		<div class="book-data" id="Character">
-			{% for char in book_info.character.split(",") %}
-				<a class="book-tag" href="{{ url_for('search_books', searchstring='character:\"' + char + '\"') }}">
-					{{ char }}
-				</a>
-			{% endfor %}
-		</div>
-		</div>
-	{% endif %}
-	<div class="book-line">
-	<div class="book-info">Tag</div>
-	<div class="book-data" id="Tag">
-		{% for tag in tags %}
-			{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
-			<a class="book-tag" href="{{ url_for('search_books', searchstring='tags:\"' + tag + '\"') }}">
-				{{ tag }}
-			</a>
-		{% endfor %}
-	</div>
-	</div>
 	<div class="book-line">
 	<div class="book-info"></div>
 	<div class="book-data" id="">
-	<a href={{ 'http://www.tsumino.com/Read/View/' ~ book_info.id_onpage }} id="btnReadOnline" class="book-read-button button-stack">
+	<a href={{ 'http://www.tsumino.com/Read/View/' ~ book.id_onpage }} id="btnReadOnline" class="book-read-button button-stack">
 	<i class="fa fa-arrow-circle-right"> </i>
 	Read Online
 	</a>
 
-	{% if favorite %}
-	<a href={{ url_for('remove_book_favorite', book_id_internal=book_info.id) }} id="btnFavoriteHandler" class="book-read-button button-stack" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
-	{% else %}
-	<a href={{ url_for('add_book_favorite', book_id_internal=book_info.id) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
-	{% endif %}
-
-	{% if book_info.downloaded %}
+	{% if book.downloaded %}
 	<a href="" id="btnDownloadEntry" class="book-read-button button-stack green-color">
 	<i class="fas fa-check-circle"> </i>
 	Downloaded
@@ -162,68 +207,63 @@
 	{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
 	{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
 	{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
-	<a href="{{ "http://www.tsumino.com/Download/Index/" ~ book_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("set_dl", book_id_internal=book_info.id) }}'">
+	{# REMOVE COMMENT
+	<a href="{{ "http://www.tsumino.com/Download/Index/" ~ book.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("set_dl", book_id=book.id) }}'">
 	<i class="fa fa-arrow-circle-right"> </i>
 	Download on Tsumino
 	</a>
 	{% endif %}
-
-	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book_info.id_onpage) }}" class="book-read-button button-stack pink-color">
+	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book.id_onpage) }}" class="book-read-button button-stack pink-color">
 	<i class="fas fa-sync-alt"></i>
 	Update Book
 	</a>
-
-	<a href="{{ url_for('write_info_txt_by_id', book_id_internal=book_info.id) }}" class="book-read-button button-stack red-color">
-	<i class="fas fa-file-alt"></i>
-	Write info.txt
-	</a>
-
-	<a href="/" id="backToIndex" class="book-read-button button-stack">
-	<i class="fa fa-home"> </i>
-	BACK TO INDEX
-	</a>
 	</div>
 	</div>
-</div>
+
+
+	#}
 </div>
 </div> {# row end #}
 <div class="row row-no-margin"></div>
 
-{% if books_in_collection %}
-<div class="row">
-<div class="col-md-12">
-<div>
-<div style="display: inline-block;" class="book-title">Collection Details</div>
-<div style="display: inline-block;">
-View entries from the collection this entry belongs to (not ordered chronologically)
-</div>
-<hr>
-</div>
-<div class="col-md-12">
-<div class="book-collection-table">
-<div class="trow">
-{# <span class="theader">#</span> #}
-<span class="theader">Name</span>
-<span class="theader">Rating</span>
-<span class="theader">Pages</span>
-{# <span class="theader collection-position hidden">Position</span> #}
-</div>
+{% if collections %}
+{% for coll_name, info_rows in collections %}
+	<div class="row">
+	<div class="col-md-12">
+	<div>
+	<div style="display: inline-block;" class="book-title">Collection: {{ coll_name }}</div>
+	<div style="display: inline-block;">
+	View entries from the collection this entry belongs to (not ordered chronologically)
+	</div>
+	<hr>
+	</div>
+	<div class="col-md-12">
+	<div class="book-collection-table">
+	<div class="trow">
+	{# <span class="theader">#</span> #}
+	<span class="theader">Name</span>
+	<span class="theader">Rating</span>
+	<span class="theader">Pages</span>
+	{# <span class="theader collection-position hidden">Position</span> #}
+	</div>
 
-{% for book_collection_row in books_in_collection %}
-<a href="{{ url_for('show_book_info', id_type='id', book_id=book_collection_row.id) }}" class="trow {{ 'book-collection-is-me' if book_collection_row.id == book_info.id else '' }}">
-{# <span class="tcell">1</span> #}
-<span class="tcell" width="100%">{{ book_collection_row.title_eng }}</span>
-<span class="tcell">{{ book_collection_row.rating }} <span><i class="fa fa-star" aria-hidden="true"></i></span></span>
-<span class="tcell">{{ book_collection_row.pages }}</span>
-{# <span class="tcell collection-position hidden">0</span> #}
-</a>
+	{% for row in info_rows %}
+	<a href="{{ url_for('show_book_info', book_id=row.id) }}" class="trow {{ 'book-collection-is-me' if row.id == book.id else '' }}">
+	{# <span class="tcell">1</span> #}
+	<span class="tcell" width="100%">{{ row.title }}</span>
+	{# cant use None in jinja have to use none (in-built function) #}
+	<span class="tcell">{{ row.my_rating if row.my_rating is not none else 'Not rated' }} <span><i class="fa fa-star" aria-hidden="true"></i></span></span>
+	<span class="tcell">{{ row.pages }}</span>
+	{# <span class="tcell collection-position hidden">0</span> #}
+	</a>
+	{% endfor %}
+
+	</div>
+	</div> {# coll table div end #}
+	</div>
+	</div> {# row end #}
+	<div class="row row-no-margin" style="margin-bottom: 1em;"></div>
 {% endfor %}
-
-</div>
-</div> {# coll table div end #}
-</div>
-</div> {# row end #}
-<div class="row row-no-margin" style="margin-bottom: 1em;"></div>
 {% endif %}
 
 <div class="row">
@@ -233,19 +273,19 @@ View entries from the collection this entry belongs to (not ordered chronologica
 <div style="display: inline-block;">
 Update Lists here!
 </div>
-<div style="float:right;position:relative;top:15px;">Last Change: {{ book_info.last_change }}</div>
+<div style="float:right;position:relative;top:15px;">Last Change: {{ book.last_change }}</div>
 <hr>
 </div>
 <form action={{ url_for('set_lists_book') }} method=post>
 <ul class="multiselect-container" id="mangaDBLists">
 	{# use hidden input field with value set to id to get id through POST #}
-	<input type="hidden" name="book_id_internal" value={{ book_info.id }}>
-	{% for li, book_on_list in lists_book.items() %}
+	<input type="hidden" name="book_id" value={{ book.id }}>
+	{% for li, book_on_list in lists_dict.items() %}
 	<li>
 	<label class="lists-label">
 	{# pre-check checkbox if book is on that list with checked attribue #}
 	{# values for name that contain spaces get cut off, starting a new attribute after whitespace -> wrap {{}} with "" to prevent that (thought this was done automatically but that wasnt the case) #}
-	<input name="{{ li }}" type="checkbox" {{ 'checked' if book_on_list else '' }}> {{ li[3:] }}
+	<input name="{{ li }}" type="checkbox" {{ 'checked' if book_on_list else '' }}> {{ li }}
 	</label>
 	</li>
 	{% else %}

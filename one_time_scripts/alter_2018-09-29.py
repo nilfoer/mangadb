@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import re
 import datetime
@@ -99,6 +100,8 @@ with db_con:
     lupdate = datetime.datetime.strptime("2017 January 01", "%Y %B %d").date()
     rating_rull_re = re.compile(r"\d\.\d{1,2} \((\d+) users / (\d+) favs\)")
     for row in c.fetchall():
+        # rename thumb to id
+        os.rename(os.path.join("thumbs", row["id_onpage"]), os.path.join("thumbs", row["id"]))
         # split rating_full into ratings and favorites
         rat_full = row["rating_full"]
         rat_full = rating_rull_re.match(rat_full)

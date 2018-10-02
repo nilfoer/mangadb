@@ -39,6 +39,25 @@ class MangaDB:
         if settings is not None:
             self.settings.update(settings)
 
+    # __enter__ should return an object that is assigned to the variable after
+    # as. By default it is None, and is optional. A common pattern is to return
+    # self and keep the functionality required within the same class.
+    # __exit__ is called on the original Context Manager object, not the object
+    # returned by __enter__.
+    # If an error is raised in __init__ or __enter__ then the code block is
+    # never executed and __exit__ is not called.
+    # Once the code block is entered, __exit__ is always called, even if an
+    # exception is raised in the code block.
+    # If __exit__ returns True, the exception is suppressed. and exit
+    def __enter__(self):
+        return self
+
+    def __exit__(self):
+        self.close()
+
+    def close(self):
+        self.db_con.close()
+
     def _get_language_map(self):
         c = self.db_con.execute("SELECT id, name FROM Languages")
         result = {}
@@ -59,6 +78,11 @@ class MangaDB:
             return c.lastrowid
         else:
             return self.language_map[language]
+
+    def fetch_list_names(self):
+        c = self.db_con.execute("SELECT name FROM List")
+        result = c.fetchall()
+        return result if result else None
 
     def download_cover(self, url, filename, overwrite=False):
         # TODO use urlopen and add headers
@@ -117,6 +141,15 @@ class MangaDB:
 
         return bid, book
 
+    def get_x_books(self, x, offset=None):
+        c = self.db_con.execute(f"SELECT * FROM Books LIMIT {x} "
+                                f"{f'OFFSET {offset}' if offset is not None else ''}")
+        rows = c.fetchall()
+        if rows:
+            return [MangaDBEntry(self, row) for row in rows]
+        else:
+            return None
+
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
             return True
@@ -173,7 +206,8 @@ class MangaDB:
         else:
             logger.error("At least one of id or title needs to be supplied!")
 
-        return MangaDBEntry(self, c.fetchone())
+        row = c.fetchone()
+        return MangaDBEntry(self, row) if row else None
 
     def get_book_id(self, title):
         """
@@ -183,6 +217,17 @@ class MangaDB:
         _id = c.fetchone()
         return _id[0] if _id else None
         
+    def get_collection_info(self, name, order_by="id ASC"):
+        c = self.db_con.execute(f"""
+                SELECT b.id, b.title, b.pages, b.my_rating
+                FROM Books b, Collection c, BookCollection bc
+                WHERE bc.collection_id = c.id
+                AND c.name = ?
+                AND b.id = bc.book_id
+                ORDER BY b.{order_by}""", (name,))
+        rows = c.fetchall()
+        return rows if rows else None
+                                    
     @staticmethod
     def _load_or_create_sql_db(filename):
         """

@@ -69,6 +69,13 @@ class MangaDBEntry(DBRow):
         for col, val in self.get_associated_columns().items():
             setattr(self, "_" + col, val)
 
+    def _from_dict(self, dic):
+        filtered = self.filter_dict(dic)
+        # need to update "private" _assoc-col-name, not the properties assoc-col-name
+        # key_a if x else key_b: value -> if else on line only one value (or tuple, list etc)
+        self.__dict__.update({f"_{col}" if col in self.JOINED_COLUMNS else col: val
+                              for col, val in filtered.items()})
+
     @classmethod
     def _init_assoc_column_methods(cls):
         # ext_infos handled seperately

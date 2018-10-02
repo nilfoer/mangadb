@@ -3,6 +3,7 @@ import datetime
 
 from .db.row import DBRow
 from .constants import CENSOR_IDS
+from .extractor import SUPPORTED_SITES
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,10 @@ class ExternalInfo(DBRow):
     @censorship.setter
     def censorship(self, value):
         self.censor_id = CENSOR_IDS[value]
+
+    @property
+    def site(self):
+        return SUPPORTED_SITES[self.imported_from]
 
     def save(self):
         # idea is that ExternalInfo only gets edited when also editing MangaDBEntry

@@ -25,7 +25,7 @@ class TsuminoExtractor(BaseMangaExtractor):
             "pages": "Pages", "rating": "Rating", "my_rating": "My Rating",
             "category": "Category", "collection": "Collection", "groups": "Group",
             "artist": "Artist", "parody": "Parody", "character": "Character",
-            "tags": "Tag", "url": None, "id_onpage": None
+            "tag": "Tag", "url": None, "id_onpage": None
             }
 
     def __init__(self, manga_db, url):
@@ -92,7 +92,7 @@ class TsuminoExtractor(BaseMangaExtractor):
                     else:
                         result["title_eng"] = value
                         result["title_foreign"] = None
-            elif attr == "tags":
+            elif attr == "tag":
                 result[attr] = value
                 if value is None:
                     censor_id = CENSOR_IDS["Unknown"]
