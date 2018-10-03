@@ -1,11 +1,7 @@
 - webGUI, search, export(but i think sqlite has export to csv integrated), cli, URLcollector
 - webGUI: mb add some ext info to normal display like rating on ext info when displaying thumbs or collection (if it has ext info)
-- mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
-- check that not null fields are set (at least when saving?)
-- create indices for Tags.name, Category.name etc.?  
-- there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
-    since its impractical for searching
-    -> convert site tags to MangaDB tags
+- webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
+- create indices for Tags.name, Category.name etc.?
 - logging in webGUI  
 - update queries for new cols/indices
 - check newly added books for dl (on production db)
@@ -16,10 +12,10 @@
 
 
 --DONE-------------------------------------------------------------------------------------------------
+- check that not null fields are set (at least when saving?)
 - log adding tags or rather lists <- done
     mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id
     -> NO, would require extra query unless i pass manga_db_entry?
-- change to sets for joined cols -> POSTPONED till it gets too slow
 - remove UNIQUE from url, since:
     url with english title for tsumino is unique: "http://www.tsumino.com/Book/Info/43150/junyou-kanmusu-ikemesu-shibari-"
         Title: Junyou Kanmusu Ikemesu Shibari
@@ -105,3 +101,9 @@
         adding of tags not logged but
             20:12:08 - INFO - Tags set() were successfully removed from book with id "2247"
             means that tags were added or removed -> empty set removed only added tags            
+--CANCELED-----------------------------------------------------------------------------------------------------------------
+- change to sets for joined cols -> POSTPONED till it gets too slow
+- there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
+    since its impractical for searching
+    -> convert site tags to MangaDB tags
+    => let user handle this (they can import the tags and then change them if they dont want duplicates etc.)            

@@ -109,8 +109,8 @@ def jump_to_book_by_url():
         url_for('show_book_info', book_id=book_id_onpage))
 
 
-@app.route("/SetDL/<book_id>", methods=["GET"])
-def set_dl(book_id):
+@app.route("/SetDL/<ext_info_id>", methods=["GET"])
+def set_dl(ext_info_id):
     with db_con:
         # add_tags_to_book doesnt commit changes
         add_tags_to_book(db_con, book_id, ["li_downloaded"])

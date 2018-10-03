@@ -28,6 +28,12 @@
 		</div>
 		</div>
 		<div class="book-line">
+		<div class="book-info">Status</div>
+		<div class="book-data" id="Status">
+			{{ book.status }}
+		</div>
+		</div>
+		<div class="book-line">
 		<div class="book-info">My Rating</div>
 		<div class="book-data" id="MyRating">
 			{% for n in range(5) %}
@@ -38,6 +44,14 @@
 			<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
 			{% endif %}
 			{% endfor %}
+		</div>
+		</div>
+		<div class="book-line">
+		<div class="book-info">Language</div>
+		<div class="book-data" id="Language">
+			<a class="book-tag" href="{{ url_for('search_books', searchstring='language:\"' + book.language + '\"') }}">
+			{{ book.language }}
+			</a>
 		</div>
 		</div>
 		<div class="book-line">
@@ -59,18 +73,6 @@
 			{{ collection }}
 			</a>
 		{% endfor %}
-		</div>
-		</div>
-		<div class="book-line">
-		<div class="book-info">Status</div>
-		<div class="book-data" id="Status">
-			{{ book.status }}
-		</div>
-		</div>
-		<div class="book-line">
-		<div class="book-info">Language</div>
-		<div class="book-data" id="Language">
-			{{ book.language }}
 		</div>
 		</div>
 		{% endif %}
@@ -134,6 +136,16 @@
 		</div>
 		</div>
 		<div class="book-line">
+		<div class="book-info">List</div>
+		<div class="book-data" id="List">
+			{% for li in book.list %}
+				<a class="book-tag" href="{{ url_for('search_books', searchstring='list:\"' + li + '\"') }}">
+					{{ li }}
+				</a>
+			{% endfor %}
+		</div>
+		</div>
+		<div class="book-line">
 		<div class="book-info">Note</div>
 		<div class="book-data" id="Note">
 		{% for line in book.note.splitlines() %}
@@ -145,9 +157,9 @@
 		<div class="book-info"></div>
 		<div class="book-data" id="">
 		{% if favorite %}
-		<a href={{ url_for('remove_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
+		<a href={{ url_for('remove_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
 		{% else %}
-		<a href={{ url_for('add_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
+		<a href={{ url_for('add_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
 		{% endif %}
 
 		<a href="{{ url_for('write_info_txt_by_id', book_id=book.id) }}" class="book-read-button button-stack red-color">
@@ -164,66 +176,83 @@
 	</div> {# book info container #}
 </div> {# book-info-wrap #}
 </div> {# row end #}
-<div class="row">
-<div class="col-md-12">
-	TODO
-	{#
-		<div class="book-line">
-		<div class="book-info">Uploader</div>
-		<div class="book-data" id="Uploader">
-		<a class="book-tag" href="#">
-			{{ book.uploader }}
-		</a>
-		</div>
-		</div>
-		<div class="book-line">
-		<div class="book-info">Uploaded</div>
-		<div class="book-data" id="Uploaded">
-			{{ book.upload_date }}
-		</div>
-		</div>
-		<div class="book-line">
-		<div class="book-info">Rating</div>
-		<div class="book-data" id="Rating">
-			{{ book.rating_full }}
-		</div>
-		</div>
-	<div class="book-line">
-	<div class="book-info"></div>
-	<div class="book-data" id="">
-	<a href={{ 'http://www.tsumino.com/Read/View/' ~ book.id_onpage }} id="btnReadOnline" class="book-read-button button-stack">
-	<i class="fa fa-arrow-circle-right"> </i>
-	Read Online
-	</a>
-
-	{% if book.downloaded %}
-	<a href="" id="btnDownloadEntry" class="book-read-button button-stack green-color">
-	<i class="fas fa-check-circle"> </i>
-	Downloaded
-	</a>
-	{% else %}
-	{# able to open this link in a tab and book will be marked as downloaded while the new tab will be redirected to the dl page, setting downloaded to 0 should be done using the list edits, since pressing the dl button can happen on accident to easily #}
-	{# reload page when link is clicked (onclick=window.location.reload() ) so downloaded value gets updated -> but doesnt work when opened in new window, onclick=window.open(url, '_blank') [watch out that quotation marks get alternated etc.!] works but its a PopUp and has to be allowed first, but this is the only solution (with opening tsumino dl and displaying downloaded correctly) since just clicking and then going back after dl will also show old values (href to tsumino with _blank and reload -> flask wont get called at all) #}
-	{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
-	{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
-	{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
-	{# REMOVE COMMENT
-	<a href="{{ "http://www.tsumino.com/Download/Index/" ~ book.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("set_dl", book_id=book.id) }}'">
-	<i class="fa fa-arrow-circle-right"> </i>
-	Download on Tsumino
-	</a>
-	{% endif %}
-	<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=book.id_onpage) }}" class="book-read-button button-stack pink-color">
-	<i class="fas fa-sync-alt"></i>
-	Update Book
-	</a>
+{% for ext_info in book.ext_infos %}
+{# loop.index is 1-based -> use loop.index0 for 0-based #}
+{% if (loop.index0 % 2) == 0 %}
+<div class="row row-no-margin">
+{% endif %}
+<div id="ext-info">
+<div class="row row-no-margin">
+	<div>
+	<div class="ext-info-title" style="display:inline-block;">External Link on {{ ext_info.site|capitalize() }}</div>
+	<div style="float:right;position:relative;top:5px;">Last Update: {{ ext_info.last_update }}</div>
+<hr>
 	</div>
-	</div>
-
-
-	#}
 </div>
+<div class="col-md-6 ext-info-container" style="border-spacing: 3px;">
+	<div class="ext-info-line">
+	<div class="ext-info">Uploader</div>
+	<div class="ext-info-data" id="Uploader">
+		<a class="book-tag" href="#">
+			{{ ext_info.uploader }}
+		</a>
+	</div>
+	</div>
+	<div class="ext-info-line">
+	<div class="ext-info">Uploaded</div>
+	<div class="ext-info-data" id="Uploaded">
+		{{ ext_info.upload_date }}
+	</div>
+	</div>
+	{% if ext_info.rating is not none %}
+	<div class="ext-info-line">
+	<div class="ext-info">Rating</div>
+	<div class="ext-info-data" id="Rating">
+		{{ ext_info.rating }} ({{ ext_info.ratings if ext_info.ratings else 'N/A'}} users / {{ ext_info.favorites if ext_info.favorites else 'N/A' }} favs)
+	</div>
+	</div>
+	{% endif %}
+	<div class="ext-info-line">
+	<div class="ext-info">Censorship</div>
+	<div class="ext-info-data" id="Censorship">
+		{{ ext_info.censorship }}
+	</div>
+	</div>
+</div> {# ext-info-container #}
+	<div class="ext-info-data" id="">
+		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline" class="book-read-button button-stack">
+		<i class="fa fa-arrow-circle-right"> </i>
+		Read Online
+		</a>
+
+		{% if ext_info.downloaded %}
+		<a href="" id="btnDownloadEntry" class="book-read-button button-stack green-color">
+		<i class="fas fa-check-circle"> </i>
+		Downloaded
+		</a>
+		{% else %}
+		{# able to open this link in a tab and book will be marked as downloaded while the new tab will be redirected to the dl page, setting downloaded to 0 should be done using the list edits, since pressing the dl button can happen on accident to easily #}
+		{# reload page when link is clicked (onclick=window.location.reload() ) so downloaded value gets updated -> but doesnt work when opened in new window, onclick=window.open(url, '_blank') [watch out that quotation marks get alternated etc.!] works but its a PopUp and has to be allowed first, but this is the only solution (with opening tsumino dl and displaying downloaded correctly) since just clicking and then going back after dl will also show old values (href to tsumino with _blank and reload -> flask wont get called at all) #}
+		{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
+		{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
+		{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
+		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("set_dl", ext_info_id=ext_info.id) }}'">
+		<i class="fa fa-arrow-circle-right"> </i>
+		Download on Tsumino
+		</a>
+		{% endif %}
+		<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=ext_info.id_onpage) }}" class="book-read-button button-stack pink-color">
+		<i class="fas fa-sync-alt"></i>
+		Update Book
+		</a>
+
+
+</div>
+</div>
+{% if (loop.index0 % 2) == 0 %}
 </div> {# row end #}
+{% endif %}
+{% endfor %}
 <div class="row row-no-margin"></div>
 
 {% if collections %}
@@ -265,39 +294,6 @@
 	<div class="row row-no-margin" style="margin-bottom: 1em;"></div>
 {% endfor %}
 {% endif %}
-
-<div class="row">
-<div class="col-md-12">
-<div>
-<div style="display: inline-block;" class="book-title">Lists</div>
-<div style="display: inline-block;">
-Update Lists here!
-</div>
-<div style="float:right;position:relative;top:15px;">Last Change: {{ book.last_change }}</div>
-<hr>
-</div>
-<form action={{ url_for('set_lists_book') }} method=post>
-<ul class="multiselect-container" id="mangaDBLists">
-	{# use hidden input field with value set to id to get id through POST #}
-	<input type="hidden" name="book_id" value={{ book.id }}>
-	{% for li, book_on_list in lists_dict.items() %}
-	<li>
-	<label class="lists-label">
-	{# pre-check checkbox if book is on that list with checked attribue #}
-	{# values for name that contain spaces get cut off, starting a new attribute after whitespace -> wrap {{}} with "" to prevent that (thought this was done automatically but that wasnt the case) #}
-	<input name="{{ li }}" type="checkbox" {{ 'checked' if book_on_list else '' }}> {{ li }}
-	</label>
-	</li>
-	{% else %}
-	No Lists available!
-	{% endfor %}
-</ul>
-<div>
-	<button type="submit" id="updateBtn" class="book-read-button button-stack red-color"><i class="fa fa-pencil-alt"> </i><spanc style="margin-left: 5px;">Edit</span></button>
-</div>
-</form>
-</div>
-</div> {# row end #}
 
 </div>
 {% else %}

@@ -3,11 +3,13 @@ import logging
 import sqlite3
 import urllib.request
 
+from .logging_setup import configure_logging
 from . import extractor
 from .manga import MangaDBEntry
 from .ext_info import ExternalInfo
 
 
+configure_logging("manga_db.log")
 logger = logging.getLogger(__name__)
 
 # normal urllib user agent is being blocked by tsumino

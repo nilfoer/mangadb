@@ -11,6 +11,28 @@ h3              { color: #22a7f0; }
 .search-tags input {
 
 }
+.button-leftmost {
+    margin: 5px 5px 5px 0;
+}
+#ext-info {
+    float: left;
+    width: 100%;
+}
+.ext-info-title {
+    font-size: 20px;
+    font-family: 'Open Sans',sans-serif;
+    color: #fff;
+}
+.ext-info-line {
+    display: table-row;
+}
+.ext-info {
+    display: table-cell;
+    padding-right: 13px;
+}
+.ext-info-data {
+    display: table-cell;
+}
 .pink-color{background-color: #a233a5 !important} /* #a72aaa */
 .star-inactive {
     color: #fff !important;
