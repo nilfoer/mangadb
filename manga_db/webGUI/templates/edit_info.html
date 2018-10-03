@@ -1,0 +1,187 @@
+{% extends "book.html" %}
+{% block book_info %}
+<script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
+<form action={{ url_for('edit_book', book_id=book.id) }} method=post>
+<div class="book-line">
+<div class="edit-book-info">English Title</div>
+<div class="book-data" id="EnglishTitle">
+	<input type="text" class="form-control" name="title_eng" id="EnglishTitle" value="{{ book.title_eng }}">
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Foreign Title</div>
+<div class="book-data" id="ForeignTitle">
+	<input type="text" class="form-control" name="title_foreign" id="ForeignTitle" value="{{ book.title_foreign }}">
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Pages</div>
+<div class="book-data" id="Pages">
+	<input required type="text" class="form-control" name="pages" id="Pages" value="{{ book.pages }}">
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Status</div>
+<div class="book-data" id="Status">
+	<select required name="status_id" class="selectized select-single" placeholder="Select the publishing status...">
+		<option value="">Select the publishing status...</option>
+		{% for _id, name in available_options['status'] %}
+		<option value="{{ _id }}" {{'selected' if book.status_id == _id else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">My Rating</div>
+<div class="book-data" id="MyRating">
+	<input type="text" class="form-control" name="my_rating" value="{{ book.my_rating if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Language</div>
+<div class="book-data" id="Language">
+	<select required name="language_id" class="selectized select-single-create" placeholder="Select the book's language...">
+		<option value="">Select the book's language...</option>
+		{% for _id, name in available_options['language'] %}
+		<option value="{{ _id }}" {{'selected' if book.language_id == _id else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Category</div>
+<div class="book-data" id="Category">
+	<select multiple name="category" multiple class="selectized select-multiple-create" placeholder="Add categories, delimiter is ';'">
+		<option value="">Add categories, delimiter is ';'</option>
+		{% for _, name in available_options['category'] %}
+		<option value="{{ name }}" {{'selected' if name in book.category else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Collection</div>
+<div class="book-data" id="Collection">
+	<select multiple name="collection" class="selectized select-multiple-create" placeholder="Add collections, delimiter is ';'">
+		<option value="">Add collections, delimiter is ';'</option>
+		{% for _, name in available_options['collection'] %}
+		<option value="{{ name }}" {{'selected' if name in book.collection else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Group</div>
+<div class="book-data" id="Group">
+	<select multiple name="groups" class="selectized select-multiple-create" placeholder="Add groups, delimiter is ';'">
+		<option value="">Add groups, delimiter is ';'</option>
+		{% for _, name in available_options['groups'] %}
+		<option value="{{ name }}" {{'selected' if name in book.groups else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Artist</div>
+<div class="book-data" id="Artist">
+	<select multiple name="artist" class="selectized select-multiple-create" placeholder="Add artists, delimiter is ';'">
+		<option value="">Add artists, delimiter is ';'</option>
+		{% for _, name in available_options['artist'] %}
+		<option value="{{ name }}" {{'selected' if name in book.artist else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Parody</div>
+<div class="book-data" id="Parody">
+	<select multiple name="parody" class="selectized select-multiple-create" placeholder="Add parodies, delimiter is ';'">
+		<option value="">Add parodies, delimiter is ';'</option>
+		{% for _, name in available_options['parody'] %}
+		<option value="{{ name }}" {{'selected' if name in book.parody else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Character</div>
+<div class="book-data" id="Character">
+	<select multiple  name="character" class="selectized select-multiple-create" placeholder="Add characters, delimiter is ';'">
+		<option value="">Add characters, delimiter is ';'</option>
+		{% for _, name in available_options['character'] %}
+		<option value="{{ name }}" {{'selected' if name in book.character else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Tag</div>
+<div class="book-data" id="Tag">
+	<select multiple name="tag" class="selectized select-multiple-create" placeholder="Add tags, delimiter is ';'">
+		<option value="">Add tags, delimiter is ';'</option>
+		{% for _, name in available_options['tag'] %}
+		<option value="{{ name }}" {{'selected' if name in book.tag else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">List</div>
+<div class="book-data" id="List">
+	<select multiple name="list" class="selectized select-multiple-create" placeholder="Add lists, delimiter is ';'">
+		<option value="">Add lists, delimiter is ';'</option>
+		{% for _, name in available_options['list'] %}
+		<option value="{{ name }}" {{'selected' if name in book.list else ''}}>{{ name }}</option>
+		{% endfor %}
+	</select>
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Note</div>
+<div class="book-data" id="Note">
+	{# only supposed to be a small note so no textarea(multi-line) field #}
+	<input type="text" class="form-control" name="note" id="Note" value="{{ book.note if book.note else '' }}">
+	{# <textarea name="note" id="Note" cols="40" rows="5">{{ book.note if book.note else '' }}</textarea> #}
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info"></div>
+<div class="book-data" id="">
+<button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
+<a href={{ url_for('show_info', book_id=book.id) }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+</div>
+</div>
+<script>
+$('.select-single').selectize({
+	create: false,
+	sortField: {
+		field: 'text',
+		direction: 'asc'
+	},
+	dropdownParent: 'body'
+});
+$('.select-single-create').selectize({
+	create: true,
+	sortField: {
+		field: 'text',
+		direction: 'asc'
+	},
+	dropdownParent: 'body'
+});
+$('.select-multiple-create').selectize({
+    plugins: ['remove_button'],
+    delimiter: ';',
+    create: true,
+    persist: false,
+    selectOnTab: true,
+    create: function(input) {
+	return {
+	    value: input,
+	    text: input
+	}
+    }
+});
+</script>
+</form>
+{% endblock %}

@@ -65,7 +65,7 @@
 	    <div class="ribbon blue"><span><i class="fa fa-thumbs-up"></i> FAVE</span></div>
 	    {% endif %}
 
-    <a href={{ url_for('show_book_info', book_id=book.id) }}>
+    <a href={{ url_for('show_info', book_id=book.id) }}>
 	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
     <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{ url_for('thumb_static', filename=book.id) }} class="lazyload">
     <div class="overlay">
@@ -94,7 +94,7 @@
             </div>
 	    {% endif %}
         </div>
-	<a href={{ url_for('show_book_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">
+	<a href={{ url_for('show_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">
                         VIEW INFO
         </a>
     </div>

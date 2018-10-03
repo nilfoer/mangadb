@@ -6,8 +6,9 @@ Description: Creates webGUI for manga_db using flask
 import os.path
 from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory
 
+from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
-#from ..manga import MangaDBEntry
+from ..manga import MangaDBEntry
 from ..db.search import search_sytnax_parser
 #from tsu_info_getter import write_inf_txt
 
@@ -60,14 +61,12 @@ def create_list_dict(manga_db, book):
 
 
 @app.route('/book/<int:book_id>')
-def show_book_info(book_id):
+def show_info(book_id):
     book = mdb.get_book(book_id)
     if book is None:
         return render_template(
-            'show_book_info.html',
+            'show_info.html',
             error_msg=f"No book with id {book_id} was found in DB!")
-
-    lists_dict = create_list_dict(mdb, book)
 
     collections = None
     if book.collection:
@@ -77,9 +76,8 @@ def show_book_info(book_id):
             collections.append((collection, books_in_collection))
 
     return render_template(
-        'show_book_info.html',
+        'show_info.html',
         book=book,
-        lists_dict = lists_dict,
         collections=collections)
 
 
@@ -106,7 +104,7 @@ def jump_to_book_by_url():
             all_book_id_onpage.add(book_id_onpage)
 
     return redirect(
-        url_for('show_book_info', book_id=book_id_onpage))
+        url_for('show_info', book_id=book_id_onpage))
 
 
 @app.route("/SetDL/<ext_info_id>", methods=["GET"])
@@ -115,7 +113,7 @@ def set_dl(ext_info_id):
         # add_tags_to_book doesnt commit changes
         add_tags_to_book(db_con, book_id, ["li_downloaded"])
     return redirect(
-        url_for("show_book_info", book_id=book_id))
+        url_for("show_info", book_id=book_id))
 
 
 # mb add /<site>/<id> later when more than 1 site supported
@@ -136,7 +134,7 @@ def update_book_by_id_onpage(book_id_onpage):
         flash("WARNING - Connection problem or book wasnt found on page!!!")
 
     return redirect(
-        url_for('show_book_info', book_id=book_id_onpage))
+        url_for('show_info', book_id=book_id_onpage))
 
 
 INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
@@ -170,7 +168,7 @@ def write_info_txt_by_id(book_id):
     write_inf_txt("\n".join(info_str), book_info["title"], path=LOCAL_DOWNLOAD)
 
     return redirect(
-        url_for('show_book_info', book_id=book_id))
+        url_for('show_info', book_id=book_id))
 
 
 @app.route("/search", methods=["GET", "POST"])
@@ -205,7 +203,7 @@ def add_book_favorite(book_id):
     flash("Successfully added Book to Favorites!")
 
     return redirect(
-        url_for("show_book_info", book_id=book_id))
+        url_for("show_info", book_id=book_id))
 
 
 @app.route("/RemoveFavorite/<book_id>")
@@ -216,7 +214,7 @@ def remove_book_favorite(book_id):
     flash("Successfully removed Book from Favorites!")
 
     return redirect(
-        url_for("show_book_info", book_id=book_id))
+        url_for("show_info", book_id=book_id))
 
 
 @app.route("/RateBook/<book_id>", methods=["GET"])
@@ -226,42 +224,69 @@ def rate_book_internal(book_id):
                        (request.args['rating'], book_id))
 
     return redirect(
-        url_for("show_book_info", book_id=book_id))
+        url_for("show_info", book_id=book_id))
 
 
-@app.route("/SetLists", methods=["POST"])
-def set_lists_book():
-    book_id = request.form["book_id"]
+@app.route("/book/edit/<int:book_id>")
+def show_edit_book(book_id):
+    book = mdb.get_book(book_id)
+    if book is None:
+        return render_template(
+            'show_info.html',
+            error_msg=f"No book with id {book_id} was found in DB!")
 
-    lists_book_prev = get_tags_by_book_id(db_con,
-                                                   book_id).split(",")
-    # convert to set for diff operation later
-    lists_book_prev = set(
-        (tag for tag in lists_book_prev if tag.startswith("li_")))
+    collections = None
+    if book.collection:
+        collections = []
+        for collection in book.collection:
+            books_in_collection = mdb.get_collection_info(collection)
+            collections.append((collection, books_in_collection))
 
-    # requests.form -> Dict[('book_id', '25'), ('li_to-read', 'on'),
-    # ('li_downloaded', 'on'), ('li_best', 'on')]
-    # all checked lists (from page) are present as keys in request.form
-    # if list also is in lists_book_prev -> list tag already set -> dont need to set it
-    lists_checked = set(
-        (k for k in request.form.keys() if k.startswith("li_")))
+    available_options = book.get_all_options_for_assoc_columns()
+    available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()
+                                     if type(_id) == int]
+    available_options["status"] = [(_id, name) for _id, name in STATUS_IDS.items()
+                                   if type(_id) == int]
 
-    # s.difference(t) 	s - t (-> s-t only works if both sets)
-    lists_to_remove = lists_book_prev - lists_checked
-    lists_to_add = lists_checked - lists_book_prev
+    return render_template(
+        'edit_info.html',
+        book=book,
+        available_options=available_options)
 
-    with db_con:
-        add_tags_to_book(db_con, book_id, lists_to_add)
-        remove_tags_from_book_id(db_con, book_id, lists_to_remove)
 
-    flash(
-        f"Successfully added these lists: {', '.join(lists_to_add) if lists_to_add else 'None'}. "
-        "The following lists were removed: "
-        f"{', '.join(lists_to_remove) if lists_to_remove else 'None'}."
-    )
+@app.route("/book/edit/<int:book_id>/submit", methods=["POST"])
+def edit_book(book_id):
+    book = mdb.get_book(book_id)
 
-    return redirect(
-        url_for("show_book_info", book_id=book_id))
+    update_dic = {}
+    for col in MangaDBEntry.DB_COL_HELPER:
+        val = request.form.get(col, None)
+        if col in ("pages", "status_id", "language_id"):
+            try:
+                val = int(val)
+            except ValueError:
+                app.logger.warning("Couldnt convert value '%s' to int for column '%s'",
+                                   val, col)
+                flash(f"{col} needs to be a number!")
+                return redirect(url_for("show_edit_book", book_id=book_id))
+        elif col == "my_rating":
+            try:
+                val = float(val)
+            except ValueError:
+                app.logger.warning("Couldnt convert value '%s' to float for column '%s'",
+                                   val, col)
+                flash(f"{col} needs to be a floating point number!")
+                return redirect(url_for("show_edit_book", book_id=book_id))
+
+        update_dic[col] = val
+    for col in MangaDBEntry.JOINED_COLUMNS:
+        val_list = request.form.getlist(col)
+        update_dic[col] = val_list
+
+    book.update_from_dict(update_dic)
+    book.save()
+
+    return redirect(url_for("show_info", book_id=book_id))
 
 
 def main():

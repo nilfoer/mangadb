@@ -11,6 +11,7 @@
 - split updating from user action vs. updating from import
 
 
+
 --DONE-------------------------------------------------------------------------------------------------
 - check that not null fields are set (at least when saving?)
 - log adding tags or rather lists <- done
@@ -102,6 +103,10 @@
             20:12:08 - INFO - Tags set() were successfully removed from book with id "2247"
             means that tags were added or removed -> empty set removed only added tags            
 --CANCELED-----------------------------------------------------------------------------------------------------------------
+- mb switch to only ids when adding/removing joined col values from webGUI
+    => NO since i need the names, because users are able to add new ones
+        but mb switch later to add ALL the values using the names and then add them in bridge table with ids
+        but prob not worth it
 - change to sets for joined cols -> POSTPONED till it gets too slow
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching

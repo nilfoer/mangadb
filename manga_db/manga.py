@@ -23,6 +23,8 @@ class MangaDBEntry(DBRow):
     # cols that cant be NULL (and arent set in __init__)
     NOT_NULL_COLS = ("title", "language_id", "pages", "status_id")
 
+    MANGA_TITLE_FORMAT = "{english} / {foreign}"
+
     def __init__(self, manga_db, data, **kwargs):
         self.id = None
         self.title = None
@@ -59,7 +61,7 @@ class MangaDBEntry(DBRow):
         super().__init__(manga_db, data, **kwargs)
 
         if self.last_change is None:
-            self.last_change = datetime.date.today()
+            self.last_change = self.set_last_change()
         if self.favorite is None:
             self.favorite = 0
 
@@ -75,6 +77,52 @@ class MangaDBEntry(DBRow):
         # key_a if x else key_b: value -> if else on line only one value (or tuple, list etc)
         self.__dict__.update({f"_{col}" if col in self.JOINED_COLUMNS else col: val
                               for col, val in filtered.items()})
+
+    def set_last_change(self):
+        self.last_change = datetime.date.today()
+        return self.last_change
+
+    def update_from_dict(self, dic):
+        """Values for JOINED_COLUMNS have to be of tuple/set/list"""
+        # TODO validate input
+        for col in self.DB_COL_HELPER:
+            # never update id, last_change from dict, handle title and fav ourselves
+            if col in ("id", "last_change", "title", "favorite"):
+                continue
+            try:
+                new = dic[col]
+            except KeyError:
+                pass
+            else:
+                setattr(self, col, new)
+        for col in self.JOINED_COLUMNS:
+            if col == "ext_infos":
+                continue
+            try:
+                new = dic[col]
+            except KeyError:
+                pass
+            else:
+                old = set(getattr(self, f"_{col}"))
+                setattr(self, f"_{col}", new)
+                new = set(new)
+                if new == old:
+                    continue
+                added = new - old
+                self._changes[col][0].update(added)
+                removed = old - new
+                self._changes[col][1].update(removed)
+
+        # TODO ext_infos
+        fav = dic.get("favorite", None)
+        if fav is not None:
+            self.favorite = fav
+        # build title ourselves so title is the correct format
+        if self.title_eng and self.title_foreign:
+            self.title = self.MANGA_TITLE_FORMAT.format(
+                    english=self.title_eng, foreign=self.title_foreign)
+        else:
+            self.title = self.title_eng or self.title_foreign
 
     @classmethod
     def _init_assoc_column_methods(cls):
@@ -219,6 +267,22 @@ class MangaDBEntry(DBRow):
         result = c.fetchone()
         return result[0].split(";") if result else []
 
+    def get_all_options_for_assoc_columns(self):
+        result = {
+            "list": None,
+            "tag": None,
+            "category": None,
+            "collection": None,
+            "groups": None,
+            "artist": None,
+            "parody": None,
+            "character": None
+            }
+        for col in result:
+            c = self.manga_db.db_con.execute(f"SELECT id, name FROM {col.capitalize()}")
+            result[col] = c.fetchall()
+        return result
+
     def update(self):
         """Discards changes and updates from DB"""
         # TODO
@@ -357,7 +421,9 @@ class MangaDBEntry(DBRow):
         """
 
         db_con = self.manga_db.db_con
-        # get previous value for downloaded and fav from db
+        # @Speed remove getting data from db b4 update (replae with sth like
+        # setters for normal cols that also log the changes)
+        # get previous values from db
         c = db_con.execute(
             "SELECT * FROM Books WHERE id = ?",
             (self.id, ))

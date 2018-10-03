@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div id="rootContainer" class="container-fluid">
+<div style="margin: 5px auto;"></div>
+{% if book %}
+<div class="book-page-container">
+	<div class="row row-no-margin">
+	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
+		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book.id) }}>
+	</div>
+	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
+		<div class="row row-no-margin">
+			<div class="book-title">{{ book.title }}</div>
+		<hr>
+		</div>
+		<div class="book-info-container" style="border-spacing: 3px;">
+		{% block book_info %}
+		{% endblock %}
+		</div> {# book info container #}
+</div> {# book-info-wrap #}
+</div> {# row end #}
+{% block ext_infos %}{% endblock %}
+{% block collections %}{% endblock %}
+</div> {# book-page-container #}
+{% else %}
+<div class="book-title">{{ error_msg }}</div>
+{% endif %}
+</div>
+
+{% endblock %}
