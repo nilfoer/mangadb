@@ -23,10 +23,11 @@
 <div class="book-data" id="MyRating">
 	{% for n in range(5) %}
 	{# check for my_rating being None and set all stars active as long as rating>n #}
+	{# my_rating is float so convert to float #}
 	{% if book.my_rating and (book.my_rating > n) %}
-	<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
+	<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
 	{% else %}
-	<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
+	<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
 	{% endif %}
 	{% endfor %}
 </div>
@@ -124,7 +125,7 @@
 <div class="book-info">List</div>
 <div class="book-data" id="List">
 	{% for li in book.list %}
-		<a class="book-tag" href="{{ url_for('search_books', searchstring='list:\"' + li + '\"') }}">
+		<a class="book-tag list-tag" href="{{ url_for('search_books', searchstring='list:\"' + li + '\"') }}">
 			{{ li }}
 		</a>
 	{% endfor %}
@@ -163,6 +164,7 @@ BACK TO INDEX
 </div>
 {% endblock %}
 {% block ext_infos %}
+<div style="margin: 1em 0;"></div>
 {% for ext_info in book.ext_infos %}
 {# loop.index is 1-based -> use loop.index0 for 0-based #}
 {% if (loop.index0 % 2) == 0 %}
@@ -243,6 +245,7 @@ BACK TO INDEX
 {% endblock %}
 {% block collections %}
 {% if collections %}
+<div style="margin: 1em 0;"></div>
 {% for coll_name, info_rows in collections %}
 	<div class="row">
 	<div class="col-md-12">
@@ -264,7 +267,7 @@ BACK TO INDEX
 	</div>
 
 	{% for row in info_rows %}
-	<a href="{{ url_for('show_book_info', book_id=row.id) }}" class="trow {{ 'book-collection-is-me' if row.id == book.id else '' }}">
+	<a href="{{ url_for('show_info', book_id=row.id) }}" class="trow {{ 'book-collection-is-me' if row.id == book.id else '' }}">
 	{# <span class="tcell">1</span> #}
 	<span class="tcell" width="100%">{{ row.title }}</span>
 	{# cant use None in jinja have to use none (in-built function) #}

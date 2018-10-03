@@ -14,6 +14,12 @@ h3              { color: #22a7f0; }
 .button-leftmost {
     margin: 5px 5px 5px 0;
 }
+.blue-color {
+	background-color: #22a7f0!important;
+}
+.list-tag {
+	border: #22a7f0 1px solid;
+}
 #ext-info {
     float: left;
     width: 100%;

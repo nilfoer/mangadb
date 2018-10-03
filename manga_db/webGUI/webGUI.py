@@ -270,6 +270,9 @@ def edit_book(book_id):
                 flash(f"{col} needs to be a number!")
                 return redirect(url_for("show_edit_book", book_id=book_id))
         elif col == "my_rating":
+            # dont add if empty string or 0..
+            if not val:
+                continue
             try:
                 val = float(val)
             except ValueError:
@@ -277,7 +280,6 @@ def edit_book(book_id):
                                    val, col)
                 flash(f"{col} needs to be a floating point number!")
                 return redirect(url_for("show_edit_book", book_id=book_id))
-
         update_dic[col] = val
     for col in MangaDBEntry.JOINED_COLUMNS:
         val_list = request.form.getlist(col)

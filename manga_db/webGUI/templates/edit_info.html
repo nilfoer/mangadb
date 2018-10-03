@@ -35,7 +35,7 @@
 <div class="book-line">
 <div class="edit-book-info">My Rating</div>
 <div class="book-data" id="MyRating">
-	<input type="text" class="form-control" name="my_rating" value="{{ book.my_rating if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
+	<input type="text" class="form-control" name="my_rating" value="{{ book.my_rating|float() if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
 </div>
 </div>
 <div class="book-line">
