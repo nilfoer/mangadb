@@ -117,7 +117,18 @@ def jump_to_book_by_url():
         # route("/import"...) def import_book(url=None):...
         return import_book(url)
     elif len(books) > 1:
-        return render_template("choose_book.html", books=books)
+        flash("Please choose the book belonging to the supplied URL!", "title")
+        flash("Due to external sites re-using their book IDs it can happen that "
+              "a book ID on that page that lead too Book A now leads to Book B.")
+        flash("There are multiple books in this DB which have the same external "
+              "ID! Please choose the one that has the same title (and pages) as "
+              "the one at the URL you supplied!", "info")
+
+        return render_template(
+            'show_entries.html',
+            books=books,
+            order_col_libox="id",
+            asc_desc="DESC")
     else:
         return show_info(book_id=None, book=books[0])
 
@@ -132,11 +143,11 @@ def update_book_ext_info(book_id, ext_info_id):
     if field_change_str:
         flash(
             "WARNING - Please re-download this Book, since the change of following fields "
-            "suggest that someone has uploaded a new version:"
+            "suggest that someone has uploaded a new version:", "warning"
         )
-        flash(field_change_str)
+        flash(field_change_str, "info")
     if id_internal is None:
-        flash("WARNING - Connection problem or book wasnt found on page!!!")
+        flash("WARNING - Connection problem or book wasnt found on page!!!", "warning")
 
     return redirect(
         url_for('show_info', book_id=book_id_onpage))
@@ -149,7 +160,7 @@ INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
                         ("artist", "Artist"), ("parody", "Parody"),
                         ("character", "Character"), ("tag", "Tag"),
                         ("url", "URL"))
-@app.route('/WriteInfoTxt/<book_id>', methods=["GET"])
+@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/write_info')
 def write_info_txt_by_id(book_id):
     cur = db_con.execute('select * from Books WHERE id = ?',
                          (book_id, ))
@@ -263,7 +274,7 @@ def edit_book(book_id):
             except ValueError:
                 app.logger.warning("Couldnt convert value '%s' to int for column '%s'",
                                    val, col)
-                flash(f"{col} needs to be a number!")
+                flash(f"{col} needs to be a number!", "info")
                 return redirect(url_for("show_edit_book", book_id=book_id))
         elif col == "my_rating":
             # dont add if empty string or 0..
@@ -274,7 +285,7 @@ def edit_book(book_id):
             except ValueError:
                 app.logger.warning("Couldnt convert value '%s' to float for column '%s'",
                                    val, col)
-                flash(f"{col} needs to be a floating point number!")
+                flash(f"{col} needs to be a floating point number!", "info")
                 return redirect(url_for("show_edit_book", book_id=book_id))
         update_dic[col] = val
     for col in MangaDBEntry.JOINED_COLUMNS:
@@ -287,7 +298,7 @@ def edit_book(book_id):
     return redirect(url_for("show_info", book_id=book_id))
 
 
-def main():
+def main(args=None):
     app.run()
 
 

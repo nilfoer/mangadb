@@ -1,8 +1,6 @@
-- webGUI, search, export(but i think sqlite has export to csv integrated), cli, LinkCollector
-- webGUI: mb add some ext info to normal display like rating on ext info when displaying thumbs or collection (if it has ext info)
+- webGUI-update-book, search, cli, LinkCollector
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
 - create indices for Tags.name, Category.name etc.?
-- logging in webGUI  
 - update queries for new cols/indices
 - check newly added books for dl (on production db)
 - test triggers
@@ -11,6 +9,9 @@
 - split updating from user action vs. updating from import
 
 --DONE-------------------------------------------------------------------------------------------------
+- logging in webGUI  
+- webGUI: mb add some ext info to normal display like rating on ext info when displaying thumbs or collection (if it has ext info)
+- export(but i think sqlite has export to csv integrated -> only exports the table as is not joined)
 - check that not null fields are set (at least when saving?)
 - log adding tags or rather lists <- done
     mb also log title/id_onpage+site since id doesnt help me much when db has crashed and its prob a diff id

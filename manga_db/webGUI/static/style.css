@@ -49,6 +49,27 @@ h3              { color: #22a7f0; }
         display: table;
         border-collapse: separate;
 }
+ul.flash-messages {
+   list-style: none;
+   margin-left: 0;
+   padding-left: 1em;
+}
+li.info {
+    font-size: 1em;
+    font-family: 'Open Sans',sans-serif;
+    color: #fff;
+}
+li.title {
+    font-size: 18px;
+    font-family: 'Open Sans',sans-serif;
+    color: #fff;
+    margin-bottom: 0.5em 0;
+}
+li.warning {
+	font-size: 20px;
+	color: #f67764; /* #f67764 */
+}
+
 .pink-color{background-color: #a233a5 !important} /* #a72aaa */
 .star-inactive {
     color: #fff !important;

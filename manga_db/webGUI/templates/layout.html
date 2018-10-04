@@ -17,9 +17,17 @@
 
 <div class=page>
 	<h1><a href="/" id="title-anchor">MangaDB</a></h1>
-  {% for message in get_flashed_messages() %}
-    <div class="flash dark-color">{{ message }}</div>
-  {% endfor %}
+	{% with messages = get_flashed_messages(with_categories=true) %}
+		{% if messages %}
+		    <div class="flash dark-color">
+			<ul class="flash-messages">
+			{% for category, message in messages %}
+			<li class="{{ category }}">{{ message }}</li>
+			{% endfor %}
+			</ul>
+		    </div>
+		{% endif %}
+	{% endwith %}
   {% block body %}{% endblock %}
 </div>
 
