@@ -25,9 +25,9 @@
 	{# check for my_rating being None and set all stars active as long as rating>n #}
 	{# my_rating is float so convert to float #}
 	{% if book.my_rating and (book.my_rating > n) %}
-	<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
+	<a href={{ url_for('rate_book', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
 	{% else %}
-	<a href={{ url_for('rate_book_internal', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
+	<a href={{ url_for('rate_book', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
 	{% endif %}
 	{% endfor %}
 </div>
@@ -144,10 +144,10 @@
 <div class="book-line">
 <div class="book-info"></div>
 <div class="book-data" id="">
-{% if favorite %}
-<a href={{ url_for('remove_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost" data-get="/Book/GetFavorite/36122" data-add="/Book/AddFavorite/36122" data-remove="/Book/RemoveFavorite/36122"><i class="fa fa-heart"></i> Favorited</a>
+{% if book.favorite %}
+<a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost"><i class="fa fa-heart"></i> Favorited</a>
 {% else %}
-<a href={{ url_for('add_book_favorite', book_id=book.id) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost dark-color"><i class="fa fa-plus"></i> Add to Favorite</a>
+<a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
 {% endif %}
 
 <a href="{{ url_for('write_info_txt_by_id', book_id=book.id) }}" class="book-read-button button-stack red-color">
@@ -215,7 +215,7 @@ BACK TO INDEX
 		</a>
 
 		{% if ext_info.downloaded %}
-		<a href="" id="btnDownloadEntry" class="book-read-button button-stack green-color">
+		<a href="{{ url_for('set_downloaded', book_id=book.id, ext_info_id=ext_info.id, intbool=0) }}" id="btnDownloadEntry" class="book-read-button button-stack green-color">
 		<i class="fas fa-check-circle"> </i>
 		Downloaded
 		</a>
@@ -225,12 +225,12 @@ BACK TO INDEX
 		{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
 		{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
 		{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
-		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("set_dl", ext_info_id=ext_info.id) }}'">
+		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("set_downloaded", book_id=book.id, ext_info_id=ext_info.id, intbool=1) }}'">
 		<i class="fa fa-arrow-circle-right"> </i>
 		Download on Tsumino
 		</a>
 		{% endif %}
-		<a href="{{ url_for('update_book_by_id_onpage', book_id_onpage=ext_info.id_onpage) }}" class="book-read-button button-stack pink-color">
+		<a href="{{ url_for('update_book_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}" class="book-read-button button-stack pink-color">
 		<i class="fas fa-sync-alt"></i>
 		Update Book
 		</a>

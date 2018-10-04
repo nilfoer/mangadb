@@ -459,3 +459,15 @@ class MangaDBEntry(DBRow):
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
         return f"MangaDBEntry({selfdict_str})"
+
+    @staticmethod
+    def set_favorite_id(db_con, book_id, fav_intbool):
+        with db_con:
+            db_con.execute("UPDATE Books SET favorite = ? WHERE id = ?",
+                           (fav_intbool, book_id))
+
+    @staticmethod
+    def rate_book_id(db_con, book_id, rating):
+        with db_con:
+            db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
+                           (rating, book_id))

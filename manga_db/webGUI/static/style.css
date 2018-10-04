@@ -43,6 +43,12 @@ h3              { color: #22a7f0; }
 	vertical-align: middle;
 	display: table-cell;
 }
+.choose-book-info-container {
+	font-family: 'Open Sans',sans-serif;
+        color: #fff;
+        display: table;
+        border-collapse: separate;
+}
 .pink-color{background-color: #a233a5 !important} /* #a72aaa */
 .star-inactive {
     color: #fff !important;

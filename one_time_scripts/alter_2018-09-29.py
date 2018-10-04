@@ -98,10 +98,13 @@ with db_con:
     c.execute("SELECT id, rating_full, url, id_onpage, imported_from, upload_date, uploader,"
               "rating, downloaded FROM Books")
     lupdate = datetime.datetime.strptime("2017 January 01", "%Y %B %d").date()
-    rating_rull_re = re.compile(r"\d\.\d{1,2} \((\d+) users / (\d+) favs\)")
+    # (?:pattern) -> non-capturing group
+    rating_rull_re = re.compile(r"(?:\d\.\d{1,2}|\d) \((\d+) users / (\d+) favs\)")
     for row in c.fetchall():
-        # rename thumb to id
-        os.rename(os.path.join("thumbs", row["id_onpage"]), os.path.join("thumbs", row["id"]))
+        # rename thumb to id, diff folder to avoid name clash
+        os.makedirs(os.path.join("thumbs", "renamed"), exist_ok=True)
+        os.rename(os.path.join("thumbs", str(row["id_onpage"])), os.path.join("thumbs", "renamed", str(row["id"])))
+            
         # split rating_full into ratings and favorites
         rat_full = row["rating_full"]
         rat_full = rating_rull_re.match(rat_full)
@@ -254,11 +257,12 @@ with db_con:
     c.execute("""SELECT id, collection, category, groups, artist, parody, character
                  FROM Books""")
     for row in c.fetchall():
-        for col, table_name in MULTI_VALUE_COL:
+        for col, table_name in MULTI_VALUE_COL:            
             col_list = string_to_list(row[col])
             if col_list is None:
                 continue
-            for val in col_list:
+            # apparently there are some duplicates in the strings from multi-value cols
+            for val in set(col_list):
                 c.execute(f"INSERT OR IGNORE INTO {table_name}(name) VALUES (?)", (val,))
                 # ingored -> no c.lastrowid so use WHERE name=? etc.
                 c.execute(f"""INSERT INTO Book{table_name} VALUES (?, (

@@ -9,6 +9,8 @@ from flask import Flask, request, redirect, url_for, render_template, flash, sen
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
 from ..manga import MangaDBEntry
+from ..ext_info import ExternalInfo
+from .. import extractor
 from ..db.search import search_sytnax_parser
 #from tsu_info_getter import write_inf_txt
 
@@ -61,8 +63,11 @@ def create_list_dict(manga_db, book):
 
 
 @app.route('/book/<int:book_id>')
-def show_info(book_id):
-    book = mdb.get_book(book_id)
+def show_info(book_id, book=None):
+    # enable passing book obj over optional param while keeping url route option
+    # with required param
+    if book is None:
+        book = mdb.get_book(book_id)
     if book is None:
         return render_template(
             'show_info.html',
@@ -81,44 +86,44 @@ def show_info(book_id):
         collections=collections)
 
 
+@app.route('/import', methods=["GET", "POST"])
+def import_book(url=None):
+    if url is None:
+        if request.method == 'POST':
+            url = request.form['ext-url']
+        else:
+            url = request.args['ext-url']
+    bid, book = mdb.import_book(url, lists=[])
+    return show_info(book_id=None, book=book)
+
+
 @app.route('/jump', methods=["GET", "POST"])
 def jump_to_book_by_url():
     if request.method == 'POST':
-        url = request.form['jump-to-url']
+        url = request.form['ext-url']
     else:
-        url = request.args['jump-to-url']
-    book_id_onpage = book_id_from_url(url)
+        url = request.args['ext-url']
 
-    # check if book not in db -> add
-    if book_id_onpage not in all_book_id_onpage:
-        id_internal = add_book(db_con, url, None, write_infotxt=False, duplicate_action="keep_old")
-        if id_internal is None:
-            flash("WARNING - There either was a conncetion/parsing problem or a book with same "
-                  "title was found in the DB - no action was taken! In the case of a duplicate "
-                  "use the command line interface!")
-            return redirect(
-                url_for('show_entries'))
-        else:
-            # also add book_id_onpage to set of all id_onpage in DB so it represents current state of
-            # DB next time we call this func
-            all_book_id_onpage.add(book_id_onpage)
-
-    return redirect(
-        url_for('show_info', book_id=book_id_onpage))
-
-
-@app.route("/SetDL/<ext_info_id>", methods=["GET"])
-def set_dl(ext_info_id):
-    with db_con:
-        # add_tags_to_book doesnt commit changes
-        add_tags_to_book(db_con, book_id, ["li_downloaded"])
-    return redirect(
-        url_for("show_info", book_id=book_id))
+    extr_cls = extractor.find(url)
+    id_onpage = extr_cls.book_id_from_url(url)
+    imported_from = extr_cls.site_id
+    # ids can get re-used by external sites so theyre not guaranteed to be unique
+    # or even link to the correct extinfo/book
+    books = list(mdb.get_books({"id_onpage": id_onpage, "imported_from": imported_from}))
+    
+    if not books:
+        # passing var to func works directly when using optional param
+        # while stilling being able to use the rout argument
+        # route("/import"...) def import_book(url=None):...
+        return import_book(url)
+    elif len(books) > 1:
+        return render_template("choose_book.html", books=books)
+    else:
+        return show_info(book_id=None, book=books[0])
 
 
-# mb add /<site>/<id> later when more than 1 site supported
-@app.route('/UpdateBookFromPage/<book_id_onpage>', methods=["GET"])
-def update_book_by_id_onpage(book_id_onpage):
+@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=["GET"])
+def update_book_ext_info(book_id, ext_info_id):
     # all sites use some kind of id -> stop using long url for tsumino and build url with
     # id_onpage instead
     url = f"http://www.tsumino.com/Book/Info/{book_id_onpage}"
@@ -195,41 +200,32 @@ def search_books():
         asc_desc=asc_desc)
 
 
-@app.route("/AddFavorite/<book_id>")
-def add_book_favorite(book_id):
-    with db_con:
-        # add_tags_to_book doesnt commit changes
-        add_tags_to_book(db_con, book_id, ["li_best"])
-    flash("Successfully added Book to Favorites!")
-
+@app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
+def set_favorite(book_id, fav_intbool):
+    MangaDBEntry.set_favorite_id(mdb.db_con, book_id, fav_intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
-@app.route("/RemoveFavorite/<book_id>")
-def remove_book_favorite(book_id):
-    with db_con:
-        # add_tags_to_book doesnt commit changes
-        remove_tags_from_book_id(db_con, book_id, ["li_best"])
-    flash("Successfully removed Book from Favorites!")
-
+@app.route("/book/<book_id>/rate/<float:rating>")
+def rate_book(book_id, rating):
+    MangaDBEntry.rate_book_id(mdb.db_con, book_id, rating)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
-@app.route("/RateBook/<book_id>", methods=["GET"])
-def rate_book_internal(book_id):
-    with db_con:
-        db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
-                       (request.args['rating'], book_id))
-
+@app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>",
+           methods=["GET"])
+def set_downloaded(book_id, ext_info_id, intbool):
+    ExternalInfo.set_downloaded_id(mdb.db_con, ext_info_id, intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
 @app.route("/book/edit/<int:book_id>")
-def show_edit_book(book_id):
-    book = mdb.get_book(book_id)
+def show_edit_book(book_id, book=None):
+    if book is None:
+        book = mdb.get_book(book_id)
     if book is None:
         return render_template(
             'show_info.html',

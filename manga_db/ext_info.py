@@ -134,3 +134,9 @@ class ExternalInfo(DBRow):
                               WHERE id = :id""", update_dic)
             logger.info("Updated ext_info with url \"%s\" in database!", self.url)
         return self.id, field_change_str
+
+    @staticmethod
+    def set_downloaded_id(db_con, ext_info_id, intbool):
+        with db_con:
+            db_con.execute("UPDATE ExternalInfo SET downloaded = ? WHERE id = ?",
+                           (intbool, ext_info_id))
