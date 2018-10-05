@@ -111,7 +111,7 @@ class MangaDB:
         # not for initializing/adding to db
         data.update({"list": lists})
         book = MangaDBEntry(self, data)
-        ext_info = ExternalInfo(book, data)
+        ext_info = ExternalInfo(self, book, data)
         book.ext_infos = [ext_info]
         return book, extr.get_cover()
 
@@ -218,7 +218,7 @@ class MangaDB:
         c = self.db_con.execute("SELECT id FROM Books WHERE title = ?", (title,))
         _id = c.fetchone()
         return _id[0] if _id else None
-        
+
     def get_collection_info(self, name, order_by="id ASC"):
         c = self.db_con.execute(f"""
                 SELECT b.id, b.title, b.pages, b.my_rating
@@ -229,7 +229,11 @@ class MangaDB:
                 ORDER BY b.{order_by}""", (name,))
         rows = c.fetchall()
         return rows if rows else None
-                                    
+
+    def get_ext_info(self, _id):
+        c = self.db_con.execute("SELECT * FROM ExternalInfo WHERE id = ?", (_id,))
+        return ExternalInfo(self, None, c.fetchone())
+
     @staticmethod
     def _load_or_create_sql_db(filename):
         """

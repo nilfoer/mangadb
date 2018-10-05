@@ -5,6 +5,7 @@ from .db.row import DBRow
 from .ext_info import ExternalInfo
 from .constants import STATUS_IDS
 from .db.util import joined_col_name_to_query_names
+from .util import diff_update
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +69,7 @@ class MangaDBEntry(DBRow):
     def _from_row(self, row):
         for key in self.DB_COL_HELPER:
             setattr(self, key, row[key])
-        for col, val in self.get_associated_columns().items():
-            setattr(self, "_" + col, val)
+        self.update_assoc_columns()
 
     def _from_dict(self, dic):
         filtered = self.filter_dict(dic)
@@ -103,14 +103,12 @@ class MangaDBEntry(DBRow):
             except KeyError:
                 pass
             else:
-                old = set(getattr(self, f"_{col}"))
+                old = getattr(self, f"_{col}")
                 setattr(self, f"_{col}", new)
-                new = set(new)
-                if new == old:
+                added, removed = diff_update(old, new)
+                if added is None and removed is None:
                     continue
-                added = new - old
                 self._changes[col][0].update(added)
-                removed = old - new
                 self._changes[col][1].update(removed)
 
         # TODO ext_infos
@@ -209,6 +207,9 @@ class MangaDBEntry(DBRow):
     @property
     def ext_infos(self):
         if self.id is None:
+            # initialized from extracotr dict
+            if self._ext_infos and len(self._ext_infos) == 1:
+                return self._ext_infos
             logger.warning("Couldn't get external info cause id is None")
             return
         if self._ext_infos is None:
@@ -232,9 +233,13 @@ class MangaDBEntry(DBRow):
                         AND ei.id = eib.ext_info_id
                         AND Books.id = ?""", (self.id,))
         for row in c.fetchall():
-            ei = ExternalInfo(self, row)
+            ei = ExternalInfo(self.manga_db, self, row)
             ext_infos.append(ei)
         return ext_infos
+
+    def update_assoc_columns(self):
+        for col, val in self.get_associated_columns().items():
+            setattr(self, "_" + col, val)
 
     def get_associated_columns(self):
         """
@@ -450,6 +455,36 @@ class MangaDBEntry(DBRow):
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
         return f"MangaDBEntry({selfdict_str})"
+
+    def diff(self, manga_db_entry):
+        # doesnt diff ext_infos
+        changes = {}
+        change_str = []
+        for col in self.DB_COL_HELPER:
+            val_self = getattr(self, col)
+            val_other = getattr(manga_db_entry, col)
+            if val_self != val_other:
+                changes[col] = val_other
+                change_str.append(f"Column '{col}' changed from '{val_self}' to '{val_other}'")
+        for col in self.JOINED_COLUMNS:
+            if col == "ext_infos":
+                continue
+            val_self = getattr(self, col)
+            val_other = getattr(manga_db_entry, col)
+            if val_self != val_other:
+                added, removed = diff_update(val_self, val_other)
+                if added is None and removed is None:
+                    continue
+                changes[col] = (added, removed)
+                if added or removed:
+                    change_str.append(f"Column '{col}' changed:")
+                    if added:
+                        change_str.append(f"Added: {';'.join(added)}")
+                    if removed:
+                        change_str.append(f"Removed: {';'.join(removed)}")
+
+        change_str = "\n".join(change_str)
+        return changes, change_str
 
     @staticmethod
     def set_favorite_id(db_con, book_id, fav_intbool):

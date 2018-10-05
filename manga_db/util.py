@@ -1,5 +1,26 @@
 import re
 
+
+def diff_update(old, new):
+    # @Cleanup this might lead to weird behaviour e.g. if added gets removed or updated
+    # but it was the reference to new
+    if old is None:
+        return new, None
+    elif new is None:
+        return None, old
+    elif old is None and new is None:
+        return None, None
+    old = set(old)
+    new = set(new)
+    # if wed check above b4 converting to set we could get false negatives
+    # due to duplicates
+    if new == old:
+        return None, None
+    added = new - old
+    removed = old - new
+    return added, removed
+
+
 def write_to_txtf(wstring, filename):
     """
     Writes wstring to filename
@@ -11,12 +32,14 @@ def write_to_txtf(wstring, filename):
     with open(filename, "w", encoding="UTF-8") as w:
         w.write(wstring)
 
+
 def get_index_of_last_match(obj, li):
     """Get index of last item matching obj in list"""
     # start end step, start inclusive - end not
     for i in range(len(li) - 1, -1, -1):
         if obj == li[i]:
             return i
+
 
 def filter_duplicate_at_index_of_list_items(i, li):
     # filter duplicates based on element at pos i in tuples only keeping latest entries in list
@@ -37,6 +60,7 @@ def filter_duplicate_at_index_of_list_items(i, li):
             items_at_i.add(tup[i])
     # order not preserved, reversing again would be closer to old order
     return result
+
 
 def test_filter_duplicate_at_index_of_list_items():
     l = [("abc", 0, 0), ("def", 1, 1), ("abc", 2, 2),

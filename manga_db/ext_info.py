@@ -15,7 +15,7 @@ class ExternalInfo(DBRow):
 
     NOT_NULL_COLS = ("url", "id_onpage", "imported_from", "upload_date", "censor_id")
 
-    def __init__(self, manga_db_entry, data, **kwargs):
+    def __init__(self, manga_db, manga_db_entry, data, **kwargs):
         self.manga_db_entry = manga_db_entry
         self.id = None
         self.url = None
@@ -34,7 +34,7 @@ class ExternalInfo(DBRow):
         # call to Base class init after assigning all the attributes !IMPORTANT!
         # if called b4 assigning the attributes the ones initalized with data
         # from the base class will be reset to None
-        super().__init__(manga_db_entry.manga_db, data, **kwargs)
+        super().__init__(manga_db, data, **kwargs)
 
         if self.last_update is None:
             self.last_update = datetime.date.today()
@@ -61,6 +61,18 @@ class ExternalInfo(DBRow):
     @property
     def site(self):
         return SUPPORTED_SITES[self.imported_from]
+
+    def update_from_dict(self, dic):
+        for col in self.DB_COL_HELPER:
+            # never update id, last_update
+            if col in ("id", "last_update"):
+                continue
+            try:
+                new = dic[col]
+            except KeyError:
+                pass
+            else:
+                setattr(self, col, new)
 
     def save(self):
         # idea is that ExternalInfo only gets edited when also editing MangaDBEntry

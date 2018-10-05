@@ -1,5 +1,6 @@
 - webGUI-update-book, search, cli, LinkCollector
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
+- handle 404 error when retrieving/extracting data
 - create indices for Tags.name, Category.name etc.?
 - update queries for new cols/indices
 - check newly added books for dl (on production db)

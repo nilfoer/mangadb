@@ -140,15 +140,24 @@ def jump_to_book_by_url():
 
 @app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=["GET"])
 def update_book_ext_info(book_id, ext_info_id):
+    # TODO flash book changes, button to apply changes automatically
+    old_book = mdb.get_book(book_id)
+    old_ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
+    new_book, _ = mdb.retrieve_book_data(old_ext_info.url, [])
+    changes, change_str = old_book.diff(new_book)
+    flash("Book was updated!", "title")
+    for change in change_str.splitlines():
+        flash(change, "info")
 
-    if field_change_str:
-        flash(
-            "WARNING - Please re-download this Book, since the change of following fields "
-            "suggest that someone has uploaded a new version:", "warning"
-        )
-        flash(field_change_str, "info")
+    ext_info = new_book.ext_infos[0]
+    ext_info.id = ext_info_id
+    _, ext_info_chstr = ext_info.save()
+    if ext_info_chstr:
+        flash("WARNING", "warning")
+        for change in ext_info_chstr.splitlines():
+            flash(change, "info")
 
-    return show_info(book=book)
+    # TODO return render_template("...
 
 
 INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
