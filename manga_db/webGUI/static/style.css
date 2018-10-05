@@ -18,8 +18,71 @@ h3              { color: #22a7f0; }
 	background-color: #22a7f0!important;
 }
 .list-tag {
+	position: relative;
+	padding-right: 17px!important;
+}
+.list-tag-border {
 	border: #22a7f0 1px solid;
 }
+.list-tag a {
+	text-decoration: none!important;
+	color: #fff!important;
+}
+.mdb-list-remove {
+    display: inline-block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    vertical-align: middle;
+    right: 0;
+    text-align: center;
+    padding: 3px;
+    padding-top: 4px;
+    font-size: 0.8em;
+    border-left: 1px solid #22a7f0;
+}
+/* Dropdown Button */
+.mdb-drop-btn {
+    	cursor: pointer;
+}
+
+/* Dropdown button on hover & focus */
+.mdb-drop-btn:hover, .mdb-drop-btn:focus {
+    background-color: #4c4c4c;
+}
+
+/* The container <div> - needed to position the dropdown content */
+.mdb-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.mdb-dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #333;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    /* limit height and add scrollbar with overflow auto */
+    overflow: auto;
+    max-height: 250px;
+}
+
+/* Links inside the dropdown */
+.mdb-dropdown-content a {
+    color: #fff;
+    padding: 3px 12px;
+    text-decoration: none;
+    display: block;
+}
+
+/* Change color of dropdown links on hover */
+.mdb-dropdown-content a:hover {background-color: #4c4c4c}
+/* Show the dropdown menu (use JS to add this class to the .dropdown-content container when the user clicks on the dropdown button) */
+.mdb-show {display:block;}
+
 #ext-info {
     float: left;
     width: 100%;

@@ -283,6 +283,10 @@ class MangaDBEntry(DBRow):
             result[col] = c.fetchall()
         return result
 
+    def get_all_options_for_assoc_column(self, col_name):
+        c = self.manga_db.db_con.execute(f"SELECT id, name FROM {col_name.capitalize()}")
+        return c.fetchall()
+
     def update(self):
         """Discards changes and updates from DB"""
         # TODO
@@ -401,19 +405,6 @@ class MangaDBEntry(DBRow):
                 AND Book{table_name}.book_id = ?""", (*values, self.id))
         logger.debug("Removed '%s' from associated column '%s'", values, table_name)
 
-    def diff_normal_cols(self, row):
-        changed_str = []
-        changed_cols = []
-        for col in self.DB_COL_HELPER:
-            if col == "id":
-                assert self.id == row["id"]
-                continue
-            self_attr = getattr(self, col)
-            if row[col] != self_attr:
-                changed_str.append(f"Column '{col}' changed from '{row[col]}' to '{self_attr}'")
-                changed_cols.append(col)
-        return "\n".join(changed_str), changed_cols
-
     def _update_manga_db_entry(self):
         """
         Commits changes to db
@@ -471,3 +462,33 @@ class MangaDBEntry(DBRow):
         with db_con:
             db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
                            (rating, book_id))
+
+    @staticmethod
+    def add_assoc_col_on_book_id(db_con, book_id, col_name, values):
+        table_name, bridge_col_name = joined_col_name_to_query_names(col_name)
+        # values gotta be list/tuple of lists/tuples
+        li_of_tup = [(val,) for val in values]
+        with db_con:
+            c = db_con.executemany(
+                    f"INSERT OR IGNORE INTO {table_name}(name) VALUES (?)", li_of_tup)
+
+            c.executemany(f"""INSERT OR IGNORE INTO Book{table_name}(book_id, {bridge_col_name})
+                              SELECT ?, {table_name}.id
+                              FROM {table_name}
+                              WHERE {table_name}.name = ?""", zip([book_id] * len(values), values))
+        logger.debug("Added '%s' to associated column '%s'", ", ".join(values), table_name)
+
+    @staticmethod
+    def remove_assoc_col_on_book_id(db_con, book_id, col_name, values):
+        table_name, bridge_col_name = joined_col_name_to_query_names(col_name)
+        with db_con:
+            db_con.execute(f"""
+                    DELETE FROM Book{table_name}
+                    WHERE Book{table_name}.{bridge_col_name} IN
+                       (
+                       SELECT {table_name}.id FROM {table_name}
+                       WHERE
+                       ({table_name}.name IN ({', '.join(['?']*len(values))}))
+                       )
+                    AND Book{table_name}.book_id = ?""", (*values, book_id))
+        logger.debug("Removed '%s' from associated column '%s'", values, table_name)

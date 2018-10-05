@@ -68,6 +68,19 @@ class DBRow:
         """
         raise NotImplementedError
 
+    def diff_normal_cols(self, row):
+        changed_str = []
+        changed_cols = []
+        for col in self.DB_COL_HELPER:
+            if col == "id":
+                assert self.id == row["id"]
+                continue
+            self_attr = getattr(self, col)
+            if row[col] != self_attr:
+                changed_str.append(f"Column '{col}' changed from '{row[col]}' to '{self_attr}'")
+                changed_cols.append(col)
+        return "\n".join(changed_str), changed_cols
+
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
         return f"{self.__class__.__name__}({selfdict_str})"

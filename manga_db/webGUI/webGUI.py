@@ -4,7 +4,11 @@ Description: Creates webGUI for manga_db using flask
 """
 
 import os.path
-from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory
+from flask import (
+        Flask, request, redirect, url_for,
+        render_template, flash, send_from_directory,
+        jsonify
+)
 
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
@@ -83,7 +87,8 @@ def show_info(book_id, book=None):
     return render_template(
         'show_info.html',
         book=book,
-        collections=collections)
+        collections=collections,
+        lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")])
 
 
 @app.route('/import', methods=["GET", "POST"])
@@ -135,22 +140,15 @@ def jump_to_book_by_url():
 
 @app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=["GET"])
 def update_book_ext_info(book_id, ext_info_id):
-    # all sites use some kind of id -> stop using long url for tsumino and build url with
-    # id_onpage instead
-    url = f"http://www.tsumino.com/Book/Info/{book_id_onpage}"
-    id_internal, field_change_str = update_book(
-        db_con, url, None, write_infotxt=False)
+
     if field_change_str:
         flash(
             "WARNING - Please re-download this Book, since the change of following fields "
             "suggest that someone has uploaded a new version:", "warning"
         )
         flash(field_change_str, "info")
-    if id_internal is None:
-        flash("WARNING - Connection problem or book wasnt found on page!!!", "warning")
 
-    return redirect(
-        url_for('show_info', book_id=book_id_onpage))
+    return show_info(book=book)
 
 
 INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
@@ -160,8 +158,8 @@ INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
                         ("artist", "Artist"), ("parody", "Parody"),
                         ("character", "Character"), ("tag", "Tag"),
                         ("url", "URL"))
-@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/write_info')
-def write_info_txt_by_id(book_id):
+@app.route('/book/<int:book_id>/write_info')
+def write_info_txt_by_id(book_id, ext_info_id):
     cur = db_con.execute('select * from Books WHERE id = ?',
                          (book_id, ))
     book_info = cur.fetchone()
@@ -209,6 +207,38 @@ def search_books():
         search_field=searchstr,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
+
+
+# function that accepts ajax request so we can add lists on show_info
+# without reloading the page or going to edit
+# WARNING vulnerable to cross-site requests
+# TODO add token
+@app.route("/book/<int:book_id>/list/<action>", methods=["POST"])
+def list_action_ajax(book_id, action):
+    list_name = request.form.get("name", None)
+    if list_name is None:
+        return jsonify({"error": "Missing list name from data!"})
+
+    if action == "add":
+        # was getting Bad Request 400 due to testing print line below:
+        # ...the issue is that Flask raises an HTTP error when it fails to find
+        # a key in the args and form dictionaries. What Flask assumes by
+        # default is that if you are asking for a particular key and it's not
+        # there then something got left out of the request and the entire
+        # request is invalid.
+        # print("test",request.form["adjak"],"test")
+        MangaDBEntry.add_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
+        # pass url back to script since we cant use url_for
+        return jsonify({"added": list_name,
+                        "search_tag_url": url_for('search_books',
+                                                  searchstring=f'tags:"{list_name}"')})
+    elif action == "remove":
+        MangaDBEntry.remove_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
+        # pass url back to script since we cant use url_for
+        return jsonify({"removed": list_name})
+    else:
+        flash(f"Supplied action '{action}' is not a valid list action!", "warning")
+        return redirect(url_for("show_info", book_id=book_id))
 
 
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
@@ -295,6 +325,8 @@ def edit_book(book_id):
     book.update_from_dict(update_dic)
     book.save()
 
+    # @Speed could also pass book to show_info directly, but by getting book from db
+    # again we can see if changes applied correctly?
     return redirect(url_for("show_info", book_id=book_id))
 
 

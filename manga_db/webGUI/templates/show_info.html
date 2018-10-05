@@ -125,10 +125,157 @@
 <div class="book-info">List</div>
 <div class="book-data" id="List">
 	{% for li in book.list %}
-		<a class="book-tag list-tag" href="{{ url_for('search_books', searchstring='list:\"' + li + '\"') }}">
+	<div class="book-tag list-tag list-tag-border">
+                <a data-value="{{ li }}" href="{{ url_for('search_books', searchstring='list:\"' + li + '\"') }}">
 			{{ li }}
-		</a>
+  		</a>
+		<a class="mdb-list-remove" data-value="{{ li }}" href="#">
+				<i class="fas fa-times" style="vertical-align: middle;"></i>
+			</a>
+	</div>
 	{% endfor %}
+	<div id="list-dropdown-container" style="display:inline-block;">
+	<a class="book-tag mdb-drop-btn list-tag-border" onclick="show_dropdown()">
+		<i class="fas fa-plus mdb-drop-btn" style="font-size: 10px;"></i>
+	</a>
+	<div id="list-dropdown" class="mdb-dropdown-content">
+		{% for li in lists %}
+			{% if li not in book.list %}
+			<a class="mdb-list-add" data-value="{{ li }}">{{ li }}</a>
+			{% endif %}
+		{% endfor %}
+	</div>
+	</div>
+	<script>
+		// dropdown script
+		/* When the user clicks on the button, 
+		toggle between hiding and showing the dropdown content */
+		function show_dropdown() {
+		    document.getElementById("list-dropdown").classList.toggle("mdb-show");
+		}
+
+		// Close the dropdown menu if the user clicks outside of it
+		window.onclick = function(event) {
+		  if (!event.target.matches('.mdb-drop-btn')) {
+
+		    var dropdowns = document.getElementsByClassName("mdb-dropdown-content");
+		    var i;
+		    for (i = 0; i < dropdowns.length; i++) {
+		      var openDropdown = dropdowns[i];
+		      if (openDropdown.classList.contains('mdb-show')) {
+			openDropdown.classList.remove('mdb-show');
+		      }
+		    }
+		  }
+		}
+	</script>
+	<script>
+		// list add/remove script
+		$(document).ready(function() {
+
+			// add click event for all elements with .mdb-list-add class
+			$('.mdb-list-add').click(function(event) {
+				$.ajax({
+					data : {
+						// get target of click event and retrieve data
+						// attribute -value
+						name : $(event.target).data('value')
+					},
+					type : 'POST',
+					url : "{{ url_for('list_action_ajax', book_id=book.id, action='add') }}",
+					// let jquery know that flask is returning json data
+					// (data in func below)
+					dataType: "json",
+				})
+				.done(function(data) { // when prev function is done
+
+					if (data.error) {
+						console.log(data.error);
+						//$('#errorAlert').text(data.error).show();
+						//$('#successAlert').hide();
+					}
+					else {
+						var html_string =[
+						'<div class="book-tag list-tag list-tag-border"><a data-value="',
+						data.added, '" href="',
+						data.search_tag_url,
+						'">', data.added,
+						'</a><a class="mdb-list-remove" data-value="',
+						data.added,
+						'" href="#"><i class="fas fa-times" style="vertical-align: middle;"></i></a></div>'].join("");
+						// add HTMLString to element with id List
+						$('#List').append(html_string);
+						// select all mdb-list-add options
+						$('#list-dropdown-container .mdb-dropdown-content .mdb-list-add')
+						// get the one that was added and remove it
+						.filter(function () {
+							return $(this).data("value") == data.added;
+						}).remove();
+
+						// get dropdown container and append it so the add
+						// button is at the end again
+						$('#List').append($('#list-dropdown-container'));
+					}
+
+				});
+
+				event.preventDefault();
+
+			});
+
+
+			// add click event for all elements with .mdb-list-add class
+			$('.mdb-list-remove').click(function(event) {
+				// e.target is what triggers the event dispatcher to trigger and
+				// e.currentTarget is what you assigned your listener to
+				// here:
+				// target: w.fn.init [i.fas.fa-times]
+				// currentTarget: w.fn.init [a.mdb-list-remove]
+				$.ajax({
+					data : {
+						// get target of click event and retrieve data
+						// attribute -value
+						name : $(event.currentTarget).data('value')
+					},
+					type : 'POST',
+					url : "{{ url_for('list_action_ajax', book_id=book.id, action='remove') }}",
+					// let jquery know that flask is returning json data
+					// (data in func below)
+					dataType: "json",
+				})
+				.done(function(data) { // when prev function is done
+
+					if (data.error) {
+						console.log(data.error);
+						//$('#errorAlert').text(data.error).show();
+						//$('#successAlert').hide();
+					}
+					else {
+						// go through all a tags in vv
+						$('#List > div.book-tag.list-tag.list-tag-border > a').each(function() {
+
+							// if data-value attrib matches removed
+							// remove its parent
+							if($(this).data('value') == data.removed) {
+								$(this.parentNode).remove();
+							}
+						
+						});
+
+						var add_option = '<a class="mdb-list-add" data-value="' + data.removed + '">' + data.removed + '</a>';
+						// add removed list back to dropdown
+						$('#list-dropdown-container .mdb-dropdown-content')
+						.append(add_option);
+					}
+
+				});
+
+				event.preventDefault();
+
+			});
+
+		});
+	</script>
 </div>
 </div>
 {% if book.note %}

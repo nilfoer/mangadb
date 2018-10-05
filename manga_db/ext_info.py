@@ -87,19 +87,6 @@ class ExternalInfo(DBRow):
                          VALUES (?, ?)""", (self.manga_db_entry.id, self.id))
         return self.id, None
 
-    def diff_normal_cols(self, row):
-        changed_str = []
-        changed_cols = []
-        for col in self.DB_COL_HELPER:
-            if col == "id":
-                assert self.id == row["id"]
-                continue
-            self_attr = getattr(self, col)
-            if row[col] != self_attr:
-                changed_str.append(f"Column '{col}' changed from '{row[col]}' to '{self_attr}'")
-                changed_cols.append(col)
-        return "\n".join(changed_str), changed_cols
-
     def _update_entry(self):
         db_con = self.manga_db.db_con
         # get previous value for downloaded and fav from db
