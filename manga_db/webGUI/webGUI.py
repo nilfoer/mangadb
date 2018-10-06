@@ -67,7 +67,7 @@ def create_list_dict(manga_db, book):
 
 
 @app.route('/book/<int:book_id>')
-def show_info(book_id, book=None):
+def show_info(book_id, book=None, **kwargs):
     # enable passing book obj over optional param while keeping url route option
     # with required param
     if book is None:
@@ -84,11 +84,14 @@ def show_info(book_id, book=None):
             books_in_collection = mdb.get_collection_info(collection)
             collections.append((collection, books_in_collection))
 
+    book_upd_changes = kwargs.get("book_upd_changes", None)
+
     return render_template(
         'show_info.html',
         book=book,
         collections=collections,
-        lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")])
+        lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")],
+        book_upd_changes=book_upd_changes)
 
 
 @app.route('/import', methods=["GET", "POST"])
@@ -115,7 +118,7 @@ def jump_to_book_by_url():
     # ids can get re-used by external sites so theyre not guaranteed to be unique
     # or even link to the correct extinfo/book
     books = list(mdb.get_books({"id_onpage": id_onpage, "imported_from": imported_from}))
-    
+
     if not books:
         # passing var to func works directly when using optional param
         # while stilling being able to use the rout argument
@@ -140,24 +143,73 @@ def jump_to_book_by_url():
 
 @app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=["GET"])
 def update_book_ext_info(book_id, ext_info_id):
-    # TODO flash book changes, button to apply changes automatically
     old_book = mdb.get_book(book_id)
+    # could also pass in url using post or get
     old_ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
     new_book, _ = mdb.retrieve_book_data(old_ext_info.url, [])
-    changes, change_str = old_book.diff(new_book)
+    changes, _ = old_book.diff(new_book)
+    # filter changes and convert to jinja friendlier format
+    changes = {key: changes[key] for key in changes if key not in {"id", "last_change",
+                                                                   "note", "title"}}
+    converted = {"normal": {col: changes[col] for col in changes
+                            if col in MangaDBEntry.DB_COL_HELPER},
+                 "added_removed": {col: changes[col] for col in changes
+                                   if col in MangaDBEntry.JOINED_COLUMNS}
+                 }
+    # convert to status/lang name instead of id
+    try:
+        status_id = converted["normal"]["status_id"]
+        converted["normal"]["status"] = STATUS_IDS[status_id]
+        del converted["normal"]["status_id"]
+    except KeyError:
+        pass
+    try:
+        language_id = converted["normal"]["language_id"]
+        converted["normal"]["language"] = mdb.language_map[language_id]
+        del converted["normal"]["language"]
+    except KeyError:
+        pass
+
     flash("Book was updated!", "title")
-    for change in change_str.splitlines():
-        flash(change, "info")
 
     ext_info = new_book.ext_infos[0]
     ext_info.id = ext_info_id
     _, ext_info_chstr = ext_info.save()
     if ext_info_chstr:
         flash("WARNING", "warning")
+        flash(f"Changes on external link {ext_info.site}:", "info")
         for change in ext_info_chstr.splitlines():
             flash(change, "info")
 
-    # TODO return render_template("...
+    # dont pass book so we get new book with updated ext_info from db
+    return show_info(book_id, book_upd_changes=converted)
+
+
+@app.route('/book/<int:book_id>/apply_update', methods=["POST"])
+def apply_upd_changes(book_id):
+    book = mdb.get_book(book_id)
+    update_dic = {}
+    assoc_changes = {}
+    for col, val in request.form.items():
+        if col == "status":
+            update_dic["status_id"] = STATUS_IDS[val]
+        elif col == "language":
+            update_dic["language_id"] = mdb.get_language(val)
+        elif col in MangaDBEntry.DB_COL_HELPER:
+            update_dic[col] = val
+        else:
+            add, remove = val.split(";;;")
+            # if we dont check for empty string we get set {''}
+            # and it will get added as tag
+            add = add.split(";") if add else []
+            remove = remove.split(";") if remove else []
+            assoc_changes[col] = (set(add), set(remove))
+
+    book.update_from_dict(update_dic)
+    book.update_changes_dict(assoc_changes)
+    book.save()
+
+    return show_info(book_id=book_id, book=book)
 
 
 INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),

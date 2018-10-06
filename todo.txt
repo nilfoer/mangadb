@@ -1,15 +1,18 @@
-- webGUI-update-book, search, cli, LinkCollector
+- search, cli, LinkCollector
+- triggers for last_change incomplete replace with manual way
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
 - handle 404 error when retrieving/extracting data
 - create indices for Tags.name, Category.name etc.?
-- update queries for new cols/indices
 - check newly added books for dl (on production db)
 - test triggers
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
 - split updating from user action vs. updating from import
+- tests
 
 --DONE-------------------------------------------------------------------------------------------------
+- update queries for new cols/indices (except search)
+- webGUI-update-book
 - logging in webGUI  
 - webGUI: mb add some ext info to normal display like rating on ext info when displaying thumbs or collection (if it has ext info)
 - export(but i think sqlite has export to csv integrated -> only exports the table as is not joined)

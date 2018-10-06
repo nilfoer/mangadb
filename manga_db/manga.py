@@ -50,8 +50,8 @@ class MangaDBEntry(DBRow):
         self.note = None
         self.favorite = None
         # assoc column: (set of adds, sets of removes)
-        self._changes = {col: (set(), set()) for col in self.JOINED_COLUMNS
-                         if col != "ext_infos"}
+        self._changes = None
+        self._reset_changes()
         # dynamically create functions that add/remove to joined cols
         # and log the changes
         self._init_assoc_column_methods()
@@ -63,8 +63,10 @@ class MangaDBEntry(DBRow):
 
         if self.last_change is None:
             self.last_change = self.set_last_change()
-        if self.favorite is None:
-            self.favorite = 0
+
+    def _reset_changes(self):
+        self._changes = {col: (set(), set()) for col in self.JOINED_COLUMNS
+                         if col != "ext_infos"}
 
     def _from_row(self, row):
         for key in self.DB_COL_HELPER:
@@ -77,6 +79,49 @@ class MangaDBEntry(DBRow):
         # key_a if x else key_b: value -> if else on line only one value (or tuple, list etc)
         self.__dict__.update({f"_{col}" if col in self.JOINED_COLUMNS else col: val
                               for col, val in filtered.items()})
+
+    def update_changes_dict(self, dic):
+        """dic has to be of form: col-name: (set(added,..), set(removed,..)), ...
+            not checking for empty string or None in set -> callers responsibility"""
+        for col in self.JOINED_COLUMNS:
+            try:
+                added1, removed1 = dic[col]
+            except KeyError:
+                continue
+            else:
+                # build new complete list and set it
+                complete = getattr(self, f"_{col}")
+                if complete is None:
+                    setattr(self, f"_{col}", list(added1))
+                else:
+                    # comp=[1,2,3,11,12]
+                    # new comp=[2, 3, 11, 12, 5, 6, 7]
+                    complete = [x for x in complete if x not in removed1]
+                    # doesnt work on same line with ].extend( since it doesnt
+                    # return the object but instead just modifies it in place
+                    complete.extend(added1)
+                    setattr(self, f"_{col}", complete)
+
+                # update add/remove operations necessary to reach current state of complete list
+                added0, removed0 = self._changes[col]
+                # added0 1 2 3
+                # removed0 7 8
+                # added1 7 5 6
+                # removed1 1 7 9 4
+                # added == 2 3 5 6
+                # removed == 8 4 9
+                added = added0 - removed1 | added1 - removed0
+                removed = removed0 - added1 | removed1 - added0
+                self._changes[col] = (added, removed)
+
+    def _apply_changes(self):
+        for col, added_removed in self._changes.items():
+            added, removed = added_removed
+            if added:
+                self._add_associated_column_values(col, tuple(added))
+            if removed:
+                self._remove_associated_column_values(col, tuple(removed))
+        self._reset_changes()
 
     def set_last_change(self):
         self.last_change = datetime.date.today()
@@ -137,9 +182,15 @@ class MangaDBEntry(DBRow):
     def gen_add_assoc_col_f(cls, col):
         # generate function that adds to col and logs the changes
         def add_to_assoc_col(self, value):
+            # dont add empty/null values
+            if value == "" or value is None:
+                return getattr(self, col)
             # always log change even if we dont add it to the list later (since val might not
             # be in db etc.)
             self._changes[col][0].add(value)
+            # make sure its not in the removed set
+            self._changes[col][1].discard(value)
+
             col_li = getattr(self, f"_{col}")
             if col_li is None:
                 # col_li =.. doesnt work since its just None and not a mutable type
@@ -157,7 +208,13 @@ class MangaDBEntry(DBRow):
     def gen_remove_assoc_col_f(cls, col):
         # generate function that removes from col and logs the changes
         def remove_from_assoc_col(self, value):
+            # dont add (to set) empty/null values
+            if value == "" or value is None:
+                return getattr(self, col)
             self._changes[col][1].add(value)
+            # make sure its not in the add set
+            self._changes[col][0].discard(value)
+
             col_li = getattr(self, f"_{col}")
             # col_li is None doesnt matter for removing (since it might be present in db)
             # also removing sth thats not present in the list doesnt matter
@@ -304,8 +361,7 @@ class MangaDBEntry(DBRow):
     @language.setter
     def language(self, value):
         if isinstance(value, str):
-            self.manga_db.add_language(value)
-            self.language_id = self.manga_db.language_map[value]
+            self.language_id = self.manga_db.get_language(value)
         else:
             logger.warning("Type of language needs to be string!")
 
@@ -428,10 +484,6 @@ class MangaDBEntry(DBRow):
         logger.info("Updating Book with id '%d' with the following changes:\n%s", self.id,
                     changed_str)
 
-        # if fav==1 update that to db else use value from db since it might be 1 there
-        if not self.favorite:
-            self.favorite = row["favorite"]
-
         update_dic = self.export_for_db()
 
         with db_con:
@@ -441,12 +493,7 @@ class MangaDBEntry(DBRow):
                               WHERE id = :id""", update_dic)
 
             # update changes on JOINED_COLUMNS(except ext_infos)
-            for col, added_removed in self._changes.items():
-                added, removed = added_removed
-                if added:
-                    self._add_associated_column_values(col, tuple(added))
-                if removed:
-                    self._remove_associated_column_values(col, tuple(removed))
+            self._apply_changes()
 
         logger.info("Updated book with id %d in DB!", self.id)
         # c.lastrowid only works for INSERT/REPLACE

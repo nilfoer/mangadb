@@ -38,9 +38,6 @@ class ExternalInfo(DBRow):
 
         if self.last_update is None:
             self.last_update = datetime.date.today()
-        if self.downloaded is None:
-            # downloaded cant be None, assume its not downloaded if its None
-            self.downloaded = 0
 
     def __eq__(self, other):
         return all(self.id_onpage == other.id_onpage, self.imported_from == other.imported_from,
@@ -82,7 +79,12 @@ class ExternalInfo(DBRow):
                 raise ValueError("ExternalInfo can only be saved with an id and MangaDBEntry.id!")
             return self._add_entry()
         else:
-            return self._update_entry()
+            # pass boolean if we have correct information for downloaded
+            if self.downloaded is None:
+                downloaded_null = True
+            else:
+                downloaded_null = False
+            return self._update_entry(downloaded_null=downloaded_null)
 
     def _add_entry(self):
         db_dict = self.export_for_db()
@@ -99,13 +101,18 @@ class ExternalInfo(DBRow):
                          VALUES (?, ?)""", (self.manga_db_entry.id, self.id))
         return self.id, None
 
-    def _update_entry(self):
+    def _update_entry(self, downloaded_null=None):
         db_con = self.manga_db.db_con
         # get previous value for downloaded and fav from db
         c = db_con.execute(
             "SELECT * FROM ExternalInfo WHERE id = ?",
             (self.id, ))
         row = c.fetchone()
+
+        # if we dont have correct info on downloaded use value from db
+        if downloaded_null:
+            self.downloaded = row["downloaded"]
+
         field_change_str, changed_cols = self.diff_normal_cols(row)
 
         update_dic = self.export_for_db()
@@ -115,6 +122,7 @@ class ExternalInfo(DBRow):
         # => WARN to redownload book
         redl_on_field_change = ("censor_id", "uploader", "upload_date", "pages")
         if any((True for col in changed_cols if col in redl_on_field_change)):
+            print("WARNIGN CHANGE")
             # automatic joining of strings only works inside ()
             field_change_str = (f"Please re-download \"{self.url}\", since the "
                                 "change of the following fields suggest that someone has "

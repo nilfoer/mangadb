@@ -1,4 +1,39 @@
 {% extends "book.html" %}
+{% block book_changes %}
+{% if book_upd_changes %}
+<div class="row dark-color" style="margin-bottom:2em;">
+	<div class="col-md-5">
+		<span class="book-title" style="font-size:1.8em;">Differences from Book at external link:</span>
+		<form action="{{ url_for('apply_upd_changes', book_id=book.id) }}" method=post>
+		<ul class="flash-messages">
+		{% for col, change in book_upd_changes['normal'].items() %}
+			{% if change %}
+			{# dont need for=".." when input is inside label tag #}
+			<li><label><input name="{{ col }}" class="mdb-checkboxes" type="checkbox" value="{{ change }}">{{ col }}: {{ change }}</label></li>
+			{% endif %}
+		{% endfor %}
+		<li style="margin: 3px 0 5px 0;">Green - Added / Red - Removed</li>
+		{% for col, change in book_upd_changes['added_removed'].items() %}
+		<li><label><input name ="{{ col }}" class="mdb-checkboxes" type="checkbox" value="{{ change[0]|join(';') }};;;{{ change[1]|join(';') }}">{{ col }}: 
+				{% if change[0] %}
+					{% for added in change[0] %}
+					<a class="book-tag green-color">{{ added }}</a>
+					{% endfor %}
+				{% endif %}
+				{% if change[1] %}
+					{% for removed in change[1] %}
+					<a class="book-tag red-color">{{ removed }}</a>
+					{% endfor %}
+				{% endif %}
+			</label></li>
+		{% endfor %}
+		<li><button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-check"></i><span style="margin-left: 5px;">Apply changes</span></button></li>
+		</ul>
+	</form>
+	</div>
+</div>
+{% endif %}
+{% endblock %}
 {% block book_info %}
 <div class="book-line">
 <div class="book-info">Title</div>

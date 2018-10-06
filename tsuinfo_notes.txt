@@ -378,3 +378,17 @@ ________________________________________________________________________________
 get rows with duplicate values:
 SELECT title_foreign, COUNT(*) c FROM Tsumino GROUP BY title_foreign HAVING c > 1;
 __________________________________________________________________________________________________________
+
+SQLAlchemy also loads all columns and relationships (e.g. associated columns(many-to-many), one
+to many etc.) by default when an object/row is loaded
+But theres several different ways to increase performance by not doing that:
+- lazy kwarg/function when creating the relationship with options to only load the
+  relationships once theyre accessed
+- deferred columns which defer loading normal columns
+
+-> use same approach for my DBRow classes
+
+but furthermore SQLAlchemy doesnt use the classes __init__ so you can do
+anything with a Model class that you could do with a regular class
+whereas my classes use the __init__ to load/represent the cols of the row
+__________________________________________________________________________________________________________

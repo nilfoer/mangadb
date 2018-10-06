@@ -13,8 +13,6 @@
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
 <script src="{{ url_for('static', filename='lazyload.js') }}"></script>
 {# <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script> #}
-{% block static_additional %}{% endblock %}
-
 <div class=page>
 	<h1><a href="/" id="title-anchor">MangaDB</a></h1>
 	{% with messages = get_flashed_messages(with_categories=true) %}
@@ -28,7 +26,7 @@
 		    </div>
 		{% endif %}
 	{% endwith %}
-  {% block body %}{% endblock %}
+{% block body %}{% endblock %}
 </div>
 
 <div class="jump-book-container">

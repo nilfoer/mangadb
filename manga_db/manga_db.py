@@ -69,8 +69,9 @@ class MangaDB:
         return result
 
     # used in extractor to get language id if language isnt in db itll be added
-    def add_language(self, language):
-        if language not in self.language_map:
+    def get_language(self, language):
+        # add language if its not a language_id
+        if language not in self.language_map and type(language) == str:
             with self.db_con:
                 c = self.db_con.execute("INSERT OR IGNORE INTO Languages (name) VALUES (?)",
                                         (language,))
@@ -79,7 +80,10 @@ class MangaDB:
                 self.language_map[c.lastrowid] = language
             return c.lastrowid
         else:
-            return self.language_map[language]
+            try:
+                return self.language_map[language]
+            except KeyError:
+                logger.warning("Invalid language_id: %d", language)
 
     def fetch_list_names(self):
         c = self.db_con.execute("SELECT name FROM List")

@@ -28,6 +28,17 @@ h3              { color: #22a7f0; }
 	text-decoration: none!important;
 	color: #fff!important;
 }
+input[type="checkbox"].mdb-checkboxes {
+	/* input[type=checkbox], input[type=radio] { */
+	vertical-align: middle;
+	position: relative;
+	bottom: 1px;
+	margin: 0 3px 0 0;
+}
+ul.flash-messages li label {
+	font-weight: normal;
+	margin-bottom: 0px;
+}
 .mdb-list-remove {
     display: inline-block;
     position: absolute;
@@ -526,7 +537,7 @@ bottom: 0; }
 .metanav        { text-align: right; font-size: 0.8em; padding: 0.3em;
                   margin-bottom: 1em; background: #1a1a1a; }
 .flash          { background: #22a7f0; padding: 0.5em;
-                  margin: 5px 0 1em  auto; 
+                  margin: 0.5em 0 2em  auto; 
                   color: #fff !important;
                   font-family: 'Open Sans',sans-serif;
                   font-size: 14px; }

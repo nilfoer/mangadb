@@ -2,12 +2,13 @@ import re
 
 
 def diff_update(old, new):
+    # returns None, None if there are no changes
     # @Cleanup this might lead to weird behaviour e.g. if added gets removed or updated
     # but it was the reference to new
     if old is None:
-        return new, None
+        return new if new else None, None
     elif new is None:
-        return None, old
+        return None, old if old else None
     elif old is None and new is None:
         return None, None
     old = set(old)
