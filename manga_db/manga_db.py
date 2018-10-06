@@ -147,9 +147,10 @@ class MangaDB:
 
         return bid, book
 
-    def get_x_books(self, x, offset=None):
-        c = self.db_con.execute(f"SELECT * FROM Books LIMIT {x} "
-                                f"{f'OFFSET {offset}' if offset is not None else ''}")
+    def get_x_books(self, x, offset=0, order_by="Books.id DESC"):
+        # order by has to come b4 limit/offset
+        c = self.db_con.execute(f"SELECT * FROM Books ORDER BY {order_by} LIMIT {x} "
+                                f"OFFSET {offset}")
         rows = c.fetchall()
         if rows:
             return [MangaDBEntry(self, row) for row in rows]
@@ -172,7 +173,7 @@ class MangaDB:
                          identifiers_types)
             return False
 
-    def get_books(self, identifiers_types):
+    def get_books(self, identifiers_types, order_by="Books.id DESC"):
         if not self._validate_indentifiers_types(identifiers_types):
             return
 
@@ -194,7 +195,8 @@ class MangaDB:
                     WHERE ei.id_onpage = :id_onpage
                     AND ei.imported_from = :imported_from
                     AND ei.id = eib.ext_info_id
-                    AND Books.id = eib.book_id""", identifiers_types)
+                    AND Books.id = eib.book_id
+                    ORDER BY {order_by}""", identifiers_types)
         rows = cur.fetchall()
         if not rows:
             return

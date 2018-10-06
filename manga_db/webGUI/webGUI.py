@@ -357,6 +357,15 @@ def edit_book(book_id):
     book = mdb.get_book(book_id)
 
     update_dic = {}
+    # fine here since i just get the col names in DB_COL_HELPER and JOINED_COLUMNS
+    # but have to be careful not to just e.g. iterate over the request.form dict or
+    # whatever and execute sql queries with col names substituted in f-string and not
+    # through db api params (? and :kwarg), someone could change the name field on
+    # an input tag to DELETE FROM Books and all entries could get deleted
+    # example: col, tag: ('SELECT * FROM Books', 'French Kissing') -> would in my case
+    # even if it got inserted still just produce an error
+    # esp combination with executescript is dangerous since you can use ; to start
+    # another statement ...;DROP Table
     for col in MangaDBEntry.DB_COL_HELPER:
         val = request.form.get(col, None)
         if col in ("pages", "status_id", "language_id"):

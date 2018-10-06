@@ -66,6 +66,9 @@ def print_sqlite3_row(row, sep=";"):
 
 
 def joined_col_name_to_query_names(col_name):
+    # TODO mb to MangaDBEntry cls and validate col name
+    # have to be careful not to use user input e.g. col_name in SQL query
+    # without passing them as params to execute etc.
     table_name = col_name.capitalize()
     bridge_col_name = f"{col_name}_id"
     if bridge_col_name == "groups_id":

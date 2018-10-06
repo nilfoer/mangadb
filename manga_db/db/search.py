@@ -2,109 +2,95 @@ import re
 import logging
 import sqlite3
 
+from .util import joined_col_name_to_query_names
+
 logger = logging.getLogger(__name__)
 
 
-def search_tags_intersection(db_con,
-                             tags,
-                             order_by="Books.id DESC",
-                             keep_row_fac=False):
-    """Searches for entries containing all tags in tags and returns the rows as
+def search_assoc_col_intersection(db_con,
+                             col,
+                             values,
+                             order_by="Books.id DESC"):
+    """Searches for entries containing all values in col and returns the rows as
     a list of sqlite3.Row objects
     :param db_con: Open connection to database
     :param tags: List of tags as strings
     :return List of sqlite3.Row objects"""
-
-    # would also be possible to use c.description but as i want to populate a dictionary
-    # anyways Row is a better fit
-    # Row provides both index-based and case-insensitive name-based access to columns with
-    # almost no memory overhead
-    db_con.row_factory = sqlite3.Row
-    # we need to create new cursor after changing row_factory
-    c = db_con.cursor()
-
-    # even though Row class can be accessed both by index (like tuples) and
-    # case-insensitively by name
-    # reset row_factory to default so we get normal tuples when fetching (should we
-    # generate a new cursor)
-    # new_c will always fetch Row obj and cursor will fetch tuples
-    # -> this was generating problems when called from webGUI that always expected Rows
-    # since we set it there in the module, but calling the search_tags_.. functions always
-    # reset it back to tuples
-    if not keep_row_fac:
-        db_con.row_factory = None
+    # could add default param and change having count len(values) to 1 if i want a union/or
+    # instead of intersection/and
+    table_name, bridge_col_name = joined_col_name_to_query_names(col)
 
     # dynamically insert correct nr (as many ? as elements in tags) of ? in SQLite
     # query using join on ", " and ["?"] * amount
     # then unpack list with arguments using *tags
 
-    # SQLite Query -> select alls columns in Books
+    # for tag: SQLite Query -> select alls columns in Books
     # tagids must match AND name of the tag(singular) must be in tags list
     # bookids must match
     # results are GROUPed BY Books.id and only entries are returned that occur
     # ? (=nr of tags in tags) times --> matching all tags
-    c.execute(f"""SELECT Books.*
-                  FROM BookTags bt, Books, Tags
-                  WHERE bt.tag_id = Tags.tag_id
-                  AND (Tags.name IN ({', '.join(['?']*len(tags))}))
-                  AND Books.id = bt.book_id
+
+    c = db_con.execute(f"""
+                  SELECT Books.*
+                  FROM Book{table_name} bx, Books, {table_name}
+                  WHERE bx.{bridge_col_name} = {table_name}.id
+                  AND ({table_name}.name IN ({', '.join(['?']*len(values))}))
+                  AND Books.id = bx.book_id
                   GROUP BY Books.id
                   HAVING COUNT( Books.id ) = ?
-                  ORDER BY {order_by}""", (*tags, len(tags)))
+                  ORDER BY {order_by}""", (*values, len(values)))
 
     return c.fetchall()
 
 
-def search_tags_exclude(db_con,
-                        tags,
-                        order_by="Books.id DESC",
-                        keep_row_fac=False):
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
-    # select all tsumino.ids that contain these tags (OR, would be AND with HAVING COUNT)
+def search_assoc_col_exclude(db_con,
+                             col,
+                             values,
+                             order_by="Books.id DESC"):
+    table_name, bridge_col_name = joined_col_name_to_query_names(col)
+    # select all Books.ids that contain these tags (OR, would be AND with HAVING COUNT)
     # -> select all rows whose ids are not in the sub-query
-    c.execute(f"""SELECT Books.*
+    # == values are ORed, AND would be GROUP BY Books.id
+    # AND HAVING COUNT ( Books.id ) = len(values) in subquery
+    c = db_con.execute(f"""
+                  SELECT Books.*
                   FROM Books
                   WHERE Books.id NOT IN (
                           SELECT Books.id
-                          FROM BookTags bt, Books, Tags
-                          WHERE Books.id = bt.book_id
-                          AND bt.tag_id = Tags.tag_id
-                          AND Tags.name IN ({', '.join(['?']*len(tags))})
+                          FROM Book{table_name} bx, Books, {table_name}
+                          WHERE Books.id = bx.book_id
+                          AND bx.{bridge_col_name} = {table_name}.id
+                          AND {table_name}.name IN ({', '.join(['?']*len(values))})
                 )
-                ORDER BY {order_by}""", (*tags, ))
-    # ^^ use *tags, -> , to ensure its a tuple when only one tag supplied
+                ORDER BY {order_by}""", (*values, ))
+    # ^^ use *values, -> , to ensure its a tuple when only one val supplied
 
     return c.fetchall()
 
 
-def search_tags_intersection_exclude(db_con,
-                                     tags_and,
-                                     tags_ex,
-                                     order_by="Books.id DESC",
-                                     keep_row_fac=False):
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
-
-    c.execute(f"""SELECT Books.*
-                  FROM BookTags bt, Books, Tags
-                  WHERE bt.tag_id = Tags.tag_id
-                  AND (Tags.name IN ({', '.join(['?']*len(tags_and))}))
-                  AND Books.id = bt.book_id
+def search_assoc_col_intersection_exclude(db_con,
+                                          col,
+                                          values_and,
+                                          values_ex,
+                                          order_by="Books.id DESC",
+                                          keep_row_fac=False):
+    table_name, bridge_col_name = joined_col_name_to_query_names(col)
+    c = db_con.execute(f"""
+                  SELECT Books.*
+                  FROM Book{table_name} bx, Books, {table_name}
+                  WHERE bx.tag_id = {table_name}.id
+                  AND ({table_name}.name IN ({', '.join(['?']*len(values_and))}))
+                  AND Books.id = bx.book_id
                   AND Books.id NOT IN (
                     SELECT Books.id
-                    FROM BookTags bt, Books, Tags
-                    WHERE Books.id = bt.book_id
-                    AND bt.tag_id = Tags.tag_id
-                    AND Tags.name IN ({', '.join(['?']*len(tags_ex))})
+                    FROM Book{table_name} bx, Books, {table_name}
+                    WHERE Books.id = bx.book_id
+                    AND bx.tag_id = {table_name}.id
+                    AND {table_name}.name IN ({', '.join(['?']*len(values_ex))})
                   )
                   GROUP BY Books.id
                   HAVING COUNT( Books.id ) = ?
-                  ORDER BY {order_by}""", (*tags_and, *tags_ex, len(tags_and)))
+                  ORDER BY {order_by}""", (*values_and, *values_ex, len(values_and)))
 
     return c.fetchall()
 
@@ -200,21 +186,8 @@ def search_sytnax_parser(db_con,
         return get_all_books(db_con, order_by=order_by, **search_options)
 
 
-def get_all_books(db_con, order_by="Books.id DESC", keep_row_fac=False):
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
-
-    c.execute(f"""SELECT * FROM Books
-                  ORDER BY {order_by}""")
-
-    return c.fetchall()
-
-
 def search_book(db_con,
                 order_by="Books.id DESC",
-                keep_row_fac=False,
                 **search_options):
     """Assumes AND condition for search_types, OR etc. not supported (and also not planned!)"""
     result_row_lists = []
