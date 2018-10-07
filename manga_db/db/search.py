@@ -2,15 +2,15 @@ import re
 import logging
 import sqlite3
 
-from .util import joined_col_name_to_query_names
+from .util import joined_col_name_to_query_names, prod
 
 logger = logging.getLogger(__name__)
 
 
 def search_assoc_col_intersection(db_con,
-                             col,
-                             values,
-                             order_by="Books.id DESC"):
+                                  col,
+                                  values,
+                                  order_by="Books.id DESC"):
     """Searches for entries containing all values in col and returns the rows as
     a list of sqlite3.Row objects
     :param db_con: Open connection to database
@@ -43,6 +43,41 @@ def search_assoc_col_intersection(db_con,
     return c.fetchall()
 
 
+def search_mult_assoc_col_intersect(db_con, col_values_dict, order_by="Books.id DESC"):
+    # nr of items in values multiplied is nr of rows returned needed to match
+    # all conditions
+    mul_values = prod((len(vals) for vals in col_values_dict.values()))
+
+    # containing table names for FROM .. stmt
+    table_bridge_names = []
+    # conditionals
+    cond_statements = []
+    # vals in order the stmts where inserted for sql param sub
+    vals_in_order = []
+    # build conditionals for select string
+    for col, vals in col_values_dict.items():
+        table_name, bridge_col_name = joined_col_name_to_query_names(col)
+        table_bridge_names.append(table_name)
+        table_bridge_names.append(f"Book{table_name}")
+
+        cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} "
+                               f"Books.id = Book{table_name}.book_id")
+        cond_statements.append(f"AND {table_name}.id = Book{table_name}.{bridge_col_name}")
+        cond_statements.append(f"AND {table_name}.name IN ({','.join(['?']*len(vals))})")
+        vals_in_order.extend(vals)
+
+    table_bridge_names = ", ".join(table_bridge_names)
+    cond_statements = "\n".join(cond_statements)
+
+    c = db_con.execute(f"""
+            SELECT Books.*
+            FROM Books, {table_bridge_names}
+            {cond_statements}
+            GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}
+            ORDER BY {order_by}""", (*vals_in_order,))
+    return c.fetchall()
+
+
 def search_assoc_col_exclude(db_con,
                              col,
                              values,
@@ -72,8 +107,7 @@ def search_assoc_col_intersection_exclude(db_con,
                                           col,
                                           values_and,
                                           values_ex,
-                                          order_by="Books.id DESC",
-                                          keep_row_fac=False):
+                                          order_by="Books.id DESC"):
     table_name, bridge_col_name = joined_col_name_to_query_names(col)
     c = db_con.execute(f"""
                   SELECT Books.*
@@ -95,45 +129,48 @@ def search_assoc_col_intersection_exclude(db_con,
     return c.fetchall()
 
 
-def search_tags_string_parse(db_con,
-                             tagstring,
-                             order_by="Books.id DESC",
-                             keep_row_fac=False):
-    if "!" in tagstring:
-        excl_nr = tagstring.count("!")
-        # nr of commas + 1 == nr of tags
-        tags_nr = tagstring.count(",") + 1
-        if tags_nr == excl_nr:
-            tags = [tag[1:] for tag in tagstring.split(",")]
-            # only excluded tags in tagstring
-            return search_tags_exclude(
-                db_con, tags, order_by=order_by, keep_row_fac=keep_row_fac)
+def search_assoc_col_string_parse(db_con,
+                                  col,
+                                  valuestring,
+                                  delimiter=";",
+                                  order_by="Books.id DESC"):
+
+    if "!" in valuestring:
+        excl_nr = valuestring.count("!")
+        # nr of delimiters + 1 == nr of tags
+        values_nr = valuestring.count(delimiter) + 1
+        if values_nr == excl_nr:
+            values = [val[1:] for val in valuestring.split(delimiter)]
+            # only excluded tags in valuestring
+            return search_assoc_col_exclude(
+                        db_con, col, values, order_by=order_by)
         else:
             # is list comprehension faster even though we have to iterate over the list twice?
-            tags_and = []
-            tags_ex = []
-            # sort tags for search_tags_intersection_exclude func
-            for tag in tagstring.split(","):
-                if tag[0] == "!":
+            vals_and = []
+            vals_ex = []
+            # sort vals for search_tags_intersection_exclude func
+            for val in valuestring.split(delimiter):
+                if val[0] == "!":
                     # remove ! then append
-                    tags_ex.append(tag[1:])
+                    vals_ex.append(val[1:])
                 else:
-                    tags_and.append(tag)
+                    vals_and.append(val)
 
-            return search_tags_intersection_exclude(
-                db_con,
-                tags_and,
-                tags_ex,
-                order_by=order_by,
-                keep_row_fac=keep_row_fac)
+            return search_assoc_col_intersection_exclude(
+                        db_con,
+                        col,
+                        vals_and,
+                        vals_ex,
+                        order_by=order_by)
     else:
-        tags = tagstring.split(",")
-        return search_tags_intersection(
-            db_con, tags, order_by=order_by, keep_row_fac=keep_row_fac)
+        vals = valuestring.split(delimiter)
+        return search_assoc_col_intersection(
+            db_con, col, vals, order_by=order_by)
 
 
-VALID_SEARCH_TYPES = ("tags", "title", "artist", "collection", "groups",
-                      "character")
+VALID_SEARCH_TYPES = {"title", "language", "status" "favorite",
+                      "category", "artist", "parody", "character", "collection", "groups",
+                      "tag", "list"}
 # part of lexical analysis
 # This expression states that a "word" is either (1) non-quote, non-whitespace text
 # surrounded by whitespace, or (2) non-quote text surrounded by quotes (followed by some
@@ -141,7 +178,7 @@ VALID_SEARCH_TYPES = ("tags", "title", "artist", "collection", "groups",
 WORD_RE = re.compile(r'([^"^\s]+)\s*|"([^"]+)"\s*')
 
 
-def search_sytnax_parser(db_con,
+def search_sytnax_parser(manga_db,
                          search_str,
                          order_by="Books.id DESC",
                          **kwargs):
@@ -181,12 +218,12 @@ def search_sytnax_parser(db_con,
         order_by = "Books.id DESC"
 
     if search_str:
-        return search_book(db_con, order_by=order_by, **search_options)
+        return search_book(manga_db, order_by=order_by, **search_options)
     else:
-        return get_all_books(db_con, order_by=order_by, **search_options)
+        return manga_db.get_x_books(order_by=order_by, **search_options)
 
 
-def search_book(db_con,
+def search_book(manga_db,
                 order_by="Books.id DESC",
                 **search_options):
     """Assumes AND condition for search_types, OR etc. not supported (and also not planned!)"""

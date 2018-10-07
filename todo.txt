@@ -1,4 +1,5 @@
 - search, cli, LinkCollector (mb use cmd framework)
+- safeguard against external link now linking to a different manga when updating!
 - triggers for last_change incomplete replace with manual way
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
 - handle 404 error when retrieving/extracting data

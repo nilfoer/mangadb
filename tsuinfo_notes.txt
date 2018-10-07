@@ -392,3 +392,97 @@ but furthermore SQLAlchemy doesnt use the classes __init__ so you can do
 anything with a Model class that you could do with a regular class
 whereas my classes use the __init__ to load/represent the cols of the row
 __________________________________________________________________________________________________________
+
+# search assoc col with pattern OR
+SELECT Books.*
+FROM BookTag bx, Books, Tag
+WHERE bx.tag_id = Tag.id
+AND Tag.id IN (
+	SELECT Tag.id FROM Tag
+	WHERE Tag.name LIKE '%arge%'
+	OR Tag.name LIKE '%ale%'
+)
+AND Books.id = bx.book_id
+GROUP BY Books.id
+# for AND add
+HAVING COUNT (Books.id) = NR_OF_PATTERNS
+# LIKE pattern is slower than .name IN (...)
+
+# search for mutliple cols with AND (without having count would be OR
+SELECT Books.*
+FROM BookTag bx, Books, Tag, BookList, List
+WHERE bx.tag_id = Tag.id
+AND Tag.name IN ('Large Breasts', 'Nakadashi')
+AND Books.id = bx.book_id
+AND BookList.list_id = List.id
+AND List.name in ('to-read', 'downloaded')
+AND BookList.book_id = Books.id
+GROUP BY Books.id
+HAVING COUNT (Books.id) = 4/NR OF TAGS IN BOTH (..) SUMMED TOGETHER
+
+# tags with join
+SELECT Books.*, t1.name
+FROM Books
+LEFT JOIN BookTag as tt on tt.book_id = Books.id
+LEFT JOIN Tag as t1 ON tt.tag_id = t1.id
+WHERE t1.name in ('Large Breasts', 'Nakadashi')
+GROUP BY Books.id
+# for and 
+HAVING COUNT (BOOKS.ID) = 2/NR OF TAGS IN (..)
+
+##############
+SELECT Books.*
+FROM BookTag bx, Books, Tag
+WHERE bx.tag_id = Tag.id
+AND Tag.name IN ('Large Breasts', 'Nakadashi')
+AND Books.id = bx.book_id
+GROUP BY Books.id
+HAVING COUNT (Books.id) = 2
+-> ~20ms on ~2700rows returning 1007
+
+SELECT Books.*
+FROM Books
+LEFT JOIN BookTag as tt on tt.book_id = Books.id
+LEFT JOIN Tag as t1 ON tt.tag_id = t1.id
+WHERE t1.name in ('Large Breasts', 'Nakadashi')
+GROUP BY Books.id
+HAVING COUNT (BOOKS.ID) = 2
+-> ~40ms on ~2700rows returning 1007
+
+
+# multiple cols with join
+SELECT Books.*, Tag.name, Category.name, List.name
+FROM Books
+LEFT JOIN BookTag bt ON Books.id = bt.book_id
+LEFT JOIN Tag ON Tag.id = bt.tag_id
+LEFT JOIN BookCategory bc ON Books.id = bc.book_id
+LEFT JOIN Category ON Category.id = bc.category_id
+LEFT JOIN BookList bl ON Books.id = bl.book_id
+LEFT JOIN List ON List.id = bl.list_id
+WHERE Tag.name in ('Large Breasts', 'Elf')
+AND Category.name in ('Manga')
+AND List.name in ('to-read', 'downloaded')
+-> ~40ms on ~2700rows returning 1257
+GROUP BY Books.id
+HAVING COUNT(Books.id) = 4/ NR OF ELEMENTS IN (..)s MUTLTIPLIED 2x1x2=4...
+-> ~40ms on ~2700rows returning 13
+
+# 3 cols with normal select
+SELECT Books.*, Tag.name, List.name
+FROM BookTag bx, Books, Tag, BookList, List, BookCategory, Category
+WHERE bx.tag_id = Tag.id
+AND Tag.name IN ('Large Breasts', 'Elf')
+AND Books.id = bx.book_id
+AND BookList.list_id = List.id
+AND List.name in ('to-read', 'downloaded')
+AND BookList.book_id = Books.id
+AND Category.name in ('Manga')
+AND BookCategory.category_id = Category.id
+AND BookCategory.book_id = Books.id
+-> ~140ms on ~2700rows returning 1257
+GROUP BY Books.id
+HAVING COUNT(Books.id) = 4
+-> ~15ms on ~2700rows returning 13
+==> join faster on big datasets, select faster when returning low nr of rows
+############
+__________________________________________________________________________________________________________

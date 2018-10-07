@@ -1,4 +1,8 @@
+from functools import reduce
+import operator
+
 UNESCAPED, ESCAPED = 0, 1
+
 
 def escape_string(string, escape_char="\\", to_escape=(",")):
     if not string:
@@ -74,3 +78,7 @@ def joined_col_name_to_query_names(col_name):
     if bridge_col_name == "groups_id":
         bridge_col_name = "group_id"
     return table_name, bridge_col_name
+
+
+def prod(iterable):
+    return reduce(operator.mul, iterable, 1)
