@@ -142,22 +142,27 @@ def search_assoc_col_intersection_exclude(db_con,
                                           values_ex,
                                           order_by="Books.id DESC"):
     table_name, bridge_col_name = joined_col_name_to_query_names(col)
-    c = db_con.execute(f"""
-                  SELECT Books.*
-                  FROM Book{table_name} bx, Books, {table_name}
-                  WHERE bx.tag_id = {table_name}.id
-                  AND ({table_name}.name IN ({', '.join(['?']*len(values_and))}))
-                  AND Books.id = bx.book_id
+    and_cond = f"AND ({table_name}.name IN ({', '.join(['?']*len(values_and))}))"
+    and_count = f"HAVING COUNT( Books.id ) = {len(values_and)}"
+    ex_cond = f"""
                   AND Books.id NOT IN (
                     SELECT Books.id
                     FROM Book{table_name} bx, Books, {table_name}
                     WHERE Books.id = bx.book_id
                     AND bx.tag_id = {table_name}.id
                     AND {table_name}.name IN ({', '.join(['?']*len(values_ex))})
-                  )
+                  )"""
+
+    c = db_con.execute(f"""
+                  SELECT Books.*
+                  FROM Book{table_name} bx, Books, {table_name}
+                  WHERE bx.tag_id = {table_name}.id
+                  {and_cond if values_and else ''}
+                  AND Books.id = bx.book_id
+                  {ex_cond if values_ex else ''}
                   GROUP BY Books.id
-                  HAVING COUNT( Books.id ) = ?
-                  ORDER BY {order_by}""", (*values_and, *values_ex, len(values_and)))
+                  {and_count if values_and else ''}
+                  ORDER BY {order_by}""", (*values_and, *values_ex, ))
 
     return c.fetchall()
 
@@ -214,38 +219,23 @@ def search_assoc_col_string_parse(db_con,
                                   valuestring,
                                   delimiter=";",
                                   order_by="Books.id DESC"):
-
-    if "!" in valuestring:
-        excl_nr = valuestring.count("!")
-        # nr of delimiters + 1 == nr of tags
-        values_nr = valuestring.count(delimiter) + 1
-        if values_nr == excl_nr:
-            values = [val[1:] for val in valuestring.split(delimiter)]
-            # only excluded tags in valuestring
-            return search_assoc_col_exclude(
-                        db_con, col, values, order_by=order_by)
+    # is list comprehension faster even though we have to iterate over the list twice?
+    vals_and = []
+    vals_ex = []
+    # sort vals for search_tags_intersection_exclude func
+    for val in valuestring.split(delimiter):
+        if val[0] == "!":
+            # remove ! then append
+            vals_ex.append(val[1:])
         else:
-            # is list comprehension faster even though we have to iterate over the list twice?
-            vals_and = []
-            vals_ex = []
-            # sort vals for search_tags_intersection_exclude func
-            for val in valuestring.split(delimiter):
-                if val[0] == "!":
-                    # remove ! then append
-                    vals_ex.append(val[1:])
-                else:
-                    vals_and.append(val)
+            vals_and.append(val)
 
-            return search_assoc_col_intersection_exclude(
-                        db_con,
-                        col,
-                        vals_and,
-                        vals_ex,
-                        order_by=order_by)
-    else:
-        vals = valuestring.split(delimiter)
-        return search_assoc_col_intersection(
-            db_con, col, vals, order_by=order_by)
+    return search_assoc_col_intersection_exclude(
+                db_con,
+                col,
+                vals_and,
+                vals_ex,
+                order_by=order_by)
 
 
 # part of lexical analysis
