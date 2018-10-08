@@ -15,11 +15,8 @@ from ..manga_db import MangaDB
 from ..manga import MangaDBEntry
 from ..ext_info import ExternalInfo
 from .. import extractor
-from ..db.search import search_sytnax_parser
-#from tsu_info_getter import write_inf_txt
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
-
 
 
 # config logging b4 this line vv
@@ -28,7 +25,7 @@ app = Flask(__name__)  # create the application instance :)
 # Load default config and override config from an environment variable
 app.config.update(
     dict(
-        #DATABASE=os.path.join(app.root_path, 'flaskr.db'),
+        # DATABASE=os.path.join(app.root_path, 'flaskr.db'),
         SECRET_KEY='development key',
         USERNAME='admin',
         PASSWORD='default'))

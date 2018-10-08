@@ -209,11 +209,7 @@ def search_mult_assoc_col_int_ex(db_con, int_col_values_dict, ex_col_values_dict
     return c.fetchall()
 
 
-def search_assoc_col_string_parse(db_con,
-                                  col,
-                                  valuestring,
-                                  delimiter=";",
-                                  order_by="Books.id DESC"):
+def search_assoc_col_string_parse(valuestring, delimiter=";"):
     # is list comprehension faster even though we have to iterate over the list twice?
     vals_and = []
     vals_ex = []
@@ -225,12 +221,7 @@ def search_assoc_col_string_parse(db_con,
         else:
             vals_and.append(val)
 
-    return search_assoc_col_intersection_exclude(
-                db_con,
-                col,
-                vals_and,
-                vals_ex,
-                order_by=order_by)
+    return vals_and, vals_ex
 
 
 def search_equals_cols_values(db_con,
@@ -303,4 +294,73 @@ def search_book_by_title(db_con,
                   WHERE title LIKE ?
                   ORDER BY {order_by}""", (f"%{title}%", ))
 
+    return c.fetchall()
+
+
+def search_normal_mult_assoc(db_con, normal_col_values,
+                             int_col_values_dict, ex_col_values_dict,
+                             order_by="Books.id DESC"):
+    """Can search in normal columns as well as multiple associated columns
+    (connected via bridge table) and both include and exclude them"""
+    # @Cleanup mb split into multiple funcs that just return the conditional string
+    # like: WHERE title LIKE ? and the value, from_table_names etc.?
+
+    # nr of items in values multiplied is nr of rows returned needed to match
+    # all conditions !! only include intersection vals
+    mul_values = prod((len(vals) for vals in int_col_values_dict.values()))
+
+    # containing table names for FROM .. stmt
+    table_bridge_names = []
+    # conditionals
+    cond_statements = []
+    # vals in order the stmts where inserted for sql param sub
+    vals_in_order = []
+    # build conditionals for select string
+    for col, vals in int_col_values_dict.items():
+        table_name, bridge_col_name = joined_col_name_to_query_names(col)
+        table_bridge_names.append(table_name)
+        table_bridge_names.append(f"Book{table_name}")
+
+        cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} "
+                               f"Books.id = Book{table_name}.book_id")
+        cond_statements.append(f"AND {table_name}.id = Book{table_name}.{bridge_col_name}")
+        cond_statements.append(f"AND {table_name}.name IN ({','.join(['?']*len(vals))})")
+        vals_in_order.extend(vals)
+    for col, vals in ex_col_values_dict.items():
+        table_name, bridge_col_name = joined_col_name_to_query_names(col)
+        cond_statements.append(f"""
+                 {'AND' if cond_statements else 'WHERE'} Books.id NOT IN (
+                          SELECT Books.id
+                          FROM Book{table_name} bx, Books, {table_name}
+                          WHERE Books.id = bx.book_id
+                          AND bx.{bridge_col_name} = {table_name}.id
+                          AND {table_name}.name IN ({', '.join(['?']*len(vals))})
+                )""")
+        vals_in_order.extend(vals)
+
+    # normal col conditions
+    for col, val in normal_col_values.items():
+        # use pattern match for title
+        if "title" in col:
+            cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} Books.{col} LIKE ?")
+            vals_in_order.append(f"%{val}%")
+        else:
+            cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} Books.{col} = ?")
+            vals_in_order.append(val)
+
+    table_bridge_names = ", ".join(table_bridge_names)
+    cond_statements = "\n".join(cond_statements)
+
+    print(f"""
+            SELECT Books.*
+            FROM Books, {table_bridge_names}
+            {cond_statements}
+            GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}
+            ORDER BY {order_by}""")
+    c = db_con.execute(f"""
+            SELECT Books.*
+            FROM Books, {table_bridge_names}
+            {cond_statements}
+            GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}
+            ORDER BY {order_by}""", (*vals_in_order,))
     return c.fetchall()
