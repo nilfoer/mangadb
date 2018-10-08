@@ -87,6 +87,8 @@ class ExternalInfo(DBRow):
             return self._update_entry(downloaded_null=downloaded_null)
 
     def _add_entry(self):
+        if self.downloaded is None:
+            self.downloaded = 0
         db_dict = self.export_for_db()
         cols = [col for col in self.DB_COL_HELPER if col != "id"]
 
@@ -141,6 +143,27 @@ class ExternalInfo(DBRow):
                               WHERE id = :id""", update_dic)
             logger.info("Updated ext_info with url \"%s\" in database!", self.url)
         return self.id, field_change_str
+
+    def __repr__(self):
+        selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()
+                                  if attr != "manga_db_entry"))
+        # dont use MangaDBEntry's repr otherwise the circular reference will spam the console
+        mdb_entry_info = f"id: '{self.manga_db_entry.id}', title: '{self.manga_db_entry.title}'"
+        return f"<ExternalInfo(manga_db_entry: 'MangaDBEntry({mdb_entry_info})', {selfdict_str})>"
+
+    def to_export_string(self):
+        # !! changes censor_id to sth human-readable (without lookin up the id that is)
+        lines = []
+        for col in self.DB_COL_HELPER:
+            val = getattr(self, col)
+            col_name = col
+            if col == "censor_id":
+                val = CENSOR_IDS[val]
+                col_name = "censorship"
+            elif col == "imported_from":
+                val = SUPPORTED_SITES[val]
+            lines.append(f"{col_name}: {val}")
+        return "\n".join(lines)
 
     @staticmethod
     def set_downloaded_id(db_con, ext_info_id, intbool):

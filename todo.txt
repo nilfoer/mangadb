@@ -1,4 +1,4 @@
-- cli, LinkCollector (mb use cmd framework)
+- LinkCollector (mb use cmd framework), resume from crash
 - safeguard against external link now linking to a different manga when updating!
 - triggers for last_change incomplete replace with manual way
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
@@ -8,7 +8,6 @@
 - test triggers
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
-- split updating from user action vs. updating from import
 - tests
 
 --DONE-------------------------------------------------------------------------------------------------

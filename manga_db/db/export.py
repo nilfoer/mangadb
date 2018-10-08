@@ -92,7 +92,6 @@ def export_csv_from_sql(filename, db_con):
         # cursor.description -> sequence of 7-item sequences each containing info describing
         # one result column
         col_names = [description[0] for description in c.description]
-        print(col_names)
         csvwriter.writerow(col_names)  # header
         # write the all the rows to the file
         csvwriter.writerows(rows)

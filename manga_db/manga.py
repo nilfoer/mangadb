@@ -22,7 +22,7 @@ class MangaDBEntry(DBRow):
                       'list', 'tag', 'ext_infos')
 
     # cols that cant be NULL (and arent set in __init__)
-    NOT_NULL_COLS = ("title", "language_id", "pages", "status_id")
+    NOT_NULL_COLS = ("title", "language_id", "pages", "status_id", "favorite")  # + last_change
 
     MANGA_TITLE_FORMAT = "{english} / {foreign}"
 
@@ -395,6 +395,8 @@ class MangaDBEntry(DBRow):
 
     def _add_entry(self):
         """Commits changes to db"""
+        if self.favorite is None:
+            self.favorite = 0
         db_dict = self.export_for_db()
         cols = [col for col in self.DB_COL_HELPER if col != "id"]
 
@@ -415,7 +417,7 @@ class MangaDBEntry(DBRow):
                 if value is not None:
                     self._add_associated_column_values(col, value)
 
-        logger.info("Added book with title \"%s\" to database!", self.title)
+        logger.info("Added book with title \"%s\"  as id '%d' to database!", self.title, self.id)
 
         return self.id, None
 
@@ -499,9 +501,43 @@ class MangaDBEntry(DBRow):
         # c.lastrowid only works for INSERT/REPLACE
         return self.id, changed_str
 
+    # repr -> unambiguos
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
-        return f"MangaDBEntry({selfdict_str})"
+        return f"<MangaDBEntry({selfdict_str})>"
+
+    # str -> readable
+    def __str__(self):
+        return self.__repr__()
+
+    def to_export_string(self):
+        lines = []
+        for col in self.DB_COL_HELPER:
+            val = getattr(self, col)
+            col_name = col
+            if col == "language_id":
+                val = self.manga_db.language_map[val]
+                col_name = "language"
+            elif col == "status_id":
+                val = STATUS_IDS[val]
+                col_name = "status"
+            lines.append(f"{col_name}: {val}")
+        for col in self.JOINED_COLUMNS:
+            if col == "ext_infos":
+                continue
+            attr = getattr(self, f"_{col}")
+            if attr is None:
+                val = ""
+            else:
+                val = ", ".join(attr)
+            lines.append(f"{col}: {val}")
+
+        for ei in self._ext_infos:
+            lines.append("\n")
+            lines.append(f"External link:")
+            lines.append(ei.to_export_string())
+
+        return "\n".join(lines)
 
     def diff(self, manga_db_entry):
         # doesnt diff ext_infos
