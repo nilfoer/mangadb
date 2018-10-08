@@ -485,4 +485,54 @@ HAVING COUNT(Books.id) = 4
 -> ~15ms on ~2700rows returning 13
 ==> join faster on big datasets, select faster when returning low nr of rows
 ############
+
+mutliple excludes for assoc col
+SELECT Books.*
+FROM Books
+WHERE Books.id NOT IN (
+      SELECT Books.id
+      FROM BookTag bx, Books, Tag
+      WHERE Books.id = bx.book_id
+      AND bx.tag_id = Tag.id
+      AND Tag.name IN ('Anal', 'Trap', 'Large Breasts', 'Nakadashi', 'Happy Sex')
+      )
+AND Books.id NOT IN (
+    SELECT Books.id
+      FROM BookList bx, Books, List
+      WHERE Books.id = bx.book_id
+      AND bx.list_id = List.id
+      AND List.name IN ('to-read')
+      )
+      
+doing it in one select with Boosk.id NOT IN (...) doesnt work since then it has to have at least one of the
+values specified to be included in the Books.id list
+
+SELECT Books.*, Tag.name, List.name
+FROM BookTag bx, Books, Tag, BookList, List
+WHERE bx.tag_id = Tag.id
+AND (Tag.name NOT IN ('Anal', 'Trap', 'Large Breasts', 'Nakadashi', 'Happy Sex'))
+AND Books.id = bx.book_id				  
+AND Books.id = BookList.book_id
+AND BookList.list_id = List.id
+AND (List.name NOT IN ('to-read'))
+^^ this also doesnt work since the in the result there is a row for every combination of tags and lists that are not not in 
+the supplied values -> so the combinations of to-read and the supplied tags wont be selected but the supplied
+but every other combination will be e.g.:
+Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen
+tags: 	Ahegao  BBM / Fat Man  Blowjob  Bukkake  Cunnilingus  Full Color  Group Sex  Harem Large Breasts  Magical Girl  Prostitution  Virginity (Male)
+list: to-read, downloaded
+-> to-read and ('Anal', 'Trap', 'Large Breasts', 'Nakadashi', 'Happy Sex') are not included but the rest of the
+-> combinations are:
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Ahegao"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"BBM / Fat Man"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Blowjob"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Bukkake"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Cunnilingus"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Full Color"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Group Sex"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Harem"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Magical Girl"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Prostitution"	"downloaded"
+"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Virginity (Male)"	"downloaded"
+
 __________________________________________________________________________________________________________

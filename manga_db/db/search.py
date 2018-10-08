@@ -5,6 +5,9 @@ import sqlite3
 from .util import joined_col_name_to_query_names, prod
 
 logger = logging.getLogger(__name__)
+VALID_SEARCH_COLS = {"title", "language", "status" "favorite",
+                     "category", "artist", "parody", "character", "collection", "groups",
+                     "tag", "list"}
 
 
 def search_assoc_col_intersection(db_con,
@@ -103,6 +106,36 @@ def search_assoc_col_exclude(db_con,
     return c.fetchall()
 
 
+def search_mult_assoc_col_exclude(db_con,
+                                  col_values_dict,
+                                  order_by="Books.id DESC"):
+    cond_statements = []
+    # vals in order the stmts where inserted for sql param sub
+    vals_in_order = []
+    # build conditionals for select string
+    for col, vals in col_values_dict.items():
+        table_name, bridge_col_name = joined_col_name_to_query_names(col)
+        cond_statements.append(f"""
+                 {'AND' if cond_statements else 'WHERE'} Books.id NOT IN (
+                          SELECT Books.id
+                          FROM Book{table_name} bx, Books, {table_name}
+                          WHERE Books.id = bx.book_id
+                          AND bx.{bridge_col_name} = {table_name}.id
+                          AND {table_name}.name IN ({', '.join(['?']*len(vals))})
+                )""")
+        vals_in_order.extend(vals)
+    cond_statements = "\n".join(cond_statements)
+
+    c = db_con.execute(f"""
+                  SELECT Books.*
+                  FROM Books
+                  {cond_statements}
+                  ORDER BY {order_by}""", (*vals_in_order, ))
+    # ^^ use *values, -> , to ensure its a tuple when only one val supplied
+
+    return c.fetchall()
+
+
 def search_assoc_col_intersection_exclude(db_con,
                                           col,
                                           values_and,
@@ -126,6 +159,53 @@ def search_assoc_col_intersection_exclude(db_con,
                   HAVING COUNT( Books.id ) = ?
                   ORDER BY {order_by}""", (*values_and, *values_ex, len(values_and)))
 
+    return c.fetchall()
+
+
+def search_mult_assoc_col_int_ex(db_con, int_col_values_dict, ex_col_values_dict,
+                                 order_by="Books.id DESC"):
+    # nr of items in values multiplied is nr of rows returned needed to match
+    # all conditions !! only include intersection vals
+    mul_values = prod((len(vals) for vals in int_col_values_dict.values()))
+
+    # containing table names for FROM .. stmt
+    table_bridge_names = []
+    # conditionals
+    cond_statements = []
+    # vals in order the stmts where inserted for sql param sub
+    vals_in_order = []
+    # build conditionals for select string
+    for col, vals in int_col_values_dict.items():
+        table_name, bridge_col_name = joined_col_name_to_query_names(col)
+        table_bridge_names.append(table_name)
+        table_bridge_names.append(f"Book{table_name}")
+
+        cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} "
+                               f"Books.id = Book{table_name}.book_id")
+        cond_statements.append(f"AND {table_name}.id = Book{table_name}.{bridge_col_name}")
+        cond_statements.append(f"AND {table_name}.name IN ({','.join(['?']*len(vals))})")
+        vals_in_order.extend(vals)
+    for col, vals in ex_col_values_dict.items():
+        table_name, bridge_col_name = joined_col_name_to_query_names(col)
+        cond_statements.append(f"""
+                 {'AND' if cond_statements else 'WHERE'} Books.id NOT IN (
+                          SELECT Books.id
+                          FROM Book{table_name} bx, Books, {table_name}
+                          WHERE Books.id = bx.book_id
+                          AND bx.{bridge_col_name} = {table_name}.id
+                          AND {table_name}.name IN ({', '.join(['?']*len(vals))})
+                )""")
+        vals_in_order.extend(vals)
+
+    table_bridge_names = ", ".join(table_bridge_names)
+    cond_statements = "\n".join(cond_statements)
+
+    c = db_con.execute(f"""
+            SELECT Books.*
+            FROM Books, {table_bridge_names}
+            {cond_statements}
+            GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}
+            ORDER BY {order_by}""", (*vals_in_order,))
     return c.fetchall()
 
 
@@ -168,9 +248,6 @@ def search_assoc_col_string_parse(db_con,
             db_con, col, vals, order_by=order_by)
 
 
-VALID_SEARCH_TYPES = {"title", "language", "status" "favorite",
-                      "category", "artist", "parody", "character", "collection", "groups",
-                      "tag", "list"}
 # part of lexical analysis
 # This expression states that a "word" is either (1) non-quote, non-whitespace text
 # surrounded by whitespace, or (2) non-quote text surrounded by quotes (followed by some
@@ -287,64 +364,51 @@ def search_book(manga_db,
 
 
 def search_equals_cols_values(db_con,
-                              *col_name_value_pairs,
-                              order_by="Books.id DESC",
-                              keep_row_fac=False):
+                              col_value_dict,
+                              order_by="Books.id DESC"):
     """Searches for rows that match all the given values for the given rows
     col_name is not meant for user input -> should be validated b4 calling search_col_for_value
     usage: search_cols_for_values(conn, ("artist", "Enomoto Hidehira"),
                                  ("title_eng", "Papilla Heat Up Ch 1-2"))"""
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
+    cond_statements = []
+    vals_in_order = []
+    for col, val in col_value_dict.items():
+        cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} {col} = ?")
+        vals_in_order.append(val)
+    cond_statements = "\n".join(cond_statements)
 
-    col_name, value = col_name_value_pairs[0]
-    if len(col_name_value_pairs) > 1:
-        col_names = [f"{col_n} = ?" for col_n, _ in col_name_value_pairs[1:]]
-        values = [tup[1] for tup in col_name_value_pairs[1:]]
-    else:
-        col_names, values = [], []
-
-    c.execute(f"""SELECT * FROM Books
-                  WHERE {col_name} = ? {"AND " if len(col_name_value_pairs) > 1 else ""}{" AND ".join(col_names)}
-                  ORDER BY {order_by}""", (value, *values))
+    c = db_con.execute(f"""
+                SELECT * FROM Books
+                {cond_statements}
+                ORDER BY {order_by}""", (*vals_in_order, ))
 
     return c.fetchall()
 
 
 def search_like_cols_values(db_con,
-                            *col_name_value_pairs,
-                            order_by="Books.id DESC",
-                            keep_row_fac=False):
+                            col_value_dict,
+                            order_by="Books.id DESC"):
     """Searches for rows that contain all the values for all the given rows
     col_name is not meant for user input -> should be validated b4 calling search_col_for_value
-    usage: search_cols_for_values(conn, ("artist", "Enomoto Hidehira"),
-                                 ("title_eng", "Papilla Heat Up Ch 1-2"))"""
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
+    usage: search_cols_for_values(conn, {"artist": "Enomoto Hidehira",
+                                         "title_eng": "Papilla Heat Up Ch 1-2"})"""
+    cond_statements = []
+    vals_in_order = []
+    for col, val in col_value_dict.items():
+        cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} {col} LIKE ?")
+        vals_in_order.append(f"%{val}%")
+    cond_statements = "\n".join(cond_statements)
 
-    col_name, value = col_name_value_pairs[0]
-    if len(col_name_value_pairs) > 1:
-        col_names = [
-            f"{col_n} LIKE ?" for col_n, _ in col_name_value_pairs[1:]
-        ]
-        values = [f"%{tup[1]}%" for tup in col_name_value_pairs[1:]]
-    else:
-        col_names, values = [], []
-
-    c.execute(f"""SELECT * FROM Books
-                  WHERE {col_name} LIKE ? {"AND " if len(col_name_value_pairs) > 1 else ""}{" AND ".join(col_names)}
-                  ORDER BY {order_by}""", (f"%{value}%", *values))
+    c = db_con.execute(f"""
+                SELECT * FROM Books
+                {cond_statements}
+                ORDER BY {order_by}""", (*vals_in_order, ))
 
     return c.fetchall()
 
 
 VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title_eng",
-                  "Books.upload_date", "Books.pages", "Books.rating",
-                  "Books.my_rating", "Books.last_change")
+                  "Books.pages", "Books.my_rating", "Books.last_change")
 
 
 def validate_order_by_str(order_by):
@@ -356,13 +420,7 @@ def validate_order_by_str(order_by):
 
 def search_book_by_title(db_con,
                          title,
-                         order_by="Books.id DESC",
-                         keep_row_fac=False):
-    db_con.row_factory = sqlite3.Row
-    c = db_con.cursor()
-    if not keep_row_fac:
-        db_con.row_factory = None
-
+                         order_by="Books.id DESC"):
     # search title or title_eng?
     # '%?%' doesnt work since ' disable ? and :name as placeholder
     # You should use query parameters where possible, but query parameters can't be used to
@@ -370,7 +428,8 @@ def search_book_by_title(db_con,
     # In this case you need to use plain string formatting to build your query. If your
     # parameters (in this case sort criterium and order) come from user input you need to
     # validate it first
-    c.execute(f"""SELECT * FROM Books
+    c = db_con.execute(f"""
+                  SELECT * FROM Books
                   WHERE title LIKE ?
                   ORDER BY {order_by}""", (f"%{title}%", ))
 
