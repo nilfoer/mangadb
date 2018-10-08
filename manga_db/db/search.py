@@ -1,13 +1,8 @@
-import re
 import logging
-import sqlite3
 
 from .util import joined_col_name_to_query_names, prod
 
 logger = logging.getLogger(__name__)
-VALID_SEARCH_COLS = {"title", "language", "status" "favorite",
-                     "category", "artist", "parody", "character", "collection", "groups",
-                     "tag", "list"}
 
 
 def search_assoc_col_intersection(db_con,
@@ -236,121 +231,6 @@ def search_assoc_col_string_parse(db_con,
                 vals_and,
                 vals_ex,
                 order_by=order_by)
-
-
-# part of lexical analysis
-# This expression states that a "word" is either (1) non-quote, non-whitespace text
-# surrounded by whitespace, or (2) non-quote text surrounded by quotes (followed by some
-# whitespace).
-WORD_RE = re.compile(r'([^"^\s]+)\s*|"([^"]+)"\s*')
-
-
-def search_sytnax_parser(manga_db,
-                         search_str,
-                         order_by="Books.id DESC",
-                         **kwargs):
-    search_options = kwargs
-    # Return all non-overlapping matches of pattern in string, as a list of strings.
-    # The string is scanned left-to-right, and matches are returned in the order found.
-    # If one or more groups are present in the pattern, return a list of groups; this will
-    # be a list of tuples if the pattern has more than one group. Empty matches are included
-    # in the result.
-    current_search_obj = None
-    for match in re.findall(WORD_RE, search_str):
-        single, multi_word = match
-        part = None
-        if single and ":" in single:
-            # -> search type is part of the word
-            search_type, part = single.split(":", 1)
-            if search_type in VALID_SEARCH_TYPES:
-                current_search_obj = search_type
-            else:
-                # set to None so we skip adding search_options for next word (which
-                # still belongs to unsupported search_type)
-                current_search_obj = None
-                logger.info("%s is not a supported search type!", search_type)
-                continue
-        if not part:
-            # a or b -> uses whatever var is true -> both true (which cant happen here) uses
-            # first one
-            part = single or multi_word
-        # current_search_obj is None if search_type isnt supported
-        # then we want to ignore this part of the search
-        if current_search_obj:
-            search_options[current_search_obj] = part
-
-    # validate order_by from user input
-    if not validate_order_by_str(order_by):
-        logger.warning("Sorting %s is not supported", order_by)
-        order_by = "Books.id DESC"
-
-    if search_str:
-        return search_book(manga_db, order_by=order_by, **search_options)
-    else:
-        return manga_db.get_x_books(order_by=order_by, **search_options)
-
-
-def search_book(manga_db,
-                order_by="Books.id DESC",
-                **search_options):
-    """Assumes AND condition for search_types, OR etc. not supported (and also not planned!)"""
-    result_row_lists = []
-    col_name_value_pairs = []
-    for search_type, value in search_options.items():
-        if search_type not in VALID_SEARCH_TYPES:
-            logger.warning(
-                "%s is not a valid search type! It shouldve been filtered out!",
-                search_type)
-        elif search_type == "tags":
-            result_row_lists.append(
-                search_tags_string_parse(
-                    db_con,
-                    value,
-                    order_by=order_by,
-                    keep_row_fac=keep_row_fac))
-            continue
-        col_name_value_pairs.append((search_type, value))
-
-    if col_name_value_pairs:
-        # could be multiple artists, groups etc. (in cell separated by ",") -> use like
-        # for everything
-        result_row_lists.append(
-            search_like_cols_values(
-                db_con,
-                *col_name_value_pairs,
-                order_by=order_by,
-                keep_row_fac=keep_row_fac))
-
-    # check if we have more than one search result that we need to intersect and then resort
-    if len(result_row_lists) > 1:
-        # now get intersection (ids must be present in all row lists) of result_row_lists:
-        id_sets = []
-        for row_list in result_row_lists:
-            ids = set((row["id"] for row in row_list))
-            id_sets.append(ids)
-        # call intersection on (type)set directly so we can just pass in and unpack list of sets
-        ids_intersect = set.intersection(*id_sets)
-
-        result = []
-        row_ids_in_result = set()
-        for row_list in result_row_lists:
-            # get rows that match all criteria (id is in ids_intersect)
-            for row in row_list:
-                # only append once
-                if row["id"] not in row_ids_in_result and row["id"] in ids_intersect:
-                    result.append(row)
-                    row_ids_in_result.add(row["id"])
-
-        # sort the result
-        order_by_col = order_by.split(" ")[0].replace("Books.", "")
-        result = sorted(result, key=lambda x: x[order_by_col])
-        if " DESC" in order_by:
-            # sorted orders ascending (at least for chars and numbers) -> reverse for DESC
-            result = reversed(result)
-    else:
-        result = result_row_lists[0]
-
-    return result
 
 
 def search_equals_cols_values(db_con,

@@ -1,10 +1,12 @@
 import os
 import logging
 import sqlite3
+import re
 import urllib.request
 
 from .logging_setup import configure_logging
 from . import extractor
+from .db import search
 from .manga import MangaDBEntry
 from .ext_info import ExternalInfo
 
@@ -22,12 +24,22 @@ opener.addheaders = [(
 # ...and install it globally so it can be used with urlretrieve/open
 urllib.request.install_opener(opener)
 
+# part of lexical analysis
+# This expression states that a "word" is either (1) non-quote, non-whitespace text
+# surrounded by whitespace, or (2) non-quote text surrounded by quotes (followed by some
+# whitespace).
+WORD_RE = re.compile(r'([^"^\s]+)\s*|"([^"]+)"\s*')
+
 
 class MangaDB:
     DEFAULT_HEADERS = {
         'User-Agent':
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
+
+    VALID_SEARCH_COLS = {"title", "language", "status" "favorite",
+                         "category", "artist", "parody", "character", "collection", "groups",
+                         "tag", "list"}
 
     def __init__(self, root_dir, db_path, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path)
@@ -239,6 +251,71 @@ class MangaDB:
     def get_ext_info(self, _id):
         c = self.db_con.execute("SELECT * FROM ExternalInfo WHERE id = ?", (_id,))
         return ExternalInfo(self, None, c.fetchone())
+
+    def search(self, search_string, **kwargs):
+        return self._search_sytnax_parser(search_string, **kwargs)
+
+    def _search_sytnax_parser(self,
+                              search_str,
+                              order_by="Books.id DESC",
+                              **kwargs):
+        search_options = kwargs
+        # Return all non-overlapping matches of pattern in string, as a list of strings.
+        # The string is scanned left-to-right, and matches are returned in the order found.
+        # If one or more groups are present in the pattern, return a list of groups; this will
+        # be a list of tuples if the pattern has more than one group. Empty matches are included
+        # in the result.
+        current_search_obj = None
+        for match in WORD_RE.findall(search_str):
+            single, multi_word = match
+            part = None
+            if single and ":" in single:
+                # -> search type is part of the word
+                search_col, part = single.split(":", 1)
+                if search_col in self.VALID_SEARCH_COLS:
+                    current_search_obj = search_col
+                else:
+                    # set to None so we skip adding search_options for next word (which
+                    # still belongs to unsupported search_col)
+                    current_search_obj = None
+                    logger.info("%s is not a supported search type!", search_col)
+                    continue
+            if not part:
+                # a or b -> uses whatever var is true -> both true (which cant happen here) uses
+                # first one
+                part = single or multi_word
+            # current_search_obj is None if search_col isnt supported
+            # then we want to ignore this part of the search
+            if current_search_obj:
+                search_options[current_search_obj] = part
+
+        # validate order_by from user input
+        if not search.validate_order_by_str(order_by):
+            logger.warning("Sorting %s is not supported", order_by)
+            order_by = "Books.id DESC"
+
+        if search_str:
+            return self.search_book(order_by=order_by, **search_options)
+        else:
+            return self.get_x_books(order_by=order_by, **search_options)
+
+    def search_book(self,
+                    order_by="Books.id DESC",
+                    **search_options):
+        """Assumes AND condition for search_cols, OR etc. not supported (and also not planned!)"""
+        normal_col_values = {}
+        assoc_col_values = {}
+        for search_col, value in search_options.items():
+            if search_col not in self.VALID_SEARCH_COLS:
+                logger.warning(
+                    "%s is not a valid search type! It shouldve been filtered out!",
+                    search_col)
+            elif isinstance(value, list):
+                assoc_col_values[search_col] = value
+            else:
+                normal_col_values[search_col] = value
+
+        return result
 
     @staticmethod
     def _load_or_create_sql_db(filename):
