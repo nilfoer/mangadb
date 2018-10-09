@@ -1,5 +1,6 @@
 - update func in MangaDB(not just webgui)(select fields to overwrite/update 
     always adding/updating ext_info), remove book/ext_info, limi+offset search
+- thread/subprocess for network stuff    
 - webGUI: add book, search, writeinfo, fix leftmost button when small screen, display rating/my_rating, pages,
     placeholder for cover, add/change cover when editing
 - safeguard against external link now linking to a different manga when updating!

@@ -536,3 +536,12 @@ list: to-read, downloaded
 "Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen / 月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"Getsu Ka Sui Moku Kin Do Nichi FullColor 2 Hotel Venus Shucchou Hen"	"月火水木金土日フルカラー2 ホテルヴィーナス出張編"	"1"	"19"	"1"			"2018-10-04"	"0"	"Virginity (Male)"	"downloaded"
 
 __________________________________________________________________________________________________________
+
+LIMIT OFFSET is slow!
+As JvdBerg said, indexes are not used in LIMIT/OFFSET. Simply adding 'ORDER BY indexed_field' will not help too.
+
+To speed up pagination you should avoid LIMIT/OFFSET and use WHERE clause instead. For example, if your primary key field is named 'id' and has no gaps, than your code above can be rewritten like this:
+
+SELECT * FROM myTable WHERE id>=0     AND id<100     //very fast!
+SELECT * FROM myTable WHERE id>=95000 AND id<95100   //as fast as previous line!
+__________________________________________________________________________________________________________

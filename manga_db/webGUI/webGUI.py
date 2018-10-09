@@ -7,7 +7,7 @@ import os.path
 from flask import (
         Flask, request, redirect, url_for,
         render_template, flash, send_from_directory,
-        jsonify
+        jsonify, send_file
 )
 
 from ..constants import STATUS_IDS
@@ -208,38 +208,34 @@ def apply_upd_changes(book_id):
     return show_info(book_id=book_id, book=book)
 
 
-INFOTXT_ORDER_HELPER = (("title", "Title"), ("uploader", "Uploader"),
-                        ("upload_date", "Uploaded"), ("pages", "Pages"),
-                        ("rating_full", "Rating"), ("category", "Category"),
-                        ("collection", "Collection"), ("groups", "Group"),
-                        ("artist", "Artist"), ("parody", "Parody"),
-                        ("character", "Character"), ("tag", "Tag"),
-                        ("url", "URL"))
-@app.route('/book/<int:book_id>/write_info')
-def write_info_txt_by_id(book_id, ext_info_id):
-    cur = db_con.execute('select * from Books WHERE id = ?',
-                         (book_id, ))
-    book_info = cur.fetchone()
-    tags = get_tags_by_book_id_internal(db_con, book_id).split(",")
-    tags = ", ".join(
-        (tag for tag in sorted(tags) if not tag.startswith("li_")))
+@app.route('/book/<int:book_id>/get_info_txt')
+def get_info_txt(book_id):
+    book = mdb.get_book(book_id)
+    exp_str = book.to_export_string()
+    import io
+    # or use tempfile.SpooledTemporaryFile
+    mem = io.BytesIO()
+    # got error: applications must write bytes -> encode txt to byte
+    mem.write(exp_str.encode("UTF-8"))
+    # Make sure that the file pointer is positioned at the start of data to
+    # send before calling send_file()
+    mem.seek(0)
+    # havent found a way to close file with just flask tools
+    # even a helper class using weakref didnt work still got I/O on closed file error
+    # -> Garbage collector will close file when it destroys file object
+    # but you cant be certain when that happens.. see: https://stackoverflow.com/questions/1834556/does-a-file-object-automatically-close-when-its-reference-count-hits-zero
 
-    info_str = []
-    for key, title in INFOTXT_ORDER_HELPER:
-        if key == "tag":
-            info_str.append(f"Tag: {tags}")
-        else:
-            val = book_info[key]
-            if val is None:
-                continue
-            elif isinstance(val, str):
-                val = val.replace(',', ', ')
-            info_str.append(f"{title}: {val}")
-
-    write_inf_txt("\n".join(info_str), book_info["title"], path=LOCAL_DOWNLOAD)
-
-    return redirect(
-        url_for('show_info', book_id=book_id))
+    # returning when using context mangaer with for handling the closing of file f
+    # it didnt work since as soon as it returned the file was closed
+    # after_this_request also doesnt work!
+    return send_file(
+            mem, mimetype="Content-Type: text/plain; charset=utf-8",
+            # as attachment otherwise it just opens in the browser or you have to use save as
+            as_attachment=True,
+            # apparently also needs to be b/encoded otherwise we get an UnicodeEncodeError
+            # if it contains non-ascii chars
+            attachment_filename=f"{book.title.replace('/', '')}_info.txt".encode('utf-8')
+            )
 
 
 @app.route("/search", methods=["GET", "POST"])

@@ -332,9 +332,9 @@
 <a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
 {% endif %}
 
-<a href="{{ url_for('write_info_txt_by_id', book_id=book.id) }}" class="book-read-button button-stack red-color">
+<a href="{{ url_for('get_info_txt', book_id=book.id) }}" class="book-read-button button-stack red-color">
 <i class="fas fa-file-alt"></i>
-Write info.txt
+info.txt
 </a>
 
 <a href={{ url_for('show_edit_book', book_id=book.id) }} class="book-read-button button-stack red-color"><i class="fas fa-edit"></i> Edit</a>
