@@ -29,7 +29,7 @@ class TsuminoExtractor(BaseMangaExtractor):
             }
 
     def __init__(self, manga_db, url):
-        super().__init__(manga_db, url)
+        super().__init__(manga_db, url.strip("-"))
         self.id_onpage = TsuminoExtractor.book_id_from_url(url)
         self.thumb_url = f"http://www.tsumino.com/Image/Thumb/{self.id_onpage}"
         self.html = None

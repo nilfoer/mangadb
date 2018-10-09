@@ -6,7 +6,7 @@ import logging
 from .webGUI.webGUI import main as start_webgui
 from .manga_db import MangaDB
 from .db.export import export_csv_from_sql
-#from .link_collector import LinkCollector
+from .link_collector import LinkCollector
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,8 @@ def main():
     webgui.set_defaults(func=start_webgui)
 
     collector = subparsers.add_parser("link_collector", aliases=["collect"])
+    collector.add_argument("-sl", "--standard-list", help="Standard list that gets added to all "
+                           "links collected!", nargs="*", default=())
     collector.set_defaults(func=_cl_collector)
 
     get_info = subparsers.add_parser("get_info")
@@ -53,8 +55,12 @@ def main():
         # default to stdout, but stderr would be better (use sys.stderr, then exit(1))
         parser.print_help()
         sys.exit(0)
-    mdb = MangaDB(".", args.db_path)
-    args.func(args, mdb)
+    # let webgui handle db_con when subcmd is selected
+    if args.subcmd == "webgui":
+        args.func()
+    else:
+        mdb = MangaDB(".", args.db_path)
+        args.func(args, mdb)
 
 
 def _cl_import_book(args, mdb):
@@ -77,8 +83,13 @@ def _cl_show_book(args, mdb):
     print(mdb.get_book(args.id).to_export_string())
 
 
-def _cl_collector(args):
-    pass
+def _cl_collector(args, mdb):
+    lc = LinkCollector(args.standard_list)
+    lc.cmdloop()
+    logger.info("Started working on list with %d Book-URLs!", len(lc.links))
+    for url, lists in lc.links.items():
+        bid, book = mdb.import_book(url=url, lists=lists)
+    logger.info("Finished working on list!")
 
 
 def _cl_export(args, mdb):

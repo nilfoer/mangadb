@@ -1,97 +1,83 @@
+import logging
+import time
+import cmd
+import re
+
 import pyperclip
 
+from . import extractor
 
-class LinkCollector:
-    pass
+logger = logging.getLogger(__name__)
 
 
-def watch_clip_db_get_info_after(db_book_ids,
-                                 fixed_lists=None,
-                                 predicate=is_tsu_book_url):
-    found = []
-    print("Available copy cmds are: set_tags, remove_book !")
-    try:
+class LinkCollector(cmd.Cmd):
+    # start with LinkCollector.cmdloop()
+    intro = "Welcome to MangaDB's LinkCollector. Type help or ? to show commands.\n"
+    prompt = '(lc) '
+
+    URL_RE = re.compile(r"(?:https?://)?(?:\w+\.)?(\w+\.\w+)/")
+
+    def __init__(self, standard_lists):
+        super().__init__()
+        # must be immutable
+        self._standard_lists = tuple(standard_lists)
+        self.links = {}
+        self._recent_value = ""
+
+    def watch_clip(self):
         logger.info("Watching clipboard...")
-        # upd_setting -> should we update Book; upd_all -> print update prompt
-        upd_setting, upd_all = None, None
-        recent_value = ""
-        while True:
-            tmp_value = pyperclip.paste()
-            if tmp_value != recent_value:
-                recent_value = tmp_value
-                # if predicate is met
-                if predicate(recent_value):
-                    logger.info("Found manga url: \"%s\"", recent_value)
-                    if book_id_from_url(recent_value) in db_book_ids:
-                        upd = True
-                        if upd_all:
-                            if upd_setting:
-                                logger.info(
-                                    "Book was found in db and will be updated!"
-                                )
-                            else:
-                                logger.info(
-                                    "Book was found in db and will not be updated!"
-                                )
-                        else:
-                            logger.info("Book was found in db!")
+        # prob doesnt matter but local var access is faster since it doesnt have to
+        # look up the var in the __dict__ of local var self
+        recent_value = self._recent_value
+        try:
+            while True:
+                tmp_value = pyperclip.paste()
+                if tmp_value != recent_value:
+                    recent_value = tmp_value
+                    yield recent_value
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            logger.info("Stopped watching clipboard!")
+            return None
 
-                        if upd_setting is None or not upd_all:
-                            if not found:
-                                print(
-                                    "Selected lists will ONLY BE ADDED, no list "
-                                    "will be removed!")
-                            inp_upd_setting = input(
-                                "Should book in DB be updated? "
-                                "y/n/all/none:\n")
-                            if inp_upd_setting == "n":
-                                upd_setting = False
-                                print("Book will NOT be updated!")
-                            elif inp_upd_setting == "all":
-                                upd_setting = True
-                                upd_all = True
-                                print("All books will be updated!")
-                            elif inp_upd_setting == "none":
-                                upd_setting = False
-                                upd_all = True
-                                print("No books will be updated!")
-                            else:
-                                upd_setting = True
-                                print("Book will be updated!")
-                    else:
-                        upd = False
+    def do_collect(self, args):
+        for url in self.watch_clip():
+            # dont overwrite (possibly modified by set_lists) entry in self.links
+            if url is not None and url not in self.links:
+                try:
+                    extractor.find(url)
+                    logger.info("Found supported url: %s", url)
+                    self.links[url] = self._standard_lists
+                    self._recent_value = url
+                except extractor.NoExtractorFound:
+                    logger.info("Unsupported URL!")
 
-                    # only append to list if were not updating or upd_setting -> True
-                    if not upd or upd_setting:
-                        if fixed_lists is None:
-                            manga_lists = enter_manga_lists(len(found))
-                            # strip urls of trailing "-" since there is a dash appended to
-                            # the url when exiting from reading a manga on tsumino (compared
-                            # to when entering from main site)
-                            found.append((recent_value.rstrip("-"),
-                                          manga_lists, upd))
-                        else:
-                            found.append((recent_value.rstrip("-"),
-                                          fixed_lists, upd))
-                elif recent_value == "set_tags":
-                    url, tag_li, upd = found.pop()
-                    logger.info(
-                        "Setting tags for \"%s\"! Previous tags were: %s", url,
-                        tag_li)
-                    manga_lists = enter_manga_lists(len(found) - 1)
-                    found.append((url, manga_lists, upd))
-                elif recent_value == "remove_book":
-                    logger.info("Deleted last book with url \"%s\" from list",
-                                found[-1][0])
-                    del found[-1]
+    def do_set_lists(self, args):
+        """
+        Sets lists of book at url to provided lists
+        Usage: set_lists url [list [list ...]]
+        use 'recent' as url to change lists of most recently added url
+        """
+        arg_li = args.split()
+        # shortcut to change most recent book
+        url = arg_li[0] if arg_li[0] != "recent" else self._recent_value
+        lists = arg_li[1:]
+        if url in self.links:
+            self.links[url] = tuple(lists)
+        else:
+            print("Given url wasnt found in links!")
 
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        logger.info("Stopped watching clipboard!")
+    def do_remove(self, url):
+        """
+        Remove url from links: remove url
+        Shortcut: remove recent - to remove last url"""
+        rem = self.links.pop(url if url != "recent" else self._recent_value, None)
+        if rem is not None:
+            logger.info("Removed %s from link list!", rem)
 
-    # use filter_duplicate_at_index_of_list_items to only keep latest list element with same
-    # urls -> index 0 in tuple
-    return filter_duplicate_at_index_of_list_items(0, found)
+    def do_exit(self, args):
+        # cmdloop returns when postcmd() method returns true value
+        return True
 
 
 def write_resume_info(filename, info):
@@ -113,5 +99,3 @@ def resume_from_file(filename):
         result.append((url, tags.split(","), upd))
 
     return result
-
-

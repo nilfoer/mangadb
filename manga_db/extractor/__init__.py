@@ -5,6 +5,8 @@ import inspect
 import importlib
 import re
 
+from ..exceptions import MangaDBException
+
 module_dir = os.path.dirname(os.path.realpath(__file__))
 # get all modules in dir (except __init__.py) and remove ending
 # also possible to specify all names
@@ -29,8 +31,7 @@ def find(url):
         if re.match(cls.URL_PATTERN_RE, url):
             return cls
     else:
-        # TODO(m): custom exc
-        raise Exception(f"No matching extractor found for '{url}'")
+        raise NoExtractorFound(f"No matching extractor found for '{url}'")
 
 
 def add_extractor_cls_module(module):
@@ -68,3 +69,9 @@ def _get_classes_in_module(module):
     return [insp_tuple[1] for insp_tuple in inspect.getmembers(module, inspect.isclass) if
             hasattr(insp_tuple[1], "URL_PATTERN_RE") and
             insp_tuple[1].__module__ == module.__name__]
+
+
+class NoExtractorFound(MangaDBException):
+    def __init__(self, msg):
+        # Call the base class constructor with the parameters it needs
+        super().__init__(msg)

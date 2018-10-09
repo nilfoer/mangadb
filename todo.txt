@@ -1,4 +1,7 @@
-- LinkCollector (mb use cmd framework), resume from crash
+- resume from crash, update func in MangaDB(not just webgui)(select fields to overwrite/update 
+    always adding/updating ext_info), remove book/ext_info, limi+offset search
+- webGUI: add book, search, writeinfo, fix leftmost button when small screen, display rating/my_rating, pages,
+    placeholder for cover, add/change cover when editing
 - safeguard against external link now linking to a different manga when updating!
 - triggers for last_change incomplete replace with manual way
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols

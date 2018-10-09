@@ -155,7 +155,7 @@ class MangaDB:
             else:
                 logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
         else:
-            logger.info("Book at url '%s' was already in DB!")
+            logger.info("Book at url '%s' was already in DB!", book.ext_info[0].url)
 
         return bid, book
 

@@ -34,7 +34,6 @@ app.config.update(
 # app.register_blueprint(blueprint)
 
 mdb = MangaDB(".", "manga_db.sqlite")
-db_con = mdb.db_con
 
 # path to thumbs folder
 app.config['THUMBS_FOLDER'] = os.path.join(mdb.root_dir, "thumbs")
@@ -397,7 +396,7 @@ def edit_book(book_id):
     return redirect(url_for("show_info", book_id=book_id))
 
 
-def main(args=None):
+def main():
     app.run()
 
 
