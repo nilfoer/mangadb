@@ -2,6 +2,7 @@ import logging
 import time
 import cmd
 import re
+import json
 
 import pyperclip
 
@@ -78,6 +79,19 @@ class LinkCollector(cmd.Cmd):
     def do_exit(self, args):
         # cmdloop returns when postcmd() method returns true value
         return True
+
+    def export_json(self, filename):
+        with open(filename, "w", encoding="UTF-8") as f:
+            f.write(json.dumps(self.links))
+
+    @classmethod
+    def from_json(cls, filename, standard_lists):
+        with open(filename, "r", encoding="UTF-8") as f:
+            links = json.loads(f.read())
+
+        lc = cls(standard_lists)
+        lc.links = links
+        return lc
 
 
 def write_resume_info(filename, info):

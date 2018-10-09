@@ -1,4 +1,4 @@
-- resume from crash, update func in MangaDB(not just webgui)(select fields to overwrite/update 
+- update func in MangaDB(not just webgui)(select fields to overwrite/update 
     always adding/updating ext_info), remove book/ext_info, limi+offset search
 - webGUI: add book, search, writeinfo, fix leftmost button when small screen, display rating/my_rating, pages,
     placeholder for cover, add/change cover when editing

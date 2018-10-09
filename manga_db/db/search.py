@@ -305,9 +305,13 @@ def search_normal_mult_assoc(db_con, normal_col_values,
     # @Cleanup mb split into multiple funcs that just return the conditional string
     # like: WHERE title LIKE ? and the value, from_table_names etc.?
 
-    # nr of items in values multiplied is nr of rows returned needed to match
-    # all conditions !! only include intersection vals
-    mul_values = prod((len(vals) for vals in int_col_values_dict.values()))
+    if int_col_values_dict:
+        # nr of items in values multiplied is nr of rows returned needed to match
+        # all conditions !! only include intersection vals
+        mul_values = prod((len(vals) for vals in int_col_values_dict.values()))
+        assoc_incl_cond = f"HAVING COUNT(Books.id) = {mul_values}"
+    else:
+        assoc_incl_cond = ""
 
     # containing table names for FROM .. stmt
     table_bridge_names = []
@@ -351,16 +355,10 @@ def search_normal_mult_assoc(db_con, normal_col_values,
     table_bridge_names = ", ".join(table_bridge_names)
     cond_statements = "\n".join(cond_statements)
 
-    print(f"""
-            SELECT Books.*
-            FROM Books, {table_bridge_names}
-            {cond_statements}
-            GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}
-            ORDER BY {order_by}""")
     c = db_con.execute(f"""
             SELECT Books.*
-            FROM Books, {table_bridge_names}
+            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
             {cond_statements}
-            GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}
+            GROUP BY Books.id {assoc_incl_cond}
             ORDER BY {order_by}""", (*vals_in_order,))
     return c.fetchall()

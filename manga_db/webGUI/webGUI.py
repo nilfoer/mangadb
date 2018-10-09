@@ -255,12 +255,11 @@ def search_books():
         asc_desc = request.args.get('asc-desc', "DESC")
 
     order_by = f"Books.{order_by_col} {asc_desc}"
-    books = search_sytnax_parser(
-        db_con, searchstr, order_by=order_by, keep_row_fac=True)
+    books = mdb.search(searchstr, order_by=order_by)
 
     return render_template(
         "show_entries.html",
-        entries=books,
+        books=books,
         search_field=searchstr,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)

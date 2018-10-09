@@ -280,10 +280,10 @@ class MangaDB:
                 # -> search type is part of the word
                 search_col, part = single.split(":", 1)
                 if search_col not in self.VALID_SEARCH_COLS:
+                    logger.info("'%s' is not a supported search type!", search_col)
                     # set to None so we skip adding search_options for next word (which
                     # still belongs to unsupported search_col)
                     search_col = None
-                    logger.info("'%s' is not a supported search type!", search_col)
                     continue
                 if not part:
                     # if part empty it was col:"multi-word"
@@ -310,13 +310,13 @@ class MangaDB:
             logger.warning("Sorting %s is not supported", order_by)
             order_by = "Books.id DESC"
 
-        if search_str:
+        if normal_col_values or assoc_col_values_incl or assoc_col_values_excl:
             return search.search_normal_mult_assoc(
                     self.db_con, normal_col_values,
                     assoc_col_values_incl, assoc_col_values_excl,
                     order_by=order_by, **kwargs)
         else:
-            return self.get_x_books(order_by=order_by, **kwargs)
+            return self.get_x_books(150, order_by=order_by, **kwargs)
 
     @staticmethod
     def _load_or_create_sql_db(filename):
