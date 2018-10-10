@@ -391,6 +391,22 @@ def edit_book(book_id):
     return redirect(url_for("show_info", book_id=book_id))
 
 
+@app.route('/book/<int:book_id>/remove')
+def remove_book(book_id):
+    book = mdb.get_book(book_id)
+    book.remove()
+    flash(f"Book '{book.title}' was removed from MangaDB!")
+    return redirect(url_for('show_entries'))
+
+
+@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/remove')
+def remove_ext_info(book_id, ext_info_id):
+    book = mdb.get_book(book_id)
+    url = book.remove_ext_info(ext_info_id)
+    flash(f"External link with url '{url}' was removed from Book!")
+    return show_info(book_id=book_id, book=book)
+
+
 def main():
     app.run()
 

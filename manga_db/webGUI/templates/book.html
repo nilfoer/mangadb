@@ -7,7 +7,16 @@
 <div class="book-page-container">
 	<div class="row row-no-margin">
 	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
-		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book.id) }}>
+		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book.id) }} onerror="imgError(this);">
+	<script>
+		function imgError(image) {
+			// remove onerror defaut
+			image.onerror = "";
+			// replace with placeholder
+			image.src = "{{ url_for('static', filename='no-image.png') }}";
+			return true;
+		};
+	</script>
 	</div>
 	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 		<div class="row row-no-margin">

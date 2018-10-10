@@ -1,3 +1,4 @@
+import os
 import logging
 import datetime
 
@@ -423,24 +424,39 @@ class MangaDBEntry(DBRow):
 
     def remove(self):
         """Commits changes itself, since it also deletes book thumb anyway!"""
-        # TODO
         # triggers will delete all joined cols when associated manga_db_entry is deleted
-        if not book_id:
-            c = db_con.execute(f"SELECT id_onpage FROM Books WHERE {id_col} = ?",
-                               (identifier, ))
-            book_id = c.fetchone()[0]
+        # or rather the entries in the connection tables
+        # ext infos have to be deleted manually
 
-        with db_con:
-            db_con.execute(f"""DELETE
-                               FROM Books
-                               WHERE
-                               {id_col} = ?""", (identifier, ))
+        # ensure that all ext_infos are loaded
+        ext_infos = self._fetch_external_infos()
+        for ext_info in ext_infos:
+            ext_info.remove()
+
+        with self.manga_db.db_con:
+            self.manga_db.db_con.execute(f"""
+                                DELETE
+                                FROM Books
+                                WHERE
+                                id = ?""", (self.id, ))
 
         # also delete book thumb
-        os.remove(os.path.join("thumbs", str(book_id)))
-        logger.debug("Removed thumb with path %s", f"thumbs/{book_id}")
+        try:
+            os.remove(os.path.join("thumbs", str(self.id)))
+        except FileNotFoundError:
+            logger.debug("No cover or cover was already deleted for id %d", self.id)
+        logger.debug("Removed thumb with path thumbs/%d", self.id)
 
-        logger.info("Successfully removed book with %s: %s", id_type, identifier)
+        logger.info("Successfully removed book with id %d", self.id)
+
+    def remove_ext_info(self, _id):
+        ext_info = next((ei for ei in self.ext_infos if ei.id == _id))
+        url = ext_info.url
+        self._ext_infos = [ei for ei in self.ext_infos if ei.id != _id]
+        ext_info.remove()
+        logger.info("Removed external info with id %d from book with id %d",
+                    _id, self.id)
+        return url
 
     def _add_associated_column_values(self, col_name, values):
         table_name, bridge_col_name = joined_col_name_to_query_names(col_name)

@@ -327,17 +327,23 @@
 <div class="book-info"></div>
 <div class="book-data" id="">
 {% if book.favorite %}
-<a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost"><i class="fa fa-heart"></i> Favorited</a>
+<a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFavoriteHandler" class="book-read-button button-stack"><i class="fa fa-heart"></i> Favorited</a>
 {% else %}
-<a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="book-read-button button-stack button-leftmost dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
+<a href={{ url_for('set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
 {% endif %}
 
-<a href="{{ url_for('get_info_txt', book_id=book.id) }}" class="book-read-button button-stack red-color">
+<a href="{{ url_for('get_info_txt', book_id=book.id) }}" class="book-read-button button-stack pink-color">
 <i class="fas fa-file-alt"></i>
 info.txt
 </a>
 
 <a href={{ url_for('show_edit_book', book_id=book.id) }} class="book-read-button button-stack red-color"><i class="fas fa-edit"></i> Edit</a>
+
+<a href="{{ url_for('remove_book', book_id=book.id) }}" onclick="return confirm('Are you sure you want to permanently remove this Book?');" class="book-read-button button-stack red-color">
+<i class="fas fa-trash-alt"></i>
+Remove Book
+</a>
+
 <a href="/" id="backToIndex" class="book-read-button button-stack">
 <i class="fa fa-home"> </i>
 BACK TO INDEX
@@ -416,6 +422,12 @@ BACK TO INDEX
 		<i class="fas fa-sync-alt"></i>
 		Update Book
 		</a>
+
+        <a href="{{ url_for('remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}"
+            onclick="return confirm('Are you sure you want to remove this external link from this Book?');" class="book-read-button button-stack red-color">
+        <i class="fas fa-minus-circle"></i>
+        Remove
+        </a>
 
 
 </div>

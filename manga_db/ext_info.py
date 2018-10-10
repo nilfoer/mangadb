@@ -144,6 +144,20 @@ class ExternalInfo(DBRow):
             logger.info("Updated ext_info with url \"%s\" in database!", self.url)
         return self.id, field_change_str
 
+    def remove(self):
+        if self.id is None:
+            logger.error("Remove was called on  an external info instance without id!")
+            return None
+
+        with self.manga_db.db_con:
+            self.manga_db.db_con.execute("""
+                DELETE
+                FROM ExternalInfo
+                WHERE
+                id = ?""", (self.id, ))
+
+        logger.info("Removed external info with id %d and url %s", self.id, self.url)
+
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()
                                   if attr != "manga_db_entry"))
