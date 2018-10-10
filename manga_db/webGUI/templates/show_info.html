@@ -150,7 +150,7 @@
 <div class="book-data" id="Tag">
 	{% for tag in book.tag %}
 		{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
-		<a class="book-tag" href="{{ url_for('search_books', searchstring='tags:\"' + tag + '\"') }}">
+		<a class="book-tag" href="{{ url_for('search_books', searchstring='tag:\"' + tag + '\"') }}">
 			{{ tag }}
 		</a>
 	{% endfor %}

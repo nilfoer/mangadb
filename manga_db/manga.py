@@ -450,7 +450,14 @@ class MangaDBEntry(DBRow):
         logger.info("Successfully removed book with id %d", self.id)
 
     def remove_ext_info(self, _id):
+        if not self.ext_infos:
+            logger.warning("No external infos on book with id %d or not fetched from DB yet!",
+                           self.id)
+            return None
         ext_info = next((ei for ei in self.ext_infos if ei.id == _id))
+        if not ext_info:
+            logger.error("No external info with id %d found!", _id)
+            return None
         url = ext_info.url
         self._ext_infos = [ei for ei in self.ext_infos if ei.id != _id]
         ext_info.remove()

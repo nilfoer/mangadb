@@ -403,7 +403,10 @@ def remove_book(book_id):
 def remove_ext_info(book_id, ext_info_id):
     book = mdb.get_book(book_id)
     url = book.remove_ext_info(ext_info_id)
-    flash(f"External link with url '{url}' was removed from Book!")
+    if url is None:
+        flash(f"External link with id {ext_info_id} wasnt found on book!")
+    else:
+        flash(f"External link with url '{url}' was removed from Book!")
     return show_info(book_id=book_id, book=book)
 
 

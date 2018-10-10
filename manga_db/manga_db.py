@@ -297,8 +297,7 @@ class MangaDB:
             # first one
             part = part or multi_word
 
-            if delimiter in part:
-                # multiple vals -> associated column
+            if search_col in MangaDBEntry.JOINED_COLUMNS:
                 incl, excl = search.search_assoc_col_string_parse(part, delimiter=delimiter)
                 assoc_col_values_incl[search_col] = incl
                 assoc_col_values_excl[search_col] = excl

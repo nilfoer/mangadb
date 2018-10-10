@@ -28,6 +28,15 @@
 	{% endwith %}
 {% block body %}{% endblock %}
 </div>
+<script>
+    function imgError(image) {
+        // remove onerror defaut
+        image.onerror = "";
+        // replace with placeholder
+        image.src = "{{ url_for('static', filename='no-image.png') }}";
+        return true;
+    };
+</script>
 
 <div class="jump-book-container">
     <form action="{{ url_for('jump_to_book_by_url') }}" method=post class="search-tags">
