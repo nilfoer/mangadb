@@ -37,7 +37,7 @@ class MangaDB:
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
 
-    VALID_SEARCH_COLS = {"title", "language", "status" "favorite",
+    VALID_SEARCH_COLS = {"title", "language", "status", "favorite",
                          "category", "artist", "parody", "character", "collection", "groups",
                          "tag", "list"}
 
@@ -276,18 +276,30 @@ class MangaDB:
             part = None
             # single alwys has : included unless its not our syntax
             # since col:akdka;dajkda;dakda is one single word and col: is too
-            if single and ":" in single:
-                # -> search type is part of the word
-                search_col, part = single.split(":", 1)
-                if search_col not in self.VALID_SEARCH_COLS:
-                    logger.info("'%s' is not a supported search type!", search_col)
-                    # set to None so we skip adding search_options for next word (which
-                    # still belongs to unsupported search_col)
-                    search_col = None
+            if single:
+                if ":" in single:
+                    # -> search type is part of the word
+                    search_col, part = single.split(":", 1)
+                    if search_col not in self.VALID_SEARCH_COLS:
+                        logger.info("'%s' is not a supported search type!", search_col)
+                        # set to None so we skip adding search_options for next word (which
+                        # still belongs to unsupported search_col)
+                        search_col = None
+                        continue
+                    if not part:
+                        # if part empty it was col:"multi-word"
+                        continue
+                else:
+                    # multiple single words after each other -> use to search for title
+                    # with normal syntax col is always in single word and no col if
+                    # search_col isnt set so we can append all single words till we find a single
+                    # word with :
+                    try:
+                        normal_col_values["title"] = f"{normal_col_values['title']} {single}"
+                    except KeyError:
+                        normal_col_values["title"] = single
                     continue
-                if not part:
-                    # if part empty it was col:"multi-word"
-                    continue
+
             # search_col is None if search_col isnt supported
             # then we want to ignore this part of the search
             if search_col is None:
@@ -299,8 +311,12 @@ class MangaDB:
 
             if search_col in MangaDBEntry.JOINED_COLUMNS:
                 incl, excl = search.search_assoc_col_string_parse(part, delimiter=delimiter)
-                assoc_col_values_incl[search_col] = incl
-                assoc_col_values_excl[search_col] = excl
+                # make sure not to add an empty list otherwise we wont get an empty dic
+                # that evaluates to false for testing in search_normal_mult_assoc
+                if incl:
+                    assoc_col_values_incl[search_col] = incl
+                if excl:
+                    assoc_col_values_excl[search_col] = excl
             else:
                 normal_col_values[search_col] = part
 

@@ -46,9 +46,10 @@ def thumb_static(filename):
     return send_from_directory(app.config['THUMBS_FOLDER'], filename)
 
 
-@app.route('/')
+@app.route('/', methods=["GET"])
 def show_entries():
-    books = mdb.get_x_books(150)
+    page = int(request.args.get("page", 1))
+    books = mdb.get_x_books(60, offset=(page-1)*60)
     return render_template(
         'show_entries.html',
         books=books,

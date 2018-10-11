@@ -268,7 +268,7 @@ def search_like_cols_values(db_con,
     return c.fetchall()
 
 
-VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title_eng",
+VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title",
                   "Books.pages", "Books.my_rating", "Books.last_change")
 
 
@@ -355,6 +355,11 @@ def search_normal_mult_assoc(db_con, normal_col_values,
     table_bridge_names = ", ".join(table_bridge_names)
     cond_statements = "\n".join(cond_statements)
 
+    print(f"""SELECT Books.*
+            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
+            {cond_statements}
+            GROUP BY Books.id {assoc_incl_cond}
+            ORDER BY {order_by}""")
     c = db_con.execute(f"""
             SELECT Books.*
             FROM Books{',' if table_bridge_names else ''} {table_bridge_names}

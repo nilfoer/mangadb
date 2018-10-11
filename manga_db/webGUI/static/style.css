@@ -168,11 +168,7 @@ li.warning {
         text-align: left;
     }
 }
-#sorting-box {
-    display: inline-table;
-    line-height: 32px;
-}
-#asc-desc {
+.search-options {
     display: inline-table;
     line-height: 32px;
 }
