@@ -17,13 +17,39 @@ h3              { color: #22a7f0; }
 }
 #page-next {
     position: fixed;
-    top: 50%;
+    top: 0%;
     right: 0;
+    height: 100%;
+}
+#page-next:hover {
+    color: #cc0000;
+    background-color: #7575750f;
+}
+#page-next-inner {
+	position: relative;
+	top: 50%;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    font-size: 4em;
+    font-weight: bold;
 }
 #page-prev {
     position: fixed;
-    top: 50%;
+    top: 0%;
     left: 0;
+    height: 100%;
+}
+#page-prev:hover {
+    color: #cc0000;
+    background-color: #7575750f;
+}
+#page-prev-inner {
+	position: relative;
+	top: 50%;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    font-size: 4em;
+    font-weight: bold;
 }
 .button-leftmost {
     margin: 5px 5px 5px 0;

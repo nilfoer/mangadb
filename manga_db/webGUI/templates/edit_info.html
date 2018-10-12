@@ -1,15 +1,33 @@
 {% extends "book.html" %}
 {% block book_info %}
+<div class="row row-no-margin">
+<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
+{% if book.id is not none %}
+	<img alt="{{ book.title }}" class="book-page-image
+	img-responsive" src={{ url_for('thumb_static',
+	filename=book.id) }} onerror="imgError(this);">
+{% else %}
+	<img alt="{{ book.title }}" class="book-page-image img-responsive"
+		src={{ url_for('static', filename='no-image.png') }}
+		onerror="imgError(this);">
+{% endif %}
+</div>
+<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
+	<div class="row row-no-margin">
+		<div class="book-title">{{ book.title }}</div>
+	<hr>
+	</div>
+<div class="book-info-container" style="border-spacing: 3px;min-width:100%;">
 <script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
 {% if book.id is not none %}
-<form action={{ url_for('edit_book', book_id=book.id) }} method=post>
+<form action={{ url_for('edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
 {% else %}
-<form action={{ url_for('add_book') }} method=post>
+<form action={{ url_for('add_book') }} method=post style="min-width:100%;width:100%;">
 {% endif %}
 <div class="book-line">
 <div class="edit-book-info">English Title</div>
-<div class="book-data" id="EnglishTitle">
+<div class="book-data" id="EnglishTitle" style="width:100%;">
 	<input type="text" class="selectize-input" name="title_eng" id="EnglishTitle" value="{{ book.title_eng }}">
 </div>
 </div>
@@ -188,4 +206,7 @@ $('.select-multiple-create').selectize({
 });
 </script>
 </form>
+</div> {# book info container #}
+</div> {# book-info-wrap #}
+</div> {# row end #}
 {% endblock %}

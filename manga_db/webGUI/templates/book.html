@@ -5,28 +5,8 @@
 {% block book_changes %}{% endblock %}
 {% if book %}
 <div class="book-page-container">
-	<div class="row row-no-margin">
-	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
-        {% if book.id is not none %}
-		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book.id) }} onerror="imgError(this);">
-        {% else %}
-		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('static',
-        filename='no-image.png') }} onerror="imgError(this);">
-        {% endif %}
-	</div>
-	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
-		<div class="row row-no-margin">
-			<div class="book-title">{{ book.title }}</div>
-		<hr>
-		</div>
-		<div class="book-info-container" style="border-spacing: 3px;">
-		{% block book_info %}
-		{% endblock %}
-		</div> {# book info container #}
-</div> {# book-info-wrap #}
-</div> {# row end #}
-{% block ext_infos %}{% endblock %}
-{% block collections %}{% endblock %}
+{% block book_info %}
+{% endblock %}
 </div> {# book-page-container #}
 {% else %}
 <div class="book-title">{{ error_msg }}</div>

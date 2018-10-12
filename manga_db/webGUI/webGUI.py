@@ -49,14 +49,17 @@ def thumb_static(filename):
 
 @app.route('/', methods=["GET"])
 def show_entries():
+    order_by_col = request.args.get('order_by_col', "id")
+    asc_desc = request.args.get('asc_desc', "DESC")
     page = int(request.args.get("page", 1))
-    books = mdb.get_x_books(60, offset=(page-1)*60)
+    order_by = f"Books.{order_by_col} {asc_desc}"
+    books = mdb.get_x_books(BOOKS_PER_PAGE, offset=(page-1)*BOOKS_PER_PAGE, order_by=order_by)
     return render_template(
         'show_entries.html',
         books=books,
         page=page,
-        order_col_libox="id",
-        asc_desc="DESC")
+        order_col_libox=order_by_col,
+        asc_desc=asc_desc)
 
 
 @app.route('/book/<int:book_id>')

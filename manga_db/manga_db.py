@@ -331,7 +331,7 @@ class MangaDB:
                     assoc_col_values_incl, assoc_col_values_excl,
                     order_by=order_by, **kwargs)
         else:
-            return self.get_x_books(60, order_by=order_by, **kwargs)
+            return self.get_x_books(60, order_by=order_by, offset=kwargs.get("offset", 0))
 
     @staticmethod
     def _load_or_create_sql_db(filename):
