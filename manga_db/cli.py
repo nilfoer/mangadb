@@ -70,7 +70,7 @@ def _cl_import_book(args, mdb):
 
 
 def _cl_get_info(args, mdb):
-    book, _ = mdb.retrieve_book_data(args.url, [])
+    book, _ = mdb.retrieve_book_data(args.url)
     if args.output_filename:
         exp_str = book.to_export_string()
         with open(args.output_filename, "w", encoding="UTF-8") as w:

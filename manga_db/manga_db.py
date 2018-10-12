@@ -119,13 +119,10 @@ class MangaDB:
                          url, filename)
             return None
 
-    def retrieve_book_data(self, url, lists):
+    def retrieve_book_data(self, url):
         extractor_cls = extractor.find(url)
         extr = extractor_cls(self, url)
         data = extr.get_metadata()
-        # add lists to data since add/remove methods on MangaDBEntry are for updating
-        # not for initializing/adding to db
-        data.update({"list": lists})
         book = MangaDBEntry(self, data)
         ext_info = ExternalInfo(self, book, data)
         book.ext_infos = [ext_info]
@@ -138,7 +135,10 @@ class MangaDB:
         """
         thumb_url = thumb_url
         if url and lists is not None:
-            book, thumb_url = self.retrieve_book_data(url, lists)
+            book, thumb_url = self.retrieve_book_data(url)
+            # @Cleanup find a better way to add/set data esp. b4 adding to db
+            # works here since changes are ignored when adding to db and reset afterwards
+            book.update_from_dict({"list": lists})
         elif book and thumb_url:
             book = book
         else:
@@ -331,7 +331,7 @@ class MangaDB:
                     assoc_col_values_incl, assoc_col_values_excl,
                     order_by=order_by, **kwargs)
         else:
-            return self.get_x_books(150, order_by=order_by, **kwargs)
+            return self.get_x_books(60, order_by=order_by, **kwargs)
 
     @staticmethod
     def _load_or_create_sql_db(filename):

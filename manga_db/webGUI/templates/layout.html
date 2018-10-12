@@ -39,6 +39,9 @@
 </script>
 
 <div class="jump-book-container">
+    <a id="jump-book-btn" class="book-read-button button-stack red-color" href="{{ url_for('show_add_book') }}">
+        <i class="fas fa-share button-icon"></i>
+    </a>
     <form action="{{ url_for('jump_to_book_by_url') }}" method=post class="search-tags">
 	<div class="container-align-left" id="jump-url-field-container">
 	<input value="" type=text name="ext-url" class="data-search" id="jumpURL">

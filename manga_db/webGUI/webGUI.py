@@ -17,6 +17,7 @@ from ..ext_info import ExternalInfo
 from .. import extractor
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
+BOOKS_PER_PAGE = 60
 
 
 # config logging b4 this line vv
@@ -53,14 +54,9 @@ def show_entries():
     return render_template(
         'show_entries.html',
         books=books,
+        page=page,
         order_col_libox="id",
         asc_desc="DESC")
-
-
-def create_list_dict(manga_db, book):
-    list_dict = {row[0]: False for row in manga_db.fetch_list_names()}
-    list_dict.update({name: True for name in book.list})
-    return list_dict
 
 
 @app.route('/book/<int:book_id>')
@@ -143,7 +139,7 @@ def update_book_ext_info(book_id, ext_info_id):
     old_book = mdb.get_book(book_id)
     # could also pass in url using post or get
     old_ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
-    new_book, _ = mdb.retrieve_book_data(old_ext_info.url, [])
+    new_book, _ = mdb.retrieve_book_data(old_ext_info.url)
     changes, _ = old_book.diff(new_book)
     # filter changes and convert to jinja friendlier format
     changes = {key: changes[key] for key in changes if key not in {"id", "last_change",
@@ -241,23 +237,28 @@ def get_info_txt(book_id):
 
 @app.route("/search", methods=["GET", "POST"])
 def search_books():
+    # TODO pages
     if request.method == 'POST':
         searchstr = request.form['searchstring']
-        order_by_col = request.form['order-by-col']
-        asc_desc = "ASC" if request.form['asc-desc'] == "ASC" else "DESC"
+        order_by_col = request.form['order_by_col']
+        asc_desc = "ASC" if request.form['asc_desc'] == "ASC" else "DESC"
+        page = int(request.form.get("page", 1))
     else:
         searchstr = request.args['searchstring']
         # prepare defaults so we dont always have to send them when using get
-        order_by_col = request.args.get('order-by-col', "id")
-        asc_desc = request.args.get('asc-desc', "DESC")
+        order_by_col = request.args.get('order_by_col', "id")
+        asc_desc = request.args.get('asc_desc', "DESC")
+        page = int(request.args.get("page", 1))
 
     order_by = f"Books.{order_by_col} {asc_desc}"
-    books = mdb.search(searchstr, order_by=order_by)
+    books = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE,
+                       offset=(page-1)*BOOKS_PER_PAGE)
 
     return render_template(
         "show_entries.html",
         books=books,
         search_field=searchstr,
+        page=page,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 
@@ -316,6 +317,45 @@ def set_downloaded(book_id, ext_info_id, intbool):
         url_for("show_info", book_id=book_id))
 
 
+@app.route("/book/add")
+def show_add_book():
+    # @Hack
+    data = {"list": [], "tag": [], "category": [], "parody": [], "groups": [], "character": [],
+            "collection": [], "artist": []}
+    book = MangaDBEntry(mdb, data)
+    book.title = "New Book!"
+    available_options = book.get_all_options_for_assoc_columns()
+    available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()
+                                     if type(_id) == int]
+    available_options["status"] = [(_id, name) for _id, name in STATUS_IDS.items()
+                                   if type(_id) == int]
+
+    return render_template(
+        'edit_info.html',
+        book=book,
+        available_options=available_options)
+
+
+@app.route("/book/add/submit", methods=["POST"])
+def add_book():
+    print(request)
+    update_dic = {}
+
+    for col in MangaDBEntry.DB_COL_HELPER:
+        val = request.form.get(col, None)
+        if col in ("pages", "status_id", "language_id"):
+            val = int(val)
+        elif col == "my_rating":
+            # dont add if empty string or 0..
+            if not val:
+                continue
+            val = float(val)
+        update_dic[col] = val
+    for col in MangaDBEntry.JOINED_COLUMNS:
+        val_list = request.form.getlist(col)
+        update_dic[col] = val_list
+    print(update_dic)
+
 @app.route("/book/edit/<int:book_id>")
 def show_edit_book(book_id, book=None):
     if book is None:
@@ -324,13 +364,6 @@ def show_edit_book(book_id, book=None):
         return render_template(
             'show_info.html',
             error_msg=f"No book with id {book_id} was found in DB!")
-
-    collections = None
-    if book.collection:
-        collections = []
-        for collection in book.collection:
-            books_in_collection = mdb.get_collection_info(collection)
-            collections.append((collection, books_in_collection))
 
     available_options = book.get_all_options_for_assoc_columns()
     available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()

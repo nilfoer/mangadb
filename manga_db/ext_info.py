@@ -71,12 +71,15 @@ class ExternalInfo(DBRow):
             else:
                 setattr(self, col, new)
 
+    def update_from_url(self, back_update=None):
+        book, thumb = self.manga_db.retrieve_book_data(self.url)
+
     def save(self):
         # idea is that ExternalInfo only gets edited when also editing MangaDBEntry
         # and except downloaded everything else is edited by importing
         if self.id is None:
             if self.manga_db_entry is None or self.manga_db_entry.id is None:
-                raise ValueError("ExternalInfo can only be saved with an id and MangaDBEntry.id!")
+                raise ValueError("ExternalInfo can only be saved with an id or MangaDBEntry.id!")
             return self._add_entry()
         else:
             # pass boolean if we have correct information for downloaded

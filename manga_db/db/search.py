@@ -299,7 +299,8 @@ def search_book_by_title(db_con,
 
 def search_normal_mult_assoc(db_con, normal_col_values,
                              int_col_values_dict, ex_col_values_dict,
-                             order_by="Books.id DESC"):
+                             order_by="Books.id DESC",
+                             limit=0, offset=0):
     """Can search in normal columns as well as multiple associated columns
     (connected via bridge table) and both include and exclude them"""
     # @Cleanup mb split into multiple funcs that just return the conditional string
@@ -355,15 +356,11 @@ def search_normal_mult_assoc(db_con, normal_col_values,
     table_bridge_names = ", ".join(table_bridge_names)
     cond_statements = "\n".join(cond_statements)
 
-    print(f"""SELECT Books.*
-            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
-            {cond_statements}
-            GROUP BY Books.id {assoc_incl_cond}
-            ORDER BY {order_by}""")
     c = db_con.execute(f"""
             SELECT Books.*
             FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
             {cond_statements}
             GROUP BY Books.id {assoc_incl_cond}
-            ORDER BY {order_by}""", (*vals_in_order,))
+            ORDER BY {order_by}
+            LIMIT ? OFFSET ?""", (*vals_in_order, limit, offset))
     return c.fetchall()

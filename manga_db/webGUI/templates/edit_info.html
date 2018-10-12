@@ -2,7 +2,11 @@
 {% block book_info %}
 <script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
+{% if book.id is not none %}
 <form action={{ url_for('edit_book', book_id=book.id) }} method=post>
+{% else %}
+<form action={{ url_for('add_book') }} method=post>
+{% endif %}
 <div class="book-line">
 <div class="edit-book-info">English Title</div>
 <div class="book-data" id="EnglishTitle">
@@ -149,7 +153,7 @@
 <div class="edit-book-info"></div>
 <div class="book-data" id="">
 <button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
-<a href={{ url_for('show_info', book_id=book.id) }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+<a href={{ url_for('show_info', book_id=book.id) if book.id is not none else url_for('show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
 </div>
 </div>
 <script>

@@ -129,7 +129,9 @@ class MangaDBEntry(DBRow):
         return self.last_change
 
     def update_from_dict(self, dic):
-        """Values for JOINED_COLUMNS have to be of tuple/set/list"""
+        """Values for JOINED_COLUMNS have to be of tuple/set/list
+        Can also be used for book that is not in DB yet, since self._changes gets
+        ignored and reset after adding"""
         # TODO validate input
         for col in self.DB_COL_HELPER:
             # never update id, last_change from dict, handle title and fav ourselves
@@ -152,10 +154,10 @@ class MangaDBEntry(DBRow):
                 old = getattr(self, f"_{col}")
                 setattr(self, f"_{col}", new)
                 added, removed = diff_update(old, new)
-                if added is None and removed is None:
-                    continue
-                self._changes[col][0].update(added)
-                self._changes[col][1].update(removed)
+                if added:
+                    self._changes[col][0].update(added)
+                if removed:
+                    self._changes[col][1].update(removed)
 
         # TODO ext_infos
         fav = dic.get("favorite", None)
@@ -387,7 +389,7 @@ class MangaDBEntry(DBRow):
         if self.id is None:
             bid = self.manga_db.get_book_id(self.title)
             if bid is None:
-                logger.debug("Called update on Book with title '%s' which was not "
+                logger.debug("Called save on Book with title '%s' which was not "
                              "in DB! Adding Book instead!", self.title)
                 bid, _ = self._add_entry()
                 self.id = bid
@@ -419,6 +421,9 @@ class MangaDBEntry(DBRow):
                     self._add_associated_column_values(col, value)
 
         logger.info("Added book with title \"%s\"  as id '%d' to database!", self.title, self.id)
+        # also reset changes here since update_from_dict couldve been used which modifies _changes
+        # and if book would be updated after adding it would write unnecessary changes to DB
+        self._reset_changes()
 
         return self.id, None
 

@@ -7,7 +7,12 @@
 <div class="book-page-container">
 	<div class="row row-no-margin">
 	<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
+        {% if book.id is not none %}
 		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('thumb_static', filename=book.id) }} onerror="imgError(this);">
+        {% else %}
+		<img alt="{{ book.title }}" class="book-page-image img-responsive" src={{ url_for('static',
+        filename='no-image.png') }} onerror="imgError(this);">
+        {% endif %}
 	</div>
 	<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 		<div class="row row-no-margin">

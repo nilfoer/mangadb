@@ -117,4 +117,13 @@
   {# only started working once placed at end of website or at least after imgs? #}
   <script type="text/javascript">lazyload();</script>
 
+{% if search_field %}
+  <a href="{{ url_for('search_books', page=page+1, searchstring=search_field,
+      order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><i class="fa fa-arrow-right"></i></div></a>
+  <a href="{{ url_for('search_books', page=page-1, searchstring=search_field,
+      order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><i class="fa fa-arrow-left"></i></div></a>
+{% else %}
+  <a href="{{ url_for('show_entries', page=page+1) }}"><div id="page-next"><i class="fa fa-arrow-right"></i></div></a>
+  <a href="{{ url_for('show_entries', page=page-1) }}"><div id="page-prev"><i class="fa fa-arrow-left"></i></div></a>
+{% endif %}
 {% endblock %}
