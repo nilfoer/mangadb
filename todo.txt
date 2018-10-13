@@ -1,8 +1,7 @@
 - update func in MangaDB(not just webgui)(select fields to overwrite/update 
     always adding/updating ext_info), rlimi+offset search
 - thread/subprocess for network stuff
-- add ext to edit_info?
-- webGUI: display rating/my_rating, change cover when editing
+- webGUI: display rating/my_rating
 - check for dupl urls/idonpage when adding extinfo! + give warning when importing and idonpage is duplicate?
 - safeguard against external link now linking to a different manga when updating!
 - triggers for last_change incomplete replace with manual way
@@ -24,4 +23,6 @@
 - there shouldnt be duplicate tags in the sense of e.g. "Demong Girl | Succubus" and "Succubus",
     since its impractical for searching
     -> convert site tags to MangaDB tags
-    => let user handle this (they can import the tags and then change them if they dont want duplicates etc.)            
+    => let user handle this (they can import the tags and then change them if they dont want duplicates etc.)    
+- add ext to edit_info?
+        -> no want to keep editing book and external links separate

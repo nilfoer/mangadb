@@ -232,7 +232,7 @@
 					url : "{{ url_for('list_action_ajax', book_id=book.id, action='add') }}",
 					// let jquery know that flask is returning json data
 					// (data in func below)
-					dataType: "json",
+					dataType: "json"
 				})
 				.done(function(data) { // when prev function is done
 
@@ -288,7 +288,7 @@
 					url : "{{ url_for('list_action_ajax', book_id=book.id, action='remove') }}",
 					// let jquery know that flask is returning json data
 					// (data in func below)
-					dataType: "json",
+					dataType: "json"
 				})
 				.done(function(data) { // when prev function is done
 

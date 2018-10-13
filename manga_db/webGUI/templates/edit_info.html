@@ -11,6 +11,59 @@
 		src={{ url_for('static', filename='no-image.png') }}
 		onerror="imgError(this);">
 {% endif %}
+<form id=upload-cover action="{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
+      <input id=cover-file type=file name=file style="background-color:#333;" required />
+      <input type=submit value="Upload Cover" style="margin-top:0.5em;background-color:#333;" />
+</form>
+<script>
+$(document).ready(function() {
+    $("#upload-cover").submit(function(event) {
+        event.preventDefault();
+        //grab all form data  
+        // With XHR2, File upload through AJAX is supported. E.g. through FormData object
+        var form_data = new FormData($(this));//.serialize();
+        // add files of input type file to form_data
+        form_data.append('file', $('#cover-file')[0].files[0]);
+
+        $.ajax({
+               // whole mistake was forgetting " around url
+               url: "{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}",
+               type: 'POST',
+               data: form_data,
+               // Tell jQuery not to process data or worry about content-type
+               // You *must* include these options!
+               cache: false,
+               contentType: false,
+               processData: false,
+               // response type
+               dataType: "json"
+        }).done(function(data) {
+            if (data.error) {
+                console.log(data.error);
+            }
+            else {
+                // browser caches img and if url doesnt change new img wont be displayed
+                // circumvent that by adding a variable to the img url
+                $(".book-page-image").attr("src",
+                    data.cover_path + "?timestamp=" + new Date().getTime());
+                {% if book.id is none %}
+                // get only filename vv
+                var temp_name = data.cover_path.split("/")
+                // get last element
+                temp_name = temp_name[temp_name.length-1]
+                // add temp name of cover (no id yet) as hidden field so we can rename it
+                var hidden_temp_name = "<input type='hidden' name='cover_temp_name' value='" +
+                    temp_name + "'/>"
+                $("#add-book-form").prepend(hidden_temp_name)
+                {% endif %}
+           }
+        });
+        // to prevent default also
+        return false;
+
+    });
+});
+</script>
 </div>
 <div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 	<div class="row row-no-margin">
@@ -21,9 +74,9 @@
 <script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
 {% if book.id is not none %}
-<form action={{ url_for('edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
+<form id=edit-book-form action={{ url_for('edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
 {% else %}
-<form action={{ url_for('add_book') }} method=post style="min-width:100%;width:100%;">
+<form id=add-book-form action={{ url_for('add_book') }} method=post style="min-width:100%;width:100%;">
 {% endif %}
 <div class="book-line">
 <div class="edit-book-info">English Title</div>

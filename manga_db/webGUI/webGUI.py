@@ -39,6 +39,10 @@ mdb = MangaDB(".", "manga_db.sqlite")
 
 # path to thumbs folder
 app.config['THUMBS_FOLDER'] = os.path.join(mdb.root_dir, "thumbs")
+# thumb extensions
+ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
+# limit upload size to 0,5MB
+app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024
 
 # create route for thumbs/static data that isnt in static, can be used in template with
 # /thumbs/path/filename or with url_for(thumb_static, filename='filename')
@@ -296,7 +300,7 @@ def search_books():
 # without reloading the page or going to edit
 # WARNING vulnerable to cross-site requests
 # TODO add token
-@app.route("/book/<int:book_id>/list/<action>", methods=["POST"])
+@app.route("/book/<int:book_id>/list/<action>", methods=["POST", "GET"])
 def list_action_ajax(book_id, action):
     list_name = request.form.get("name", None)
     if list_name is None:
@@ -410,6 +414,12 @@ def add_book():
     # so title is correct format !important
     book.reformat_title()
     bid, _ = book.save()
+
+    # rename book cover if one was uploaded with temp name
+    temp_name = request.form.get("cover_temp_name", None)
+    if temp_name is not None:
+        os.rename(os.path.join(app.config["THUMBS_FOLDER"], temp_name),
+                  os.path.join(app.config["THUMBS_FOLDER"], str(bid)))
     return show_info(book_id=bid, book=book)
 
 
@@ -482,6 +492,42 @@ def edit_book(book_id):
     # @Speed could also pass book to show_info directly, but by getting book from db
     # again we can see if changes applied correctly?
     return redirect(url_for("show_info", book_id=book_id))
+
+
+# code for file uploading taken from:
+# http://flask.pocoo.org/docs/1.0/patterns/fileuploads/ and
+# https://stackoverflow.com/questions/50069199/send-file-with-flask-and-return-a-data-without-refreshing-the-html-page
+# https://stackoverflow.com/questions/32724971/jquery-file-upload-without-redirect
+def allowed_thumb_ext(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_THUMB_EXTENSIONS
+
+
+@app.route('/book/<int:book_id>/upload_cover', methods=['POST'])
+def upload_cover(book_id):
+    # check if the post request has the file part
+    if 'file' not in request.files:
+        return jsonify({"error": "No file data recieved!"})
+    file_data = request.files['file']
+    # if user does not select file, browser also
+    # submit an empty part without filename
+    if file_data.filename == '':
+        return jsonify({"error": "No file selected!"})
+    if file_data and allowed_thumb_ext(file_data.filename):
+        # TODO temp file for book thats not in db yet
+        if book_id == 0:
+            # generate unique filename for book that has no book id yet
+            # insert as hidden field into add_book and rename to book id then
+            # Version 4: These are generated from random (or pseudo-random) numbers. If you just
+            # need to generate a UUID, this is probably what you want.
+            import uuid
+            filename = uuid.uuid4().hex
+        else:
+            filename = str(book_id)
+        file_data.save(os.path.join(app.config['THUMBS_FOLDER'], filename))
+        return jsonify({'cover_path': url_for('thumb_static', filename=filename)})
+    else:
+        return jsonify({"error": "Wrong extension for thumb!"})
 
 
 @app.route('/book/<int:book_id>/remove')
