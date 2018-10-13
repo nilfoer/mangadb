@@ -72,7 +72,10 @@ class ExternalInfo(DBRow):
                 setattr(self, col, new)
 
     def update_from_url(self, back_update=None):
+        # TODO
         book, thumb = self.manga_db.retrieve_book_data(self.url)
+        if book is None:
+            return
 
     def save(self):
         # idea is that ExternalInfo only gets edited when also editing MangaDBEntry

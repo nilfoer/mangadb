@@ -46,6 +46,9 @@ class TsuminoExtractor(BaseMangaExtractor):
         if self.metadata is None:
             if self.html is None:
                 self.html = TsuminoExtractor.get_html(self.url)
+                if not self.html:
+                    logger.warning("Extraction failed! HTML was empty for url '%s'", self.url)
+                    return None
             self.metadata = self.transform_metadata(TsuminoExtractor.extract_info(self.html))
         return self.metadata
 

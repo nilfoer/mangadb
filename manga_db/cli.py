@@ -71,6 +71,8 @@ def _cl_import_book(args, mdb):
 
 def _cl_get_info(args, mdb):
     book, _ = mdb.retrieve_book_data(args.url)
+    if book is None:
+        return
     if args.output_filename:
         exp_str = book.to_export_string()
         with open(args.output_filename, "w", encoding="UTF-8") as w:
@@ -82,7 +84,11 @@ def _cl_get_info(args, mdb):
 
 
 def _cl_show_book(args, mdb):
-    print(mdb.get_book(args.id).to_export_string())
+    b = mdb.get_book(args.id)
+    if b:
+        print(b.to_export_string())
+    else:
+        print("No book with that id!")
 
 
 def _cl_collector(args, mdb):

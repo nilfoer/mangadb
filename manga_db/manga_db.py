@@ -110,7 +110,7 @@ class MangaDB:
                                            filename)
             except urllib.request.HTTPError as err:
                 logger.warning("HTTP Error %s: %s: \"%s\"",
-                               err.code, err.reason, self.thumb_url)
+                               err.code, err.reason, url)
                 return False
             else:
                 return True
@@ -123,10 +123,14 @@ class MangaDB:
         extractor_cls = extractor.find(url)
         extr = extractor_cls(self, url)
         data = extr.get_metadata()
-        book = MangaDBEntry(self, data)
-        ext_info = ExternalInfo(self, book, data)
-        book.ext_infos = [ext_info]
-        return book, extr.get_cover()
+        if data:
+            book = MangaDBEntry(self, data)
+            ext_info = ExternalInfo(self, book, data)
+            book.ext_infos = [ext_info]
+            return book, extr.get_cover()
+        else:
+            logger.warning("No data to create book at url '%s' from!", url)
+            return None, None
 
     def import_book(self, url=None, lists=None, book=None, thumb_url=None):
         """
@@ -136,6 +140,9 @@ class MangaDB:
         thumb_url = thumb_url
         if url and lists is not None:
             book, thumb_url = self.retrieve_book_data(url)
+            if book is None:
+                logger.warning("Importing book failed!")
+                return None, None
             # @Cleanup find a better way to add/set data esp. b4 adding to db
             # works here since changes are ignored when adding to db and reset afterwards
             book.update_from_dict({"list": lists})

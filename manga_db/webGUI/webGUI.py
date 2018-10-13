@@ -101,6 +101,12 @@ def import_book(url=None):
         else:
             url = request.args['ext-url']
     bid, book = mdb.import_book(url, lists=[])
+    if book is None:
+        flash("Failed getting book!", "warning")
+        flash("Either there was something wrong with the url or the extraction failed!", "info")
+        flash(f"URL was: {url}")
+        flash("Check the logs for more details!", "info")
+        return redirect(url_for("show_entries"))
 
     # book hasnt been imported since id isnt set -> was alrdy in DB
     # -> add extinfo instead of importing whole book
@@ -156,6 +162,13 @@ def update_book_ext_info(book_id, ext_info_id):
     # could also pass in url using post or get
     old_ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
     new_book, _ = mdb.retrieve_book_data(old_ext_info.url)
+    if new_book is None:
+        flash("Updating failed!", "warning")
+        flash("Either there was something wrong with the url or the extraction failed!", "info")
+        flash(f"URL was: {old_ext_info.url}")
+        flash("Check the logs for more details!", "info")
+        return show_info(book_id=book_id, book=old_book)
+
     changes, _ = old_book.diff(new_book)
     # filter changes and convert to jinja friendlier format
     changes = {key: changes[key] for key in changes if key not in {"id", "last_change",
@@ -342,6 +355,13 @@ def add_ext_info(book_id):
         flash(f"URL empty!")
         return redirect(url_for("show_info", book_id=book_id))
     book, _ = mdb.retrieve_book_data(url)
+    if book is None:
+        flash("Adding external link failed!", "warning")
+        flash("Either there was something wrong with the url or the extraction failed!", "info")
+        flash(f"URL was: {url}")
+        flash("Check the logs for more details!", "info")
+        return show_info(book_id=book_id)
+
     # @Hack @Cleanup assigning book id to book we dont want to save in order
     # to be able to save ext_info
     book.id = book_id
