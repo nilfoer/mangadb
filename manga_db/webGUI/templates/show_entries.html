@@ -85,12 +85,11 @@
             </div>
 	    {% elif book.ext_infos %}
             <div class="overlay-rate">
-                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
-                {% for _ in range( book.ext_infos[0].rating|round|int() ) %}
-                {# &#9733; would also works but looks better with Fontawesome #}
+                {% for _ in range( book.avg_ext_rating|round|int() ) %}
                 <span class="fa fa-star"></span>
                 {% endfor %}
             </div>
+            <span style="font-size: small;">(avg external rating)</span>
 	    {% endif %}
         </div>
 	<a href={{ url_for('show_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">

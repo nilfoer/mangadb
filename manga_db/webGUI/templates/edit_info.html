@@ -13,7 +13,9 @@
 {% endif %}
 <form id=upload-cover action="{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
       <input id=cover-file type=file name=file style="background-color:#333;" required />
-      <input type=submit value="Upload Cover" style="margin-top:0.5em;background-color:#333;" />
+      <input type=submit value="Upload Cover" style="margin:0.5em 0;background-color:#333;" />
+      <br/>Note: Otimal size is 400x~560px, height can vary but width should be 400px!
+      <br/>Apsect ratio: around 5:7
 </form>
 <script>
 $(document).ready(function() {

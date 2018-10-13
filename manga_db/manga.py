@@ -271,6 +271,14 @@ class MangaDBEntry(DBRow):
         return self._ext_infos
 
     @property
+    def avg_ext_rating(self):
+        if self.ext_infos:
+            ratings = [ei.rating for ei in self.ext_infos if ei.rating]
+            return sum(ratings)/len(ratings)
+        else:
+            return None
+
+    @property
     def ext_infos(self):
         if self.id is None:
             # initialized from extracotr dict
