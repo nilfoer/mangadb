@@ -1,6 +1,31 @@
 - update func in MangaDB(not just webgui)(select fields to overwrite/update 
     always adding/updating ext_info), rlimi+offset search
-- thread/subprocess for network stuff    
+- thread/subprocess for network stuff
+- count not working with group by:
+    this works but slow:
+        SELECT SUM(counts.nr)
+        FROM (
+            SELECT COUNT(DISTINCT Books.id) as nr
+            FROM Books, Tag, BookTag
+            WHERE Books.id = BookTag.book_id
+            AND Tag.id = BookTag.tag_id
+            AND Tag.name IN ('Blowjob','Femdom','Large Breasts')
+            GROUP BY Books.id HAVING COUNT(Books.id) = 3
+        ) as counts
+        
+        faster (just as fast as using normal count(*), distinct just unnecessary since it just turns however
+        many rows for a Book.id there are into one which SELECT 1 does also but muuuch faster, since with the
+        group by and having count (and without the select count) there will be just 1 row with value 1 for every
+        matching row/book):
+        SELECT SUM(counts.nr)
+        FROM (
+            SELECT 1 as nr
+            FROM Books, Tag, BookTag
+            WHERE Books.id = BookTag.book_id
+            AND Tag.id = BookTag.tag_id
+            AND Tag.name IN ('Blowjob','Femdom','Large Breasts')
+            GROUP BY Books.id HAVING COUNT(Books.id) = 3
+        ) as counts
 - webGUI: display rating/my_rating, change cover when editing
 - check for dupl urls/idonpage when adding extinfo! + give warning when importing and idonpage is duplicate?
 - safeguard against external link now linking to a different manga when updating!

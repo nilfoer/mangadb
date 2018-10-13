@@ -160,15 +160,22 @@ class MangaDB:
 
         return bid, book
 
-    def get_x_books(self, x, offset=0, order_by="Books.id DESC"):
+    def get_x_books(self, x, offset=0, order_by="Books.id DESC", count=False):
         # order by has to come b4 limit/offset
         c = self.db_con.execute(f"SELECT * FROM Books ORDER BY {order_by} LIMIT {x} "
                                 f"OFFSET {offset}")
         rows = c.fetchall()
+
+        total = None
+        if count:
+            c.execute(f"SELECT COUNT(*) FROM Books")
+            total = c.fetchone()
+            total = total[0] if total else 0
+
         if rows:
-            return [MangaDBEntry(self, row) for row in rows]
+            return [MangaDBEntry(self, row) for row in rows], total
         else:
-            return None
+            return None, None
 
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
@@ -332,7 +339,8 @@ class MangaDB:
                     assoc_col_values_incl, assoc_col_values_excl,
                     order_by=order_by, **kwargs)
         else:
-            return self.get_x_books(60, order_by=order_by, offset=kwargs.get("offset", 0))
+            return self.get_x_books(60, order_by=order_by, offset=kwargs.get("offset", 0),
+                                    count=kwargs.get("count", False))
 
     @staticmethod
     def _load_or_create_sql_db(filename):

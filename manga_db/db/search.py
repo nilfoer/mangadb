@@ -282,7 +282,8 @@ def validate_order_by_str(order_by):
 def search_book_by_title(db_con,
                          title,
                          order_by="Books.id DESC",
-                         limit=-1, offset=0):
+                         limit=-1, offset=0,
+                         count=False):
     # search title or title_eng?
     # '%?%' doesnt work since ' disable ? and :name as placeholder
     # You should use query parameters where possible, but query parameters can't be used to
@@ -295,15 +296,25 @@ def search_book_by_title(db_con,
                   WHERE title LIKE ?
                   ORDER BY {order_by}
                   LIMIT ? OFFSET ?""", (f"%{title}%", limit, offset))
+    rows = c.fetchall()
 
-    return c.fetchall()
+    total = None
+    if count:
+        c.execute(f"""
+                  SELECT COUNT(*) FROM Books
+                  WHERE title LIKE ?""", (f"%{title}%", ))
+        total = c.fetchone()
+        total = total[0] if total else 0
+
+    return rows, total
 
 
 def search_normal_mult_assoc(db_con, normal_col_values,
                              int_col_values_dict, ex_col_values_dict,
                              order_by="Books.id DESC",
                              # no row limit when limit is neg. nr
-                             limit=-1, offset=0):
+                             limit=-1, offset=0,
+                             count=False):
     """Can search in normal columns as well as multiple associated columns
     (connected via bridge table) and both include and exclude them"""
     # @Cleanup mb split into multiple funcs that just return the conditional string
@@ -313,7 +324,7 @@ def search_normal_mult_assoc(db_con, normal_col_values,
         # nr of items in values multiplied is nr of rows returned needed to match
         # all conditions !! only include intersection vals
         mul_values = prod((len(vals) for vals in int_col_values_dict.values()))
-        assoc_incl_cond = f"HAVING COUNT(Books.id) = {mul_values}"
+        assoc_incl_cond = f"GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}"
     else:
         assoc_incl_cond = ""
 
@@ -363,7 +374,26 @@ def search_normal_mult_assoc(db_con, normal_col_values,
             SELECT Books.*
             FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
             {cond_statements}
-            GROUP BY Books.id {assoc_incl_cond}
+            {assoc_incl_cond}
             ORDER BY {order_by}
             LIMIT ? OFFSET ?""", (*vals_in_order, limit, offset))
-    return c.fetchall()
+    rows = c.fetchall()
+
+    print(f"""SELECT COUNT(*)
+            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
+            {cond_statements}
+            {assoc_incl_cond}""")
+    total = None
+    if count:
+        # not possible to do this in one query with sqlite
+        # count(*) doesnt work with group by -> it outputs row - value: 1-1, 2-1, 3-1, ..
+        c.execute(f"""
+            SELECT COUNT(Books.id)
+            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
+            {cond_statements}
+            {assoc_incl_cond}""", (*vals_in_order, ))
+        total = c.fetchone()
+        total = total[0] if total else 0
+        print(total)
+
+    return rows, total

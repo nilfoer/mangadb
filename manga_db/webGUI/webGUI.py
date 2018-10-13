@@ -4,6 +4,7 @@ Description: Creates webGUI for manga_db using flask
 """
 
 import os.path
+import math
 from flask import (
         Flask, request, redirect, url_for,
         render_template, flash, send_from_directory,
@@ -53,11 +54,13 @@ def show_entries():
     asc_desc = request.args.get('asc_desc', "DESC")
     page = int(request.args.get("page", 1))
     order_by = f"Books.{order_by_col} {asc_desc}"
-    books = mdb.get_x_books(BOOKS_PER_PAGE, offset=(page-1)*BOOKS_PER_PAGE, order_by=order_by)
+    books, total = mdb.get_x_books(BOOKS_PER_PAGE, offset=(page-1)*BOOKS_PER_PAGE,
+                                   order_by=order_by, count=True)
     return render_template(
         'show_entries.html',
         books=books,
         page=page,
+        total=math.ceil(total/BOOKS_PER_PAGE),
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 
@@ -250,7 +253,6 @@ def get_info_txt(book_id):
 
 @app.route("/search", methods=["GET", "POST"])
 def search_books():
-    # TODO pages
     if request.method == 'POST':
         searchstr = request.form['searchstring']
         order_by_col = request.form['order_by_col']
@@ -264,14 +266,15 @@ def search_books():
         page = int(request.args.get("page", 1))
 
     order_by = f"Books.{order_by_col} {asc_desc}"
-    books = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE,
-                       offset=(page-1)*BOOKS_PER_PAGE)
+    books, total = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE,
+                              offset=(page-1)*BOOKS_PER_PAGE, count=True)
 
     return render_template(
         "show_entries.html",
         books=books,
         search_field=searchstr,
         page=page,
+        total=math.ceil(total/BOOKS_PER_PAGE),
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 
