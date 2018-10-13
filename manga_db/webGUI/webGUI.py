@@ -514,7 +514,6 @@ def upload_cover(book_id):
     if file_data.filename == '':
         return jsonify({"error": "No file selected!"})
     if file_data and allowed_thumb_ext(file_data.filename):
-        # TODO temp file for book thats not in db yet
         if book_id == 0:
             # generate unique filename for book that has no book id yet
             # insert as hidden field into add_book and rename to book id then
@@ -524,7 +523,17 @@ def upload_cover(book_id):
             filename = uuid.uuid4().hex
         else:
             filename = str(book_id)
-        file_data.save(os.path.join(app.config['THUMBS_FOLDER'], filename))
+        from PIL import Image, ImageOps
+        # file_data is only the wrapper (werkzeug.FileStorag) open actual file with .stream
+        # (SpooledTemporaryFile)
+        img = Image.open(file_data.stream)
+        # resize to 400x560 if aspect ratio doesnt match it will be cropped
+        # centering 0.5 0.5 -> crop from center
+        img = ImageOps.fit(img, (400, 560), centering=(0.5, 0.5))
+        # when saving without extension we need to pass format kwarg
+        img.save(os.path.join(app.config['THUMBS_FOLDER'], filename), format="jpeg")
+        img.close()
+        file_data.close()
         return jsonify({'cover_path': url_for('thumb_static', filename=filename)})
     else:
         return jsonify({"error": "Wrong extension for thumb!"})
