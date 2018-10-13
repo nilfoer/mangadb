@@ -1,8 +1,6 @@
 - update func in MangaDB(not just webgui)(select fields to overwrite/update 
     always adding/updating ext_info), rlimi+offset search
 - thread/subprocess for network stuff
-- resize imgs to 400px width but crop too wide imgs
-    (original height / original width) x new width = new height
 - check for dupl urls/idonpage when adding extinfo! + give warning when importing and idonpage is duplicate?
 - safeguard against external link now linking to a different manga when updating!
 - triggers for last_change incomplete replace with manual way

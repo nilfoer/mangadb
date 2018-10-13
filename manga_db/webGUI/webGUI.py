@@ -523,13 +523,12 @@ def upload_cover(book_id):
             filename = uuid.uuid4().hex
         else:
             filename = str(book_id)
-        from PIL import Image, ImageOps
+        from PIL import Image
         # file_data is only the wrapper (werkzeug.FileStorag) open actual file with .stream
         # (SpooledTemporaryFile)
         img = Image.open(file_data.stream)
-        # resize to 400x560 if aspect ratio doesnt match it will be cropped
-        # centering 0.5 0.5 -> crop from center
-        img = ImageOps.fit(img, (400, 560), centering=(0.5, 0.5))
+        # convert to thumbnail (in-place) tuple is max size, keeps apsect ratio
+        img.thumbnail((400, 600))
         # when saving without extension we need to pass format kwarg
         img.save(os.path.join(app.config['THUMBS_FOLDER'], filename), format="jpeg")
         img.close()
