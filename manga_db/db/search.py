@@ -281,7 +281,8 @@ def validate_order_by_str(order_by):
 
 def search_book_by_title(db_con,
                          title,
-                         order_by="Books.id DESC"):
+                         order_by="Books.id DESC",
+                         limit=-1, offset=0):
     # search title or title_eng?
     # '%?%' doesnt work since ' disable ? and :name as placeholder
     # You should use query parameters where possible, but query parameters can't be used to
@@ -292,7 +293,8 @@ def search_book_by_title(db_con,
     c = db_con.execute(f"""
                   SELECT * FROM Books
                   WHERE title LIKE ?
-                  ORDER BY {order_by}""", (f"%{title}%", ))
+                  ORDER BY {order_by}
+                  LIMIT ? OFFSET ?""", (f"%{title}%", limit, offset))
 
     return c.fetchall()
 
@@ -300,7 +302,8 @@ def search_book_by_title(db_con,
 def search_normal_mult_assoc(db_con, normal_col_values,
                              int_col_values_dict, ex_col_values_dict,
                              order_by="Books.id DESC",
-                             limit=0, offset=0):
+                             # no row limit when limit is neg. nr
+                             limit=-1, offset=0):
     """Can search in normal columns as well as multiple associated columns
     (connected via bridge table) and both include and exclude them"""
     # @Cleanup mb split into multiple funcs that just return the conditional string

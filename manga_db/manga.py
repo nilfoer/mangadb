@@ -128,6 +128,16 @@ class MangaDBEntry(DBRow):
         self.last_change = datetime.date.today()
         return self.last_change
 
+    def reformat_title(self):
+        """Please dont assign title yourself only ever modify title_eng and title_foreign
+        and use reformat_title to combine them"""
+        # build title ourselves so title is the correct format
+        if self.title_eng and self.title_foreign:
+            self.title = self.MANGA_TITLE_FORMAT.format(
+                    english=self.title_eng, foreign=self.title_foreign)
+        else:
+            self.title = self.title_eng or self.title_foreign
+
     def update_from_dict(self, dic):
         """Values for JOINED_COLUMNS have to be of tuple/set/list
         Can also be used for book that is not in DB yet, since self._changes gets
@@ -164,11 +174,7 @@ class MangaDBEntry(DBRow):
         if fav is not None:
             self.favorite = fav
         # build title ourselves so title is the correct format
-        if self.title_eng and self.title_foreign:
-            self.title = self.MANGA_TITLE_FORMAT.format(
-                    english=self.title_eng, foreign=self.title_foreign)
-        else:
-            self.title = self.title_eng or self.title_foreign
+        self.reformat_title()
 
     @classmethod
     def _init_assoc_column_methods(cls):
@@ -411,10 +417,11 @@ class MangaDBEntry(DBRow):
             self.id = c.lastrowid
 
             for col in self.JOINED_COLUMNS:
-                if col == "ext_infos" and self._ext_infos:
-                    # also save ext_infos
-                    for ext_info in self._ext_infos:
-                        ext_info.save()
+                if col == "ext_infos":
+                    if self._ext_infos:
+                        # also save ext_infos
+                        for ext_info in self._ext_infos:
+                            ext_info.save()
                     continue
                 value = getattr(self, f"_{col}")
                 if value is not None:

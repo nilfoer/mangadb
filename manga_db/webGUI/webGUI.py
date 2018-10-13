@@ -98,7 +98,17 @@ def import_book(url=None):
         else:
             url = request.args['ext-url']
     bid, book = mdb.import_book(url, lists=[])
-    return show_info(book_id=None, book=book)
+
+    # book hasnt been imported since id isnt set -> was alrdy in DB
+    # -> add extinfo instead of importing whole book
+    if book.id is None:
+        book.id = bid
+        ext_info = book.ext_infos[0]
+        ext_info.save()
+        flash(f"Added external link at '{ext_info.url}' to book!")
+        return show_info(book_id=bid)
+    else:
+        return show_info(book_id=None, book=book)
 
 
 @app.route('/jump', methods=["GET", "POST"])
@@ -320,6 +330,24 @@ def set_downloaded(book_id, ext_info_id, intbool):
         url_for("show_info", book_id=book_id))
 
 
+@app.route("/book/<int:book_id>/add_ext_info", methods=["POST"])
+def add_ext_info(book_id):
+    url = request.form.get("url", None)
+    # need title to ensure that external link matches book
+    book_title = request.form.get("book_title", None)
+    if not url or not book_title:
+        flash(f"URL empty!")
+        return redirect(url_for("show_info", book_id=book_id))
+    book, _ = mdb.retrieve_book_data(url)
+    # @Hack @Cleanup assigning book id to book we dont want to save in order
+    # to be able to save ext_info
+    book.id = book_id
+    ext_info = book.ext_infos[0]
+    ei_id, _ = ext_info.save()
+    flash(f"External link was added as id {ei_id}")
+    return redirect(url_for("show_info", book_id=book_id))
+
+
 @app.route("/book/add")
 def show_add_book():
     # @Hack
@@ -341,9 +369,7 @@ def show_add_book():
 
 @app.route("/book/add/submit", methods=["POST"])
 def add_book():
-    print(request)
-    update_dic = {}
-
+    data = {}
     for col in MangaDBEntry.DB_COL_HELPER:
         val = request.form.get(col, None)
         if col in ("pages", "status_id", "language_id"):
@@ -353,11 +379,16 @@ def add_book():
             if not val:
                 continue
             val = float(val)
-        update_dic[col] = val
+        data[col] = val
     for col in MangaDBEntry.JOINED_COLUMNS:
         val_list = request.form.getlist(col)
-        update_dic[col] = val_list
-    print(update_dic)
+        data[col] = val_list
+    book = MangaDBEntry(mdb, data)
+    # so title is correct format !important
+    book.reformat_title()
+    bid, _ = book.save()
+    return show_info(book_id=bid, book=book)
+
 
 @app.route("/book/edit/<int:book_id>")
 def show_edit_book(book_id, book=None):
@@ -417,6 +448,8 @@ def edit_book(book_id):
                 return redirect(url_for("show_edit_book", book_id=book_id))
         update_dic[col] = val
     for col in MangaDBEntry.JOINED_COLUMNS:
+        if col == "ext_infos":
+            continue
         val_list = request.form.getlist(col)
         update_dic[col] = val_list
 

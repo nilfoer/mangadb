@@ -155,7 +155,8 @@ class MangaDB:
             else:
                 logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
         else:
-            logger.info("Book at url '%s' was already in DB!", book.ext_info[0].url)
+            logger.info("Book at url '%s' was already in DB!",
+                        url if url is not None else book.ext_infos[0].url)
 
         return bid, book
 
@@ -389,6 +390,7 @@ class MangaDB:
         # ON DELETE CASCADE, wenn der eintrag des FK in der primärtabelle gelöscht wird dann auch
         # in dieser (detailtabelle) die einträge löschen -> Löschweitergabe
         c.executescript("""
+            PRAGMA foreign_keys=ON; -- make sure foreign key support is activated
             CREATE TABLE IF NOT EXISTS Books(
                     id INTEGER PRIMARY KEY ASC,
                     title TEXT UNIQUE NOT NULL,

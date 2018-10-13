@@ -449,6 +449,18 @@ BACK TO INDEX
 </div> {# row end #}
 {% endif %}
 {% endfor %}
+<div style="margin: 1em 0;"></div>
+<div class="row row-no-margin">
+	<form action="{{ url_for('add_ext_info', book_id=book.id) }}" method=post class="search-tags" style="width:100%;">
+		<input type=hidden name=book_title value="{{ book.title }}">
+		<label style="float: left;width: 100%;font-weight: normal;">
+			<div style="float: left;margin-right: 5px;" class="ext-info-title">Add External Link: </div>
+			<input type="text" name="url" class="data-search" style="width: 75%;">
+			<button id="add-ext-info-btn" class="book-read-button button-stack red-color" type="submit">Add</button>
+		</label>
+		
+	</form>
+</div>
 {% if collections %}
 <div style="margin: 1em 0;"></div>
 {% for coll_name, info_rows in collections %}
