@@ -379,21 +379,22 @@ def search_normal_mult_assoc(db_con, normal_col_values,
             LIMIT ? OFFSET ?""", (*vals_in_order, limit, offset))
     rows = c.fetchall()
 
-    print(f"""SELECT COUNT(*)
-            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
-            {cond_statements}
-            {assoc_incl_cond}""")
     total = None
     if count:
         # not possible to do this in one query with sqlite
         # count(*) doesnt work with group by -> it outputs row - value: 1-1, 2-1, 3-1, ..
+        # just sum the nr of rows (were building a table in the subquery with value 1 for
+        # every matching row) and then summing tha col together
+        # which is just as fast (for just normal cols as well) as with a normal count
         c.execute(f"""
-            SELECT COUNT(Books.id)
-            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
-            {cond_statements}
-            {assoc_incl_cond}""", (*vals_in_order, ))
+            SELECT SUM(one_row)
+            FROM (
+                SELECT 1 as one_row
+                FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
+                {cond_statements}
+                {assoc_incl_cond}
+                )""", (*vals_in_order, ))
         total = c.fetchone()
         total = total[0] if total else 0
-        print(total)
 
     return rows, total
