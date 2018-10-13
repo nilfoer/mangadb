@@ -563,56 +563,6 @@ class MangaDB:
         c.execute("CREATE INDEX IF NOT EXISTS id_onpage_on_site ON ExternalInfo"
                   "(id_onpage, imported_from)")
 
-        # trigger that gets executed everytime after a row is updated in Books table
-        # with UPDATE -> old and new values of cols accessible with OLD.colname NEW.colname
-        # WHERE id = NEW.id is needed otherwise whole col in table gets set to that value
-        # set last_change to current DATE on update of any col in Books gets updated
-        # could limit to certain rows with WHEN condition (AFTER UPDATE ON table WHEN..)
-        # by checking if old and new val for col differ OLD.colname <> NEW.colname
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_books
-                     AFTER UPDATE ON Books
-                     BEGIN
-                        UPDATE Books
-                        SET last_change = DATE('now', 'localtime')
-                        WHERE id = NEW.id;
-                     END""")
-
-        # set last_change on Books when new tags get added in bridge table
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tag_ins
-                     AFTER INSERT ON BookTag
-                     BEGIN
-                        UPDATE Books
-                        SET last_change = DATE('now', 'localtime')
-                        WHERE id = NEW.book_id;
-                     END""")
-
-        # set last_change on Books when tags get removed in bridge table
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_tag_del
-                     AFTER DELETE ON BookTag
-                     BEGIN
-                        UPDATE Books
-                        SET last_change = DATE('now', 'localtime')
-                        WHERE id = OLD.book_id;
-                     END""")
-
-        # set last_change on Books when new lists get added in bridge table
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_list_ins
-                     AFTER INSERT ON BookList
-                     BEGIN
-                        UPDATE Books
-                        SET last_change = DATE('now', 'localtime')
-                        WHERE id = NEW.book_id;
-                     END""")
-
-        # set last_change on Books when lists get removed in bridge table
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_change_list_del
-                     AFTER DELETE ON BookList
-                     BEGIN
-                        UPDATE Books
-                        SET last_change = DATE('now', 'localtime')
-                        WHERE id = OLD.book_id;
-                     END""")
-
         c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_update_ext_info
                      AFTER UPDATE ON ExternalInfo
                      BEGIN

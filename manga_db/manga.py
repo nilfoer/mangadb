@@ -63,7 +63,7 @@ class MangaDBEntry(DBRow):
         super().__init__(manga_db, data, **kwargs)
 
         if self.last_change is None:
-            self.last_change = self.set_last_change()
+            self.set_last_change()
 
     def _reset_changes(self):
         self._changes = {col: (set(), set()) for col in self.JOINED_COLUMNS
@@ -114,6 +114,12 @@ class MangaDBEntry(DBRow):
                 added = added0 - removed1 | added1 - removed0
                 removed = removed0 - added1 | removed1 - added0
                 self._changes[col] = (added, removed)
+
+    def assoc_col_changes(self):
+        """Returns True if there have been changes to associated cols"""
+        # gen expression True if either added or removed is true in _changes values
+        return any((True if added or removed else False for added, removed in
+                    self._changes.values()))
 
     def _apply_changes(self):
         for col, added_removed in self._changes.items():
@@ -530,19 +536,27 @@ class MangaDBEntry(DBRow):
                     changed_str)
 
         update_dic = self.export_for_db()
+        self.set_last_change()
+        update_dic["last_change"] = self.last_change
 
-        with db_con:
-            if changed_cols:
+        if changed_cols or self.assoc_col_changes():
+            with db_con:
+                # addd ['last_change'] so we always write last_change
                 c.execute(f"""UPDATE Books SET
-                              {','.join((f'{col} = :{col}' for col in changed_cols))}
+                              {','.join((f'{col} = :{col}' for col in
+                               changed_cols + ['last_change']))}
                               WHERE id = :id""", update_dic)
 
-            # update changes on JOINED_COLUMNS(except ext_infos)
-            self._apply_changes()
+                # update changes on JOINED_COLUMNS(except ext_infos)
+                self._apply_changes()
 
-        logger.info("Updated book with id %d in DB!", self.id)
-        # c.lastrowid only works for INSERT/REPLACE
-        return self.id, changed_str
+            logger.info("Updated book with id %d in DB!", self.id)
+            # c.lastrowid only works for INSERT/REPLACE
+            return self.id, changed_str
+        else:
+            logger.debug("_update_manga_db_entry was called but there were no changes "
+                         "for book with id %d", self.id)
+            return self.id, None
 
     # repr -> unambiguos
     def __repr__(self):

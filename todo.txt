@@ -1,11 +1,11 @@
 - update func in MangaDB(not just webgui)(select fields to overwrite/update 
-    always adding/updating ext_info), rlimi+offset search
-- thread/subprocess for network stuff
+    always adding/updating ext_info)
 - check for dupl urls/idonpage when adding extinfo! + give warning when importing and idonpage is duplicate?
 - safeguard against external link now linking to a different manga when updating!
-- triggers for last_change incomplete replace with manual way
+
+- thread/subprocess for network stuff
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
-- create indices for Tags.name, Category.name etc.?
+- create indices for Tags.name, Category.name etc.? + Books.title?
 - check newly added books for dl (on production db)
 - test triggers
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
