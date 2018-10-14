@@ -87,14 +87,26 @@ def show_info(book_id, book=None, **kwargs):
             books_in_collection = mdb.get_collection_info(collection)
             collections.append((collection, books_in_collection))
 
-    book_upd_changes = kwargs.get("book_upd_changes", None)
+    book_upd_changes = kwargs.pop("book_upd_changes", None)
+    show_outdated = kwargs.pop("show_outdated", None)
+    outdated = None
+    if show_outdated:
+        try:
+            ei = [ei for ei in book.ext_infos if ei.id == show_outdated][0]
+        except IndexError:
+            app.logger.error("Cant show outdated id %d not found in books ext_infos",
+                             show_outdated)
+        else:
+            outdated = ei.get_outdated_links_same_pageid()
+    print(show_outdated, outdated)
 
     return render_template(
         'show_info.html',
         book=book,
         collections=collections,
         lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")],
-        book_upd_changes=book_upd_changes)
+        book_upd_changes=book_upd_changes,
+        outdated=outdated)
 
 
 @app.route('/import', methods=["GET", "POST"])
@@ -104,7 +116,7 @@ def import_book(url=None):
             url = request.form['ext-url']
         else:
             url = request.args['ext-url']
-    bid, book = mdb.import_book(url, lists=[])
+    bid, book, outdated_on_ei_id = mdb.import_book(url, lists=[])
     if book is None:
         flash("Failed getting book!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
@@ -117,11 +129,12 @@ def import_book(url=None):
     if book.id is None:
         book.id = bid
         ext_info = book.ext_infos[0]
-        ext_info.save()
+        eid, outdated = ext_info.save()
         flash(f"Added external link at '{ext_info.url}' to book!")
-        return show_info(book_id=bid)
+        return show_info(book_id=bid, show_outdated=ext_info.id if outdated else None)
     else:
-        return show_info(book_id=None, book=book)
+        return show_info(book_id=None, book=book,
+                         show_outdated=outdated_on_ei_id if outdated_on_ei_id else None)
 
 
 @app.route('/jump', methods=["GET", "POST"])
@@ -375,9 +388,10 @@ def add_ext_info(book_id):
     # @Hack @Cleanup assigning book id to book we dont want to save in order
     # to be able to save ext_info
     book.id = book_id
-    ei_id, _ = ext_info.save()
+    ei_id, outdated = ext_info.save()
+
     flash(f"External link was added as id {ei_id}")
-    return redirect(url_for("show_info", book_id=book_id))
+    return show_info(book_id=book_id, show_outdated=ext_info.id if outdated else None)
 
 
 @app.route("/book/add")

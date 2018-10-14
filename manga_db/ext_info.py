@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 class ExternalInfo(DBRow):
 
     DB_COL_HELPER = ("id", "url", "id_onpage", "imported_from", "upload_date", "uploader",
-                     "censor_id", "rating", "ratings", "favorites", "downloaded", "last_update")
+                     "censor_id", "rating", "ratings", "favorites", "downloaded", "last_update",
+                     "outdated")
 
     NOT_NULL_COLS = ("url", "id_onpage", "imported_from", "upload_date", "censor_id")
 
@@ -30,6 +31,7 @@ class ExternalInfo(DBRow):
         # 0 or 1
         self.downloaded = None
         self.last_update = None
+        self.outdated = None
 
         # call to Base class init after assigning all the attributes !IMPORTANT!
         # if called b4 assigning the attributes the ones initalized with data
@@ -120,22 +122,23 @@ class ExternalInfo(DBRow):
     def _add_entry(self):
         if self.downloaded is None:
             self.downloaded = 0
+        if self.outdated is None:
+            self.outdated = 0
 
         # check if id_onpage,imported_from is already in db and warn
         # since it prob means that there is a new version available on the site
         c = self.manga_db.db_con.execute("""
-                SELECT ei.url
+                SELECT ei.id, ei.url
                 FROM ExternalInfo ei
                 WHERE ei.id_onpage = ?
                 AND ei.imported_from = ?""", (self.id_onpage, self.imported_from))
         outdated = c.fetchall()
         if outdated:
-            outdated = [row[0] for row in outdated] if outdated else None
             logger.warning("External info(s) with (id_onpage, imported_from): "
                            "(%d, %d) were already in DB which means it's/their "
                            "link(s) are outdated! Probably means a new version is "
                            "available!:\n%s", self.id_onpage, self.imported_from,
-                           "\n".join(outdated))
+                           "\n".join((o[1] for o in outdated)))
         else:
             outdated = None
 
@@ -151,6 +154,13 @@ class ExternalInfo(DBRow):
             # insert connection in bridge table
             c.execute("""INSERT INTO ExternalInfoBooks(book_id, ext_info_id)
                          VALUES (?, ?)""", (self.manga_db_entry.id, self.id))
+            if outdated:
+                # set invalid_link on external infos with same id_onpage,imported_from
+                # save to insert them like this since vals are from the db
+                c.execute(f"""
+                    UPDATE ExternalInfo SET outdated = 1
+                    WHERE ExternalInfo.id in ({', '.join((str(o[0]) for o in outdated))})""")
+
         return self.id, outdated
 
     def _update_entry(self, downloaded_null=None):
@@ -207,6 +217,19 @@ class ExternalInfo(DBRow):
                 id = ?""", (self.id, ))
 
         logger.info("Removed external info with id %d and url %s", self.id, self.url)
+
+    def get_outdated_links_same_pageid(self):
+        c = self.manga_db.db_con.execute("""
+                SELECT Books.id, ei.url
+                FROM Books, ExternalInfo ei, ExternalInfoBooks eib
+                WHERE eib.book_id = Books.id
+                AND eib.ext_info_id = ei.id
+                AND ei.id_onpage = ?
+                AND ei.imported_from = ?
+                AND ei.outdated = 1
+                """, (self.id_onpage, self.imported_from))
+        rows = c.fetchall()
+        return rows if rows else None
 
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()

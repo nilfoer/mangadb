@@ -66,7 +66,7 @@ def main():
 
 
 def _cl_import_book(args, mdb):
-    bid, book = mdb.import_book(args.url, args.list)
+    bid, book, _ = mdb.import_book(args.url, args.list)
 
 
 def _cl_get_info(args, mdb):
@@ -100,7 +100,7 @@ def _cl_collector(args, mdb):
     logger.info("Started working on list with %d Book-URLs!", len(lc.links))
     for url, lists in lc.links.items():
         try:
-            bid, book = mdb.import_book(url=url, lists=lists)
+            bid, book, _ = mdb.import_book(url=url, lists=lists)
         except Exception:
             lc.export_json("link_collect_resume.json")
             logger.error("Unexepected crash! Saved links to link_collect_resume.json!"

@@ -411,9 +411,7 @@ class MangaDBEntry(DBRow):
             if bid is None:
                 logger.debug("Called save on Book with title '%s' which was not "
                              "in DB! Adding Book instead!", self.title)
-                bid, _ = self._add_entry()
-                self.id = bid
-                return self.id, None
+                return self._add_entry()
         return self._update_manga_db_entry()
 
     def _add_entry(self):
@@ -423,6 +421,9 @@ class MangaDBEntry(DBRow):
         db_dict = self.export_for_db()
         cols = [col for col in self.DB_COL_HELPER if col != "id"]
 
+        # since were saving ext_infos we also have to pass along if we had
+        # outdated links
+        outdated_on_ei_ids = []
         with self.manga_db.db_con:
             c = self.manga_db.db_con.execute(f"""
                     INSERT INTO Books ({','.join(cols)})
@@ -435,7 +436,10 @@ class MangaDBEntry(DBRow):
                     if self._ext_infos:
                         # also save ext_infos
                         for ext_info in self._ext_infos:
-                            ext_info.save()
+                            eid, outdated = ext_info.save()
+                            if outdated:
+                                # save ext_info id that triggered outdated warning
+                                outdated_on_ei_ids.append(eid)
                     continue
                 value = getattr(self, f"_{col}")
                 if value is not None:
@@ -446,7 +450,7 @@ class MangaDBEntry(DBRow):
         # and if book would be updated after adding it would write unnecessary changes to DB
         self._reset_changes()
 
-        return self.id, None
+        return self.id, outdated_on_ei_ids
 
     def remove(self):
         """Commits changes itself, since it also deletes book thumb anyway!"""

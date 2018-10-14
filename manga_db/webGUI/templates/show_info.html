@@ -1,5 +1,25 @@
 {% extends "book.html" %}
-{% block book_changes %}
+{% block additional_messages %}
+{% if outdated %}
+<div class="row dark-color" style="margin-bottom:2em;">
+	<div class="col">
+    <ul class="flash-messages">
+        <li class="warning">External links from same site and with matching IDs found!</li>
+        <li class="info">This means that the external links probably don't point to the same book
+            (version) anymore! (Unless you added an external link that was already in the
+            database)</li>
+        <li class="info">A new version might have been uploaded so the best course of action is to
+            search for the book title on the page and see if you want to replace the old
+            version!</li>
+        <li class="title">Outdated links</li>
+        {% for o in outdated %}
+        <li class="info"><a href="{{ url_for('show_info', book_id=o.id) }}">Book /</a>
+            <a href="{{ o.url }}"> Outdated Link ( {{ o.url }} )</a>
+        </li>
+        {% endfor %}
+</div>
+</div>
+{% endif %}
 {% if book_upd_changes %}
 <div class="row dark-color" style="margin-bottom:2em;">
 	<div class="col-md-5">
@@ -41,7 +61,7 @@
 <div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
 	<img alt="{{ book.title }}" class="book-page-image
 	img-responsive" src={{ url_for('thumb_static',
-	filename=book.id) }} onerror="imgError(this);">
+	filename=book.id) }}>
 </div>
 <div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 <div class="row row-no-margin">
@@ -382,7 +402,8 @@ BACK TO INDEX
 <div id="ext-info">
 <div class="row row-no-margin">
 	<div>
-	<div class="ext-info-title" style="display:inline-block;"><a href="{{ ext_info.url }}">External Link on {{ ext_info.site|capitalize() }}</a></div>
+	<div class="ext-info-title" style="display:inline-block;"><a href="{{ ext_info.url }}">External
+    Link on {{ ext_info.site|capitalize() }}{{ ' (outdated)' if ext_info.outdated else '' }}</a></div>
 	<div style="float:right;position:relative;top:5px;">Last Update: {{ ext_info.last_update }}</div>
 <hr>
 	</div>

@@ -5,11 +5,10 @@
 {% if book.id is not none %}
 	<img alt="{{ book.title }}" class="book-page-image
 	img-responsive" src={{ url_for('thumb_static',
-	filename=book.id) }} onerror="imgError(this);">
+	filename=book.id) }}>
 {% else %}
 	<img alt="{{ book.title }}" class="book-page-image img-responsive"
-		src={{ url_for('static', filename='no-image.png') }}
-		onerror="imgError(this);">
+		src={{ url_for('static', filename='no-image.png') }}>
 {% endif %}
 <form id=upload-cover action="{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
       <input id=cover-file type=file name=file style="background-color:#333;" required />

@@ -66,7 +66,7 @@
     <a href={{ url_for('show_info', book_id=book.id) }}>
 	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
     <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
-    url_for('thumb_static', filename=book.id) }} class="lazyload" onerror="imgError(this);">
+    url_for('thumb_static', filename=book.id) }} class="lazyload">
     <div class="overlay">
         <div class="overlay-data">
             <div class="overlay-title">

@@ -152,9 +152,15 @@ class MangaDB:
             logger.error("Either url and lists or book and thumb_url have to be supplied")
             return None, None
 
+        # @Cleanup getting id twice (once here 2nd time in book.save)
         bid = self.get_book_id(book.title)
+        outdated_on_ei_id = None
         if bid is None:
-            bid, _ = book.save()
+            bid, outdated_on_ei_ids = book.save()
+            # book.save returns list of ext_info_ids but import book only ever has one
+            # ext_info per book -> so later just return first one if true
+            outdated_on_ei_id = outdated_on_ei_ids[0] if outdated_on_ei_ids else None
+
             cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
             # always pass headers = extr.headers?
             if self.download_cover(thumb_url, cover_path):
@@ -165,7 +171,7 @@ class MangaDB:
             logger.info("Book at url '%s' was already in DB!",
                         url if url is not None else book.ext_infos[0].url)
 
-        return bid, book
+        return bid, book, outdated_on_ei_id
 
     def get_x_books(self, x, offset=0, order_by="Books.id DESC", count=False):
         # order by has to come b4 limit/offset
@@ -464,6 +470,7 @@ class MangaDB:
                     favorites INTEGER,
                     downloaded INTEGER NOT NULL,
                     last_update DATE NOT NULL,
+                    outdated INTEGER NOT NULL,
                     FOREIGN KEY (imported_from) REFERENCES Sites(id)
                        ON DELETE RESTRICT,
                     FOREIGN KEY (censor_id) REFERENCES Censorship(id)

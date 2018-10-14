@@ -1,8 +1,7 @@
-- check for dupl urls/idonpage when adding extinfo (same as when importing book)
-    -> done in _add_entry
-    -> add outdated/link_invalid or sth like that col to ExternalInfo and set that when adding extinfo
     -> in webgui make a view where we show outdated entries in general and with that idonpage/imported_from
         possible since add_ext_info and import_book only ever add one ext_info
+- jump to book option to add book anyway
+            + only one entry per book
 
 - thread/subprocess for network stuff
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
