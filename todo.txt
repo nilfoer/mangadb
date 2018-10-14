@@ -1,8 +1,3 @@
-    -> in webgui make a view where we show outdated entries in general and with that idonpage/imported_from
-        possible since add_ext_info and import_book only ever add one ext_info
-- jump to book option to add book anyway
-            + only one entry per book
-
 - thread/subprocess for network stuff
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
 - create indices for Tags.name, Category.name etc.? + Books.title?
@@ -11,6 +6,7 @@
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
 - tests
+- webgui security
 
        
 --CANCELED-----------------------------------------------------------------------------------------------------------------

@@ -13,10 +13,13 @@
             version!</li>
         <li class="title">Outdated links</li>
         {% for o in outdated %}
-        <li class="info"><a href="{{ url_for('show_info', book_id=o.id) }}">Book /</a>
-            <a href="{{ o.url }}"> Outdated Link ( {{ o.url }} )</a>
+        <li class="info">
+            <a class="underline" href="{{ url_for('show_info', book_id=o.id) }}">Book</a> / 
+            <a class="underline" href="{{ o.url }}">Outdated Link</a> ( {{ o.url }} )
         </li>
         {% endfor %}
+        <li class="info">View all outdated books <a class="underline" 
+                href="{{ url_for('show_outdated_links') }}">here!</a>
 </div>
 </div>
 {% endif %}

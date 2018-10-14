@@ -66,7 +66,7 @@ class MangaDB:
     def __enter__(self):
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
     def close(self):
@@ -190,6 +190,28 @@ class MangaDB:
         else:
             return None, None
 
+    def get_outdated(self, id_onpage=None, imported_from=None, order_by="Books.id DESC"):
+        if id_onpage and imported_from:
+            c = self.db_con.execute(f"""
+                    SELECT Books.*
+                    FROM Books, ExternalInfo ei, ExternalInfoBooks eib
+                    WHERE Books.id = eib.book_id
+                    AND eib.ext_info_id = ei.id
+                    AND ei.outdated = 1
+                    AND ei.id_onpage = ?
+                    AND ei.imported_from = ?
+                    ORDER BY {order_by}""", (id_onpage, imported_from))
+        else:
+            c = self.db_con.execute(f"""
+                    SELECT Books.*
+                    FROM Books, ExternalInfo ei, ExternalInfoBooks eib
+                    WHERE Books.id = eib.book_id
+                    AND eib.ext_info_id = ei.id
+                    AND ei.outdated = 1
+                    ORDER BY {order_by}""")
+        rows = c.fetchall()
+        return [MangaDBEntry(self, row) for row in rows] if rows else None
+
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
             return True
@@ -222,6 +244,7 @@ class MangaDB:
             identifiers_types["id_onpage"] = bid
             identifiers_types["imported_from"] = extractor_cls.site_id
 
+        # group by books.id to get unique book results
         cur = self.db_con.execute(f"""
                     SELECT Books.*
                     FROM Books, ExternalInfo ei, ExternalInfoBooks eib
@@ -229,6 +252,7 @@ class MangaDB:
                     AND ei.imported_from = :imported_from
                     AND ei.id = eib.ext_info_id
                     AND Books.id = eib.book_id
+                    GROUP BY Books.id
                     ORDER BY {order_by}""", identifiers_types)
         rows = cur.fetchall()
         if not rows:

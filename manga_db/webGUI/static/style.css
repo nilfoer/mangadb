@@ -183,6 +183,9 @@ li.warning {
 	font-size: 20px;
 	color: #f67764; /* #f67764 */
 }
+ul.flash-messages a.underline {
+    text-decoration: underline;
+}
 
 .pink-color{background-color: #a233a5 !important} /* #a72aaa */
 .star-inactive {

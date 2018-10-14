@@ -98,7 +98,6 @@ def show_info(book_id, book=None, **kwargs):
                              show_outdated)
         else:
             outdated = ei.get_outdated_links_same_pageid()
-    print(show_outdated, outdated)
 
     return render_template(
         'show_info.html',
@@ -113,9 +112,9 @@ def show_info(book_id, book=None, **kwargs):
 def import_book(url=None):
     if url is None:
         if request.method == 'POST':
-            url = request.form['ext-url']
+            url = request.form['ext_url']
         else:
-            url = request.args['ext-url']
+            url = request.args['ext_url']
     bid, book, outdated_on_ei_id = mdb.import_book(url, lists=[])
     if book is None:
         flash("Failed getting book!", "warning")
@@ -131,7 +130,7 @@ def import_book(url=None):
         ext_info = book.ext_infos[0]
         eid, outdated = ext_info.save()
         flash(f"Added external link at '{ext_info.url}' to book!")
-        return show_info(book_id=bid, show_outdated=ext_info.id if outdated else None)
+        return show_info(book_id=bid, show_outdated=eid if outdated else None)
     else:
         return show_info(book_id=None, book=book,
                          show_outdated=outdated_on_ei_id if outdated_on_ei_id else None)
@@ -140,9 +139,9 @@ def import_book(url=None):
 @app.route('/jump', methods=["GET", "POST"])
 def jump_to_book_by_url():
     if request.method == 'POST':
-        url = request.form['ext-url']
+        url = request.form['ext_url']
     else:
-        url = request.args['ext-url']
+        url = request.args['ext_url']
 
     extr_cls = extractor.find(url)
     id_onpage = extr_cls.book_id_from_url(url)
@@ -163,10 +162,16 @@ def jump_to_book_by_url():
         flash("There are multiple books in this DB which have the same external "
               "ID! Please choose the one that has the same title (and pages) as "
               "the one at the URL you supplied!", "info")
+        flash("Click button add anyway if none of the shown books match the book "
+              "you wanted to add!", "info")
 
+        # if we want get params to have hyphens in them like ext-url and still wanna
+        # be able to buil url with url_for we can pass in the params by unpacking
+        # a dict: url_for('import_book', **{"ext-url": url}),
         return render_template(
             'show_entries.html',
             books=books,
+            add_anyway=url_for('import_book', ext_url=url),
             order_col_libox="id",
             asc_desc="DESC")
     else:
@@ -363,6 +368,25 @@ def set_downloaded(book_id, ext_info_id, intbool):
     ExternalInfo.set_downloaded_id(mdb.db_con, ext_info_id, intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
+
+
+@app.route("/outdated", methods=["GET"])
+def show_outdated_links():
+    id_onpage = request.args.get("id_onpage", None)
+    imported_from = request.args.get("imported_from", None)
+    if id_onpage and imported_from:
+        books = mdb.get_outdated(id_onpage, imported_from)
+    else:
+        books = mdb.get_outdated()
+
+    flash("Showing books with outdated links!", "title")
+    flash("Newest first!", "info")
+
+    return render_template(
+        'show_entries.html',
+        books=books,
+        order_col_libox="id",
+        asc_desc="DESC")
 
 
 @app.route("/book/<int:book_id>/add_ext_info", methods=["POST"])
