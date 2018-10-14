@@ -371,7 +371,6 @@ def add_ext_info(book_id):
         # just warn if titles dont match, its ultimately the users decision
         flash("Title of external link and book's title don't match!", "warning")
         flash(f"URL: {url}", "info")
-        return show_info(book_id=book_id)
 
     # @Hack @Cleanup assigning book id to book we dont want to save in order
     # to be able to save ext_info
