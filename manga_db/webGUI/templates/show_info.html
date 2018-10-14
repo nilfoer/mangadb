@@ -14,7 +14,9 @@
 		{% endfor %}
 		<li style="margin: 3px 0 5px 0;">Green - Added / Red - Removed</li>
 		{% for col, change in book_upd_changes['added_removed'].items() %}
-		<li><label><input name ="{{ col }}" class="mdb-checkboxes" type="checkbox" value="{{ change[0]|join(';') }};;;{{ change[1]|join(';') }}">{{ col }}: 
+		<li><label><input name ="{{ col }}" class="mdb-checkboxes" type="checkbox" value="{{
+                change[0]|join(';') if change[0] else '' }};;;{{ change[1]|join(';') if change[1]
+                else '' }}">{{ col }}: 
 				{% if change[0] %}
 					{% for added in change[0] %}
 					<a class="book-tag green-color">{{ added }}</a>
