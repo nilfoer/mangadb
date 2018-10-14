@@ -70,7 +70,7 @@ def _cl_import_book(args, mdb):
 
 
 def _cl_get_info(args, mdb):
-    book, _ = mdb.retrieve_book_data(args.url)
+    book, _, _ = mdb.retrieve_book_data(args.url)
     if book is None:
         return
     if args.output_filename:

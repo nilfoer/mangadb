@@ -164,13 +164,17 @@ def jump_to_book_by_url():
 def update_book_ext_info(book_id, ext_info_id):
     old_book = mdb.get_book(book_id)
     # could also pass in url using post or get
-    old_ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
-    new_book, _ = mdb.retrieve_book_data(old_ext_info.url)
-    if new_book is None:
+    ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
+    status, new_book = ext_info.update_from_url()
+    if status == "no_data":
         flash("Updating failed!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
-        flash(f"URL was: {old_ext_info.url}")
+        flash(f"URL was: {ext_info.url}")
         flash("Check the logs for more details!", "info")
+        return show_info(book_id=book_id, book=old_book)
+    elif status == "title_mismatch":
+        flash("Update failed!", "warning")
+        flash(f"Title of book at URL didn't match title '{old_book.title}'", "info")
         return show_info(book_id=book_id, book=old_book)
 
     changes, _ = old_book.diff(new_book)
@@ -198,8 +202,6 @@ def update_book_ext_info(book_id, ext_info_id):
 
     flash("Book was updated!", "title")
 
-    ext_info = new_book.ext_infos[0]
-    ext_info.id = ext_info_id
     _, ext_info_chstr = ext_info.save()
     if ext_info_chstr:
         flash("WARNING", "warning")
@@ -358,18 +360,22 @@ def add_ext_info(book_id):
     if not url or not book_title:
         flash(f"URL empty!")
         return redirect(url_for("show_info", book_id=book_id))
-    book, _ = mdb.retrieve_book_data(url)
+    book, ext_info, _ = mdb.retrieve_book_data(url)
     if book is None:
         flash("Adding external link failed!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
         return show_info(book_id=book_id)
+    if book.title != book_title:
+        # just warn if titles dont match, its ultimately the users decision
+        flash("Title of external link and book's title don't match!", "warning")
+        flash(f"URL: {url}", "info")
+        return show_info(book_id=book_id)
 
     # @Hack @Cleanup assigning book id to book we dont want to save in order
     # to be able to save ext_info
     book.id = book_id
-    ext_info = book.ext_infos[0]
     ei_id, _ = ext_info.save()
     flash(f"External link was added as id {ei_id}")
     return redirect(url_for("show_info", book_id=book_id))

@@ -1,7 +1,8 @@
-- update func in MangaDB(not just webgui)(select fields to overwrite/update 
-    always adding/updating ext_info)
-- check for dupl urls/idonpage when adding extinfo! + give warning when importing and idonpage is duplicate?
-- safeguard against external link now linking to a different manga when updating!
+- check for dupl urls/idonpage when adding extinfo (same as when importing book)
+    -> done in _add_entry
+    -> add outdated/link_invalid or sth like that col to ExternalInfo and set that when adding extinfo
+    -> in webgui make a view where we show outdated entries in general and with that idonpage/imported_from
+        possible since add_ext_info and import_book only ever add one ext_info
 
 - thread/subprocess for network stuff
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
@@ -25,3 +26,7 @@
     => let user handle this (they can import the tags and then change them if they dont want duplicates etc.)    
 - add ext to edit_info?
         -> no want to keep editing book and external links separate
+- update func in MangaDB(not just webgui)(select fields to overwrite/update 
+    always adding/updating ext_info)
+        -> only update ext info, otherwise user content gets deleted
+        -> mb mark user content and only update imported tags/artist etc..

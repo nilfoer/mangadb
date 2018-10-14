@@ -127,10 +127,10 @@ class MangaDB:
             book = MangaDBEntry(self, data)
             ext_info = ExternalInfo(self, book, data)
             book.ext_infos = [ext_info]
-            return book, extr.get_cover()
+            return book, ext_info, extr.get_cover()
         else:
             logger.warning("No data to create book at url '%s' from!", url)
-            return None, None
+            return None, None, None
 
     def import_book(self, url=None, lists=None, book=None, thumb_url=None):
         """
@@ -139,7 +139,7 @@ class MangaDB:
         """
         thumb_url = thumb_url
         if url and lists is not None:
-            book, thumb_url = self.retrieve_book_data(url)
+            book, _, thumb_url = self.retrieve_book_data(url)
             if book is None:
                 logger.warning("Importing book failed!")
                 return None, None

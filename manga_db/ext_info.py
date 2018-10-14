@@ -59,6 +59,16 @@ class ExternalInfo(DBRow):
     def site(self):
         return SUPPORTED_SITES[self.imported_from]
 
+    def fetch_associated_book_id(self):
+        c = self.manga_db.db_con.execute("""
+            SELECT Books.id
+            FROM Books, ExternalInfoBooks, ExternalInfo
+            WHERE Books.id = ExternalInfoBooks.book_id
+            AND ExternalInfoBooks.ext_info_id = ?
+            """, (self.id,))
+        book_id = c.fetchone()
+        return book_id[0] if book_id else None
+
     def update_from_dict(self, dic):
         for col in self.DB_COL_HELPER:
             # never update id, last_update
@@ -71,11 +81,26 @@ class ExternalInfo(DBRow):
             else:
                 setattr(self, col, new)
 
-    def update_from_url(self, back_update=None):
-        # TODO
-        book, thumb = self.manga_db.retrieve_book_data(self.url)
+    def update_from_url(self, force=False):
+        if not self.id and self.manga_db_entry:
+            logger.info("Cant update external info without id and assoicated book!")
+            return "id_or_book_missing", None
+        # TODO mb propagate updates to Book?
+        book, ext_info, _ = self.manga_db.retrieve_book_data(self.url)
         if book is None:
-            return
+            return "no_data", None
+        if book.title != self.manga_db_entry.title:
+            logger.warning("Title at URL of external info doesnt match title of associated "
+                           "book! Aborting update! Use force=True to force update!\n"
+                           "URL: %s\nTitle of associated book: %s\nTitle at URL: %s".
+                           self.url, self.manga_db_entry.title, book.title)
+            if not force:
+                return "title_mismatch", None
+        for col in self.DB_COL_HELPER:
+            if col == "id":
+                continue
+            setattr(self, col, getattr(ext_info, col))
+        return "updated", book
 
     def save(self):
         # idea is that ExternalInfo only gets edited when also editing MangaDBEntry
@@ -95,6 +120,25 @@ class ExternalInfo(DBRow):
     def _add_entry(self):
         if self.downloaded is None:
             self.downloaded = 0
+
+        # check if id_onpage,imported_from is already in db and warn
+        # since it prob means that there is a new version available on the site
+        c = self.manga_db.db_con.execute("""
+                SELECT ei.url
+                FROM ExternalInfo ei
+                WHERE ei.id_onpage = ?
+                AND ei.imported_from = ?""", (self.id_onpage, self.imported_from))
+        outdated = c.fetchall()
+        if outdated:
+            outdated = [row[0] for row in outdated] if outdated else None
+            logger.warning("External info(s) with (id_onpage, imported_from): "
+                           "(%d, %d) were already in DB which means it's/their "
+                           "link(s) are outdated! Probably means a new version is "
+                           "available!:\n%s", self.id_onpage, self.imported_from,
+                           "\n".join(outdated))
+        else:
+            outdated = None
+
         db_dict = self.export_for_db()
         cols = [col for col in self.DB_COL_HELPER if col != "id"]
 
@@ -107,7 +151,7 @@ class ExternalInfo(DBRow):
             # insert connection in bridge table
             c.execute("""INSERT INTO ExternalInfoBooks(book_id, ext_info_id)
                          VALUES (?, ?)""", (self.manga_db_entry.id, self.id))
-        return self.id, None
+        return self.id, outdated
 
     def _update_entry(self, downloaded_null=None):
         db_con = self.manga_db.db_con
