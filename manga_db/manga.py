@@ -3,6 +3,8 @@ import logging
 import datetime
 
 from .db.row import DBRow
+from .db.column import Column
+from .db.column_associated import AssociatedColumn
 from .ext_info import ExternalInfo
 from .constants import STATUS_IDS
 from .db.util import joined_col_name_to_query_names
@@ -16,110 +18,77 @@ class MangaDBEntry(DBRow):
     Fields of data that can have multiple values need to be of type list!!!
     """
 
-    DB_COL_HELPER = ("id", "title", "title_eng", "title_foreign", "language_id", "pages",
-                     "status_id", "my_rating", "note", "favorite", "last_change")
-
-    JOINED_COLUMNS = ('category', 'collection', 'groups', 'artist', 'parody', 'character',
-                      'list', 'tag', 'ext_infos')
-
-    # cols that cant be NULL (and arent set in __init__)
-    NOT_NULL_COLS = ("title", "language_id", "pages", "status_id", "favorite")  # + last_change
-
     MANGA_TITLE_FORMAT = "{english} / {foreign}"
 
-    def __init__(self, manga_db, data, **kwargs):
-        self.id = None
-        self.title = None
-        self.title_eng = None
-        self.title_foreign = None
-        self.language_id = None
-        self.pages = None
-        self.status_id = None
-        self.my_rating = None
-        # --START-- Muliple values
-        self._category = None
-        self._collection = None
-        self._groups = None
-        self._artist = None
-        self._parody = None
-        self._character = None
-        self._list = None
-        self._tag = None
-        self._ext_infos = None
-        # --END-- Muliple values
-        self.last_change = None
-        self.note = None
-        self.favorite = None
-        # assoc column: (set of adds, sets of removes)
-        self._changes = None
-        self._reset_changes()
-        # dynamically create functions that add/remove to joined cols
-        # and log the changes
-        self._init_assoc_column_methods()
+    id = Column(int, primary_key=True)
+    title = Column(str, nullable=False)
+    title_eng = Column(str)
+    title_foreign = Column(str)
+    language_id = Column(int, nullable=False)
+    pages = Column(int, nullable=False)
+    status_id = Column(int, nullable=False)
+    my_rating = Column(float)
+    category = AssociatedColumn(str)
+    collection = AssociatedColumn(str)
+    groups = AssociatedColumn(str)
+    artist = AssociatedColumn(str)
+    parody = AssociatedColumn(str)
+    character = AssociatedColumn(str)
+    list = AssociatedColumn(str)
+    tag = AssociatedColumn(str)
+    ext_infos = AssociatedColumn("ExternalInfo")
+    last_change = Column(datetime.date)
+    note = Column(str)
+    favorite = Column(str, nullable=False)
 
-        # call to Base class init after assigning all the attributes !IMPORTANT!
-        # if called b4 assigning the attributes the ones initalized with data
-        # from the base class will be reset to None
-        super().__init__(manga_db, data, **kwargs)
+    def __init__(
+            self,
+            manga_db,
+            id_=None,
+            title=None,
+            title_eng=None,
+            title_foreign=None,
+            language_id=None,
+            pages=None,
+            status_id=None,
+            my_rating=None,
+            category=None,
+            collection=None,
+            groups=None,
+            artist=None,
+            parody=None,
+            character=None,
+            list_=None,
+            tag=None,
+            ext_infos=None,
+            last_change=None,
+            note=None,
+            favorite=None,
+            **kwargs):
+        super().__init__(manga_db, **kwargs)
+        self.id = id_
+        self.title = title
+        self.title_eng = title_eng
+        self.title_foreign = title_foreign
+        self.language_id = language_id
+        self.pages = pages
+        self.status_id = status_id
+        self.my_rating = my_rating
+        self.category = category
+        self.collection = collection
+        self.groups = groups
+        self.artist = artist
+        self.parody = parody
+        self.character = character
+        self.list = list_
+        self.tag = tag
+        self.ext_infos = ext_infos
+        self.last_change = last_change
+        self.note = note
+        self.favorite = favorite
 
         if self.last_change is None:
             self.set_last_change()
-
-    def _reset_changes(self):
-        self._changes = {col: (set(), set()) for col in self.JOINED_COLUMNS
-                         if col != "ext_infos"}
-
-    def _from_row(self, row):
-        for key in self.DB_COL_HELPER:
-            setattr(self, key, row[key])
-        self.update_assoc_columns()
-
-    def _from_dict(self, dic):
-        filtered = self.filter_dict(dic)
-        # need to update "private" _assoc-col-name, not the properties assoc-col-name
-        # key_a if x else key_b: value -> if else on line only one value (or tuple, list etc)
-        self.__dict__.update({f"_{col}" if col in self.JOINED_COLUMNS else col: val
-                              for col, val in filtered.items()})
-
-    def update_changes_dict(self, dic):
-        """dic has to be of form: col-name: (set(added,..), set(removed,..)), ...
-            not checking for empty string or None in set -> callers responsibility"""
-        for col in self.JOINED_COLUMNS:
-            try:
-                added1, removed1 = dic[col]
-            except KeyError:
-                continue
-            else:
-                # build new complete list and set it
-                complete = getattr(self, f"_{col}")
-                if complete is None:
-                    setattr(self, f"_{col}", list(added1))
-                else:
-                    # comp=[1,2,3,11,12]
-                    # new comp=[2, 3, 11, 12, 5, 6, 7]
-                    complete = [x for x in complete if x not in removed1]
-                    # doesnt work on same line with ].extend( since it doesnt
-                    # return the object but instead just modifies it in place
-                    complete.extend(added1)
-                    setattr(self, f"_{col}", complete)
-
-                # update add/remove operations necessary to reach current state of complete list
-                added0, removed0 = self._changes[col]
-                # added0 1 2 3
-                # removed0 7 8
-                # added1 7 5 6
-                # removed1 1 7 9 4
-                # added == 2 3 5 6
-                # removed == 8 4 9
-                added = added0 - removed1 | added1 - removed0
-                removed = removed0 - added1 | removed1 - added0
-                self._changes[col] = (added, removed)
-
-    def assoc_col_changes(self):
-        """Returns True if there have been changes to associated cols"""
-        # gen expression True if either added or removed is true in _changes values
-        return any((True if added or removed else False for added, removed in
-                    self._changes.values()))
 
     def _apply_changes(self):
         for col, added_removed in self._changes.items():
@@ -181,96 +150,6 @@ class MangaDBEntry(DBRow):
             self.favorite = fav
         # build title ourselves so title is the correct format
         self.reformat_title()
-
-    @classmethod
-    def _init_assoc_column_methods(cls):
-        # ext_infos handled seperately
-        for col in cls.JOINED_COLUMNS:
-            if col == "ext_infos":
-                continue
-            # addition func needed due to scoping of for block
-            # otherwise all funcs would only use the last value for col
-            cls.gen_add_assoc_col_f(cls, col)
-            cls.gen_remove_assoc_col_f(cls, col)
-
-    @staticmethod
-    def gen_add_assoc_col_f(cls, col):
-        # generate function that adds to col and logs the changes
-        def add_to_assoc_col(self, value):
-            # dont add empty/null values
-            if value == "" or value is None:
-                return getattr(self, col)
-            # always log change even if we dont add it to the list later (since val might not
-            # be in db etc.)
-            self._changes[col][0].add(value)
-            # make sure its not in the removed set
-            self._changes[col][1].discard(value)
-
-            col_li = getattr(self, f"_{col}")
-            if col_li is None:
-                # col_li =.. doesnt work since its just None and not a mutable type
-                setattr(self, f"_{col}", [value])
-            else:
-                # @Speed switch to sets if this gets too slow
-                if value not in col_li:
-                    col_li.append(value)
-            return getattr(self, col)
-        # set function on class so its callable with self.add_{col}
-        # needs to be added to class, doesnt work with adding to self
-        setattr(cls, f"add_{col}", add_to_assoc_col)
-
-    @staticmethod
-    def gen_remove_assoc_col_f(cls, col):
-        # generate function that removes from col and logs the changes
-        def remove_from_assoc_col(self, value):
-            # dont add (to set) empty/null values
-            if value == "" or value is None:
-                return getattr(self, col)
-            self._changes[col][1].add(value)
-            # make sure its not in the add set
-            self._changes[col][0].discard(value)
-
-            col_li = getattr(self, f"_{col}")
-            # col_li is None doesnt matter for removing (since it might be present in db)
-            # also removing sth thats not present in the list doesnt matter
-            if col_li is not None:
-                # list comprehension more efficient (only downside it creates a
-                # new list instaed of changing the old one
-                setattr(self, f"_{col}", [x for x in col_li if x != value])
-            return getattr(self, col)
-        setattr(cls, f"remove_{col}", remove_from_assoc_col)
-
-    @property
-    def category(self):
-        return self._category
-
-    @property
-    def collection(self):
-        return self._collection
-
-    @property
-    def groups(self):
-        return self._groups
-
-    @property
-    def artist(self):
-        return self._artist
-
-    @property
-    def parody(self):
-        return self._parody
-
-    @property
-    def character(self):
-        return self._character
-
-    @property
-    def tag(self):
-        return self._tag
-
-    @property
-    def list(self):
-        return self._list
 
     def update_ext_infos(self):
         self._ext_infos = self._fetch_external_infos()
@@ -377,6 +256,7 @@ class MangaDBEntry(DBRow):
         # TODO
         raise NotImplementedError
 
+    # TODO implement Column subclass/option for that
     @property
     def language(self):
         return self.manga_db.language_map[self.language_id]

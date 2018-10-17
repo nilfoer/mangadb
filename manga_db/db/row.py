@@ -2,45 +2,25 @@ class DBRow:
 
     TABLENAME = ""
 
-    # tuple of primary key column(s)
-    PRIMARY_KEY_COL = ()
-
-    # tuple of all column names
-    DB_COL_HELPER = ()
-
-    # attributes in class of rows that can be associated to this type of row using bridge tables
-    JOINED_COLUMNS = ()
-
-    # cols that cant be NULL (and arent set in __init__)
-    NOT_NULL_COLS = ()
-
-    def __init__(self, manga_db, data, **kwargs):
-        
+    def __init__(self, manga_db, **kwargs):
         self.manga_db = manga_db
-        # !!! assign None to all your columns as instance attributes !!!
-        # !!! before calling super().__init__ when inheriting from this class !!!
-        if isinstance(data, dict):
-            self._from_dict(data)
-        else:
-            self._from_row(data)
-        # so we can pass e.g. tag-list that isnt included in slite3.Row as kwarg
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+        # commited values get added when col gets modified
+        self._commited_state = {}
+        # gets set to true when loaded from db through load_instance
+        self._in_db = False
 
-    def _from_dict(self, dic):
+    @staticmethod
+    def committed_state_callback(instance, col_name, value):
+        print("changed:", col_name, value)
+        if col_name not in instance._commited_state:
+            print("commit:", col_name, value)
+            instance._commited_state[col_name] = getattr(instance, col_name)
+
+    @classmethod
+    def from_dict(cls, manga_db, dic):
         # only update fields that are in cls.get_column_names()
-        self.__dict__.update(self.filter_dict(dic))
-
-    def _from_row(self, row):
-        for key in self.DB_COL_HELPER:
-            setattr(self, key, row[key])
-
-    @property
-    def key(self):
-        return (self.__class__, tuple((getattr(self, col) for col in self.PRIMARY_KEY_COL)))
-
-    def build_id_map_key(self, dictlike):
-        return (self.__class__, tuple((dictlike[col] for col in self.PRIMARY_KEY_COL)))
+        row = cls(manga_db)
+        row.__dict__.update(cls.filter_dict(dic))
 
     @classmethod
     def get_column_names(cls):
@@ -49,6 +29,7 @@ class DBRow:
         that can be attributed to the type of row using e.g. bridge tables
         primary key columns are not included
         """
+        # TODO loop through self vars and add Column/Assoc.. sublcasses
         return cls.DB_COL_HELPER + cls.JOINED_COLUMNS
 
     @classmethod

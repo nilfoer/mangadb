@@ -2,6 +2,8 @@ import logging
 import datetime
 
 from .db.row import DBRow
+from .db.column import Column
+from .db.column_associated import AssociatedColumn
 from .constants import CENSOR_IDS
 from .extractor import SUPPORTED_SITES
 
@@ -10,33 +12,56 @@ logger = logging.getLogger(__name__)
 
 class ExternalInfo(DBRow):
 
-    DB_COL_HELPER = ("id", "url", "id_onpage", "imported_from", "upload_date", "uploader",
-                     "censor_id", "rating", "ratings", "favorites", "downloaded", "last_update",
-                     "outdated")
+    id = Column(int, primary_key=True)
+    url = Column(str, nullable=False)
+    id_onpage = Column(int, nullable=False)
+    imported_from = Column(int, nullable=False)
+    upload_date = Column(datetime.date, nullable=False)
+    uploader = Column(str)
+    censor_id = Column(int, nullable=False)
+    rating = Column(float)
+    ratings = Column(int)
+    favorites = Column(int)
+    downloaded = Column(int)
+    last_update = Column(datetime.date)
+    outdated = Column(int)
+    manga_db_entry = AssociatedColumn("Books")
 
-    NOT_NULL_COLS = ("url", "id_onpage", "imported_from", "upload_date", "censor_id")
-
-    def __init__(self, manga_db, manga_db_entry, data, **kwargs):
+    def __init__(
+                self, manga_db, manga_db_entry,
+                id=None,
+                url=None,
+                id_onpage=None,
+                imported_from=None,
+                upload_date=None,
+                uploader=None,
+                censor_id=None,
+                rating=None,
+                ratings=None,
+                favorites=None,
+                downloaded=None,
+                last_update=None,
+                outdated=None,
+                **kwargs):
         self.manga_db_entry = manga_db_entry
-        self.id = None
-        self.url = None
-        self.id_onpage = None
-        self.imported_from = None
-        self.upload_date = None
-        self.uploader = None
-        self.censor_id = None
-        self.rating = None
-        self.ratings = None
-        self.favorites = None
-        # 0 or 1
-        self.downloaded = None
-        self.last_update = None
-        self.outdated = None
+        self.id = id
+        self.url = url
+        self.id_onpage = id_onpage
+        self.imported_from = imported_from
+        self.upload_date = upload_date
+        self.uploader = uploader
+        self.censor_id = censor_id
+        self.rating = rating
+        self.ratings = ratings
+        self.favorites = favorites
+        self.downloaded = downloaded
+        self.last_update = last_update
+        self.outdated = outdated
 
         # call to Base class init after assigning all the attributes !IMPORTANT!
         # if called b4 assigning the attributes the ones initalized with data
         # from the base class will be reset to None
-        super().__init__(manga_db, data, **kwargs)
+        super().__init__(manga_db, **kwargs)
 
         if self.last_update is None:
             self.last_update = datetime.date.today()
