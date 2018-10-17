@@ -1,5 +1,10 @@
 class DBRow:
 
+    TABLENAME = ""
+
+    # tuple of primary key column(s)
+    PRIMARY_KEY_COL = ()
+
     # tuple of all column names
     DB_COL_HELPER = ()
 
@@ -10,6 +15,7 @@ class DBRow:
     NOT_NULL_COLS = ()
 
     def __init__(self, manga_db, data, **kwargs):
+        
         self.manga_db = manga_db
         # !!! assign None to all your columns as instance attributes !!!
         # !!! before calling super().__init__ when inheriting from this class !!!
@@ -29,11 +35,19 @@ class DBRow:
         for key in self.DB_COL_HELPER:
             setattr(self, key, row[key])
 
+    @property
+    def key(self):
+        return (self.__class__, tuple((getattr(self, col) for col in self.PRIMARY_KEY_COL)))
+
+    def build_id_map_key(self, dictlike):
+        return (self.__class__, tuple((dictlike[col] for col in self.PRIMARY_KEY_COL)))
+
     @classmethod
     def get_column_names(cls):
         """
         Returns tuple of strings containing all column names, including the ones
         that can be attributed to the type of row using e.g. bridge tables
+        primary key columns are not included
         """
         return cls.DB_COL_HELPER + cls.JOINED_COLUMNS
 
@@ -72,9 +86,6 @@ class DBRow:
         changed_str = []
         changed_cols = []
         for col in self.DB_COL_HELPER:
-            if col == "id":
-                assert self.id == row["id"]
-                continue
             self_attr = getattr(self, col)
             if row[col] != self_attr:
                 changed_str.append(f"Column '{col}' changed from '{row[col]}' to '{self_attr}'")

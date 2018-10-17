@@ -545,3 +545,8 @@ To speed up pagination you should avoid LIMIT/OFFSET and use WHERE clause instea
 SELECT * FROM myTable WHERE id>=0     AND id<100     //very fast!
 SELECT * FROM myTable WHERE id>=95000 AND id<95100   //as fast as previous line!
 __________________________________________________________________________________________________________
+
+key in sqlalchemy (for identitymap) is tuple of
+<class '__main__.BlogPost'>, (2,), None)
+class, id or rather primary key (migh be composite thats why tuple) in table, None is identity_token (needed when using multiple databases which means obj can have same table and primary key)
+__________________________________________________________________________________________________________

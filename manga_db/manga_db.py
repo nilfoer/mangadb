@@ -7,6 +7,7 @@ import urllib.request
 from .logging_setup import configure_logging
 from . import extractor
 from .db import search
+from .db.id_map import IndentityMap
 from .manga import MangaDBEntry
 from .ext_info import ExternalInfo
 
@@ -45,11 +46,10 @@ class MangaDB:
         self.db_con, _ = self._load_or_create_sql_db(db_path)
         self.db_con.row_factory = sqlite3.Row
         self.root_dir = os.path.abspath(os.path.normpath(root_dir))
+        # TODO if we have mutliple users in e.g. webgui we need to have separate IdentityMaps
+        self.id_map = IndentityMap()
         self.language_map = self._get_language_map()
-        self.settings = {
-                # replace, keep_both, keep_old
-                "duplicate_action": None
-                }
+        self.settings = {}
         if settings is not None:
             self.settings.update(settings)
 
