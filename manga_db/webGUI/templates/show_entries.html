@@ -5,6 +5,9 @@
 {% endif %}
 <div class="row search-all">
 <form action="{{ url_for('search_books') }}" method=post class="search-tags">
+    {% if last_id is not none %}
+    <input type="hidden" name="last_id" value={{ last_id }}>
+    {% endif %}
 	<div class="search-text col-md-6 col-sm-12">
 	<div class="button-container" id="simple-container">
 		{# use divs to split up width of container and then align one to the left and one to the right so they always remain on the same line and shrink and grow with screen size -> container( div90%left div10%right ..) #}
@@ -119,22 +122,24 @@
   {# only started working once placed at end of website or at least after imgs? #}
   <script type="text/javascript">lazyload();</script>
 
-{% if page %}
+{% if last_id %}
 {% if search_field %}
-	{% if page != total %}
-	<a href="{{ url_for('search_books', page=page+1, searchstring=search_field,
+	{% if more %}
+    <a href="{{ url_for('search_books', last_id=last_id, searchstring=search_field,
 	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
 	{% endif %}
-	{% if page != 1 %}
-	<a href="{{ url_for('search_books', page=page-1, searchstring=search_field,
+    {# TODO #}
+	{% if last_id != 1 %}
+    <a href="{{ url_for('search_books', last_id=last_id, searchstring=search_field,
 	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></a>
 	{% endif %}
 {% else %}
-	{% if page != total %}
-	<a href="{{ url_for('show_entries', page=page+1, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
+	{% if more %}
+    <a href="{{ url_for('show_entries', last_id=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
 	{% endif %}
-	{% if page != 1 %}
-	<a href="{{ url_for('show_entries', page=page-1, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></div></a>
+    {# TODO #}
+	{% if last_id != 1 %}
+    <a href="{{ url_for('show_entries', last_id=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></div></a>
 	{% endif %}
 {% endif %}
 {% endif %}

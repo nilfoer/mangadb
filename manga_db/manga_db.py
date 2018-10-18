@@ -149,7 +149,7 @@ class MangaDB:
             return None, None
 
         # @Cleanup getting id twice (once here 2nd time in book.save)
-        bid = self.get_book_id(book.title)
+        bid = self.get_book_id(book.title_eng, book.title_foreign)
         outdated_on_ei_id = None
         if bid is None:
             bid, outdated_on_ei_ids = book.save()
@@ -169,30 +169,31 @@ class MangaDB:
 
         return bid, book, outdated_on_ei_id
 
-    def get_x_books(self, x, offset=0, order_by="Books.id DESC", count=False):
+    def get_x_books(self, x, last_id=None, order_by="Books.id DESC", count=False):
+        if last_id is not None:
+            keyset_pagination = f"WHERE id {'>' if order_by.endswith('DESC') else '<'} ?"
+        else:
+            keyset_pagination = ""
+
         # order by has to come b4 limit/offset
-        c = self.db_con.execute(f"SELECT * FROM Books ORDER BY {order_by} LIMIT {x} "
-                                f"OFFSET {offset}")
+        c = self.db_con.execute(f"""
+                SELECT * FROM Books
+                {keyset_pagination}
+                ORDER BY {order_by}
+                LIMIT ?""", (x,) if last_id is None else (last_id, x))
         rows = c.fetchall()
 
-        total = None
-        if count:
-            c.execute(f"SELECT COUNT(*) FROM Books")
-            total = c.fetchone()
-            total = total[0] if total else 0
-
         if rows:
-            return [load_instance(self, Book, row) for row in rows], total
+            return [load_instance(self, Book, row) for row in rows]
         else:
-            return None, None
+            return None
 
     def get_outdated(self, id_onpage=None, imported_from=None, order_by="Books.id DESC"):
         if id_onpage and imported_from:
             c = self.db_con.execute(f"""
                     SELECT Books.*
-                    FROM Books, ExternalInfo ei, ExternalInfoBooks eib
-                    WHERE Books.id = eib.book_id
-                    AND eib.ext_info_id = ei.id
+                    FROM Books, ExternalInfo ei
+                    WHERE Books.id = ei.book_id
                     AND ei.outdated = 1
                     AND ei.id_onpage = ?
                     AND ei.imported_from = ?
@@ -200,9 +201,8 @@ class MangaDB:
         else:
             c = self.db_con.execute(f"""
                     SELECT Books.*
-                    FROM Books, ExternalInfo ei, ExternalInfoBooks eib
-                    WHERE Books.id = eib.book_id
-                    AND eib.ext_info_id = ei.id
+                    FROM Books, ExternalInfo ei
+                    WHERE Books.id = ei.book_id
                     AND ei.outdated = 1
                     ORDER BY {order_by}""")
         rows = c.fetchall()
@@ -213,14 +213,14 @@ class MangaDB:
             return True
         elif "id_onpage" in identifiers_types and "imported_from" in identifiers_types:
             return True
-        elif "title" in identifiers_types:
+        elif "title_eng" in identifiers_types and "title_foreign" in identifiers_types:
             return True
         elif "id" in identifiers_types:
             return True
         else:
             logger.error("Unsupported identifiers supplied or identifier missing:\n"
                          "Identifiers need to be either 'url', 'id_onpage and imported_from', "
-                         "id or 'title(_eng)' otherwise use the search:\n%s\n",
+                         "id or 'title_eng,title_foreign' otherwise use the search:\n%s\n",
                          identifiers_types)
             return False
 
@@ -230,8 +230,9 @@ class MangaDB:
 
         if "id" in identifiers_types:
             return self.get_book(identifiers_types["id"])
-        elif "title" in identifiers_types:
-            return self.get_book(title=identifiers_types["title"])
+        elif "title_eng" in identifiers_types:
+            return self.get_book(title_eng=identifiers_types["title_eng"],
+                                 title_foreign=identifiers_types["title_foreign"])
         # get id_onpage and imported_from rather than using url to speed up search
         elif "url" in identifiers_types:
             url = identifiers_types.pop("url")
@@ -243,11 +244,10 @@ class MangaDB:
         # group by books.id to get unique book results
         cur = self.db_con.execute(f"""
                     SELECT Books.*
-                    FROM Books, ExternalInfo ei, ExternalInfoBooks eib
+                    FROM Books, ExternalInfo ei
                     WHERE ei.id_onpage = :id_onpage
                     AND ei.imported_from = :imported_from
-                    AND ei.id = eib.ext_info_id
-                    AND Books.id = eib.book_id
+                    AND Books.id = ei.book_id
                     GROUP BY Books.id
                     ORDER BY {order_by}""", identifiers_types)
         rows = cur.fetchall()
@@ -257,24 +257,32 @@ class MangaDB:
         for row in rows:
             yield load_instance(self, Book, row)
 
-    def get_book(self, _id=None, title=None):
+    def get_book(self, _id=None, title_eng=None, title_foreign=None):
         """Only id or title can guarantee uniqueness and querying using the title
            would be slower"""
         if _id:
+            # try to get instance from id_map first
+            instance = self.id_map.get((Book, (_id,)))
+            if instance:
+                return instance
+
             c = self.db_con.execute("SELECT * FROM Books WHERE id = ?", (_id,))
-        elif title:
-            c = self.db_con.execute("SELECT * FROM Books WHERE title = ?", (title,))
+        elif title_eng or title_foreign:
+            c = self.db_con.execute("SELECT * FROM Books WHERE title_eng = ? "
+                                    "AND title_foreign = ?", (title_eng, title_foreign))
         else:
-            logger.error("At least one of id or title needs to be supplied!")
+            logger.error("At least one of id or (title_eng and title_foreign) "
+                         "needs to be supplied!")
 
         row = c.fetchone()
         return load_instance(self, Book, row) if row else None
 
-    def get_book_id(self, title):
+    def get_book_id(self, title_eng, title_foreign):
         """
         Returns internal db id for book with given title or None
         """
-        c = self.db_con.execute("SELECT id FROM Books WHERE title = ?", (title,))
+        c = self.db_con.execute("SELECT id FROM Books WHERE title_eng = ? "
+                                "AND title_foreign = ?", (title_eng, title_foreign))
         _id = c.fetchone()
         return _id[0] if _id else None
 
@@ -291,7 +299,8 @@ class MangaDB:
 
     def get_ext_info(self, _id):
         c = self.db_con.execute("SELECT * FROM ExternalInfo WHERE id = ?", (_id,))
-        return load_instance(self, ExternalInfo, c.fetchone(), None)
+        row = c.fetchone()
+        return load_instance(self, ExternalInfo, row, None) if row else None
 
     def search(self, search_string, **kwargs):
         return self._search_sytnax_parser(search_string, **kwargs)
@@ -367,13 +376,13 @@ class MangaDB:
             order_by = "Books.id DESC"
 
         if normal_col_values or assoc_col_values_incl or assoc_col_values_excl:
-            return search.search_normal_mult_assoc(
+            rows = search.search_normal_mult_assoc(
                     self.db_con, normal_col_values,
                     assoc_col_values_incl, assoc_col_values_excl,
                     order_by=order_by, **kwargs)
+            return [load_instance(self, Book, row) for row in rows]
         else:
-            return self.get_x_books(60, order_by=order_by, offset=kwargs.get("offset", 0),
-                                    count=kwargs.get("count", False))
+            return self.get_x_books(60, order_by=order_by, **kwargs)
 
     @staticmethod
     def _load_or_create_sql_db(filename):
@@ -434,7 +443,6 @@ class MangaDB:
             PRAGMA foreign_keys=ON; -- make sure foreign key support is activated
             CREATE TABLE IF NOT EXISTS Books(
                     id INTEGER PRIMARY KEY ASC,
-                    title TEXT UNIQUE NOT NULL,
                     title_eng TEXT UNIQUE,
                     title_foreign TEXT,
                     language_id INTEGER NOT NULL,
@@ -581,6 +589,8 @@ class MangaDB:
                 );
                  """)
 
+        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_title_eng_foreign "
+                  "ON Books (title_eng, title_foreign)")
         c.execute("CREATE INDEX IF NOT EXISTS id_onpage_on_site ON ExternalInfo"
                   "(id_onpage, imported_from)")
 

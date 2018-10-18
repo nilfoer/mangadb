@@ -25,7 +25,6 @@ class Book(DBRow):
     MANGA_TITLE_FORMAT = "{english} / {foreign}"
 
     id = Column(int, primary_key=True)
-    title = Column(str, nullable=False)
     title_eng = ColumnWithCallback(str)
     title_foreign = ColumnWithCallback(str)
     language_id = Column(int, nullable=False)
@@ -76,13 +75,8 @@ class Book(DBRow):
             **kwargs):
         super().__init__(manga_db, **kwargs)
         self.id = id
-        # dont change title yourself use reformat_title
-        self.title = title
         self.title_eng = title_eng
         self.title_foreign = title_foreign
-        # add callbacks to reformat title when either eng or foreign title changes
-        Book.title_eng.add_callback("title_eng", self._title_change_callback)
-        Book.title_foreign.add_callback("title_foreign", self._title_change_callback)
         self.language_id = language_id
         self.pages = pages
         self.status_id = status_id
@@ -111,34 +105,20 @@ class Book(DBRow):
         self.last_change = datetime.date.today()
         return self.last_change
 
-    @staticmethod
-    def _title_change_callback(instance, name, before, after):
-        # ensure that other value was initialized
-        other_name = "title_eng" if name != "title_eng" else "title_foreign"
-        if getattr(instance, other_name) is ColumnValue.NO_VALUE:
-            return
-        instance.reformat_title(**{name: after})
-
-    def reformat_title(self, title_eng=None, title_foreign=None):
-        """Please dont assign title yourself only ever modify title_eng and title_foreign
-        and use reformat_title to combine them"""
+    @property
+    def title(self):
         # build title ourselves so title is the correct format
-        if title_eng is None:
-            title_eng = self.title_eng
-        if title_foreign is None:
-            title_foreign = self.title_foreign
-
-        if title_eng and title_foreign:
-            self.title = self.MANGA_TITLE_FORMAT.format(
-                    english=title_eng, foreign=title_foreign)
+        if self.title_eng and self.title_foreign:
+            return self.MANGA_TITLE_FORMAT.format(
+                    english=self.title_eng, foreign=self.title_foreign)
         else:
-            self.title = title_eng or title_foreign
+            return self.title_eng or self.title_foreign
 
     def update_from_dict(self, dic):
         # TODO validate input
         for col in self.COLUMNS + self.ASSOCIATED_COLUMNS:
             # never update id, last_change from dict, handle title and fav ourselves
-            if col in ("title", "favorite", "ext_infos"):
+            if col in ("favorite", "ext_infos"):
                 continue
             try:
                 new = dic[col]
@@ -151,8 +131,6 @@ class Book(DBRow):
         fav = dic.get("favorite", None)
         if fav is not None:
             self.favorite = fav
-        # build title ourselves so title is the correct format
-        self.reformat_title()
 
     def update_ext_infos(self):
         self._ext_infos = self._fetch_external_infos()
@@ -272,10 +250,8 @@ class Book(DBRow):
         Save changes to DB
         """
         if self.id is None:
-            bid = self.manga_db.get_book_id(self.title)
+            bid = self.manga_db.get_book_id(self.title_eng, self.title_foreign)
             if bid is None:
-                logger.debug("Called save on Book with title '%s' which was not "
-                             "in DB! Adding Book instead!", self.title)
                 return self._add_entry()
         return self._update_entry()
 
@@ -311,6 +287,7 @@ class Book(DBRow):
                     self._add_associated_column_values(col, value)
 
         logger.info("Added book with title \"%s\"  as id '%d' to database!", self.title, self.id)
+        self._in_db = True
         # reset committed state since we just committed
         self._committed_state = {}
 
@@ -434,10 +411,6 @@ class Book(DBRow):
                 if removed:
                     self._remove_associated_column_values(col, removed)
 
-    def changes_str(self):
-        return "\n".join([f"{col}: '{val}' changed to '{getattr(self, col)}'" for col, val in
-                          self._committed_state.items()])
-
     # repr -> unambiguos
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
@@ -462,27 +435,27 @@ class Book(DBRow):
         for col in self.ASSOCIATED_COLUMNS:
             if col == "ext_infos":
                 continue
-            attr = getattr(self, f"_{col}")
+            attr = getattr(self, col)
             if attr is None:
                 val = ""
             else:
                 val = ", ".join(attr)
             lines.append(f"{col}: {val}")
 
-        for ei in self._ext_infos:
+        for ei in self.ext_infos:
             lines.append("\n")
             lines.append(f"External link:")
             lines.append(ei.to_export_string())
 
         return "\n".join(lines)
 
-    def diff(self, manga_db_entry):
+    def diff(self, other):
         # doesnt diff ext_infos
         changes = {}
         change_str = []
         for col in self.COLUMNS:
             val_self = getattr(self, col)
-            val_other = getattr(manga_db_entry, col)
+            val_other = getattr(other, col)
             if val_self != val_other:
                 changes[col] = val_other
                 change_str.append(f"Column '{col}' changed from '{val_self}' to '{val_other}'")
@@ -490,7 +463,7 @@ class Book(DBRow):
             if col == "ext_infos":
                 continue
             val_self = getattr(self, col)
-            val_other = getattr(manga_db_entry, col)
+            val_other = getattr(other, col)
             if val_self != val_other:
                 added, removed = diff_update(val_self, val_other)
                 if added is None and removed is None:

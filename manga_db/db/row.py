@@ -64,6 +64,10 @@ class DBRow:
                 changed_cols.append(col)
         return "\n".join(changed_str), changed_cols
 
+    def changed_str(self):
+        return "\n".join([f"{col}: '{val}' changed to '{getattr(self, col)}'" for col, val in
+                          self._committed_state.items()])
+
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
         return f"{self.__class__.__name__}({selfdict_str})"

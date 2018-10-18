@@ -6,6 +6,11 @@
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
     or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy
+- if i reload a book in webgui since i e.g. changed downloaded to 1 in db
+        will give me book from id_map
+        -> should i just update the values on the book from row?
+            only for cols that havent changed?
+- fix search: title removed            
                 
 
 - thread/subprocess for network stuff

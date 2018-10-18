@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 class ExternalInfo(DBRow):
 
+    TABLENAME = "ExternalInfo"
+
     id = Column(int, primary_key=True)
     book_id = Column(int, nullable=False)
     url = Column(str, nullable=False)
@@ -165,21 +167,27 @@ class ExternalInfo(DBRow):
                     VALUES ({','.join((f':{col}' for col in cols))}
                     )""", db_dict)
             self.id = c.lastrowid
-            # insert connection in bridge table
-            c.execute("""INSERT INTO ExternalInfoBooks(book_id, ext_info_id)
-                         VALUES (?, ?)""", (self.book.id, self.id))
+
             if outdated:
                 # set invalid_link on external infos with same id_onpage,imported_from
                 # save to insert them like this since vals are from the db
                 c.execute(f"""
                     UPDATE ExternalInfo SET outdated = 1
                     WHERE ExternalInfo.id in ({', '.join((str(o[0]) for o in outdated))})""")
+        self._in_db = True
+        # we just commited the values -> reset _committed_state
+        self._committed_state = {}
 
         return self.id, outdated
 
     def _update_entry(self, downloaded_null=None):
+        if not self._committed_state:
+            logger.debug("There were no changes when updating external info with id %d", self.id)
+            return self.id, None
+
         db_con = self.manga_db.db_con
         # get previous value for downloaded and fav from db
+        # @Cleanup remove this query
         c = db_con.execute(
             "SELECT * FROM ExternalInfo WHERE id = ?",
             (self.id, ))
@@ -189,32 +197,31 @@ class ExternalInfo(DBRow):
         if downloaded_null:
             self.downloaded = row["downloaded"]
 
-        field_change_str, changed_cols = self.diff_normal_cols(row)
-
-        update_dic = self.export_for_db()
+        field_change_str = self.changed_str()
 
         # seems like book id on tsumino just gets replaced with newer uncensored or fixed version
         # -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
         # => WARN to redownload book
         redl_on_field_change = ("censor_id", "uploader", "upload_date", "pages")
-        if any((True for col in changed_cols if col in redl_on_field_change)):
-            print("WARNIGN CHANGE")
+        if any((True for col in self._committed_state if col in redl_on_field_change)):
             # automatic joining of strings only works inside ()
             field_change_str = (f"Please re-download \"{self.url}\", since the "
                                 "change of the following fields suggest that someone has "
                                 f"uploaded a new version:\n{field_change_str}")
             logger.warning(field_change_str)
             # set downloaded to 0 since its a diff version
-            update_dic["downloaded"] = 0
+            self.downloaded = 0
         else:
             logger.info("Updating ExternalInfo with id '%d' with the following changes:"
                         "\n%s", self.id, field_change_str)
 
+        update_dic = self.export_for_db()
+        changed_cols = [col for col in self._committed_state if col in self.COLUMNS]
+
         with db_con:
-            if changed_cols:
-                c.execute(f"""UPDATE ExternalInfo SET
-                              {','.join((f'{col} = :{col}' for col in changed_cols))}
-                              WHERE id = :id""", update_dic)
+            c.execute(f"""UPDATE ExternalInfo SET
+                          {','.join((f'{col} = :{col}' for col in changed_cols))}
+                          WHERE id = :id""", update_dic)
             logger.info("Updated ext_info with url \"%s\" in database!", self.url)
         return self.id, field_change_str
 

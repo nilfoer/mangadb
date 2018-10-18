@@ -56,15 +56,16 @@ def thumb_static(filename):
 def show_entries():
     order_by_col = request.args.get('order_by_col', "id")
     asc_desc = request.args.get('asc_desc', "DESC")
-    page = int(request.args.get("page", 1))
     order_by = f"Books.{order_by_col} {asc_desc}"
-    books, total = mdb.get_x_books(BOOKS_PER_PAGE, offset=(page-1)*BOOKS_PER_PAGE,
-                                   order_by=order_by, count=True)
+    last_id = request.args.get("last_id", None)
+    books = mdb.get_x_books(BOOKS_PER_PAGE+1, last_id=last_id, order_by=order_by)
+    new_last_id, more = lastid_more(books)
+
     return render_template(
         'show_entries.html',
         books=books,
-        page=page,
-        total=math.ceil(total/BOOKS_PER_PAGE),
+        more=more,
+        last_id=new_last_id,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 
@@ -288,30 +289,41 @@ def get_info_txt(book_id):
             )
 
 
+def lastid_more(books):
+    if len(books) == BOOKS_PER_PAGE+1:
+        more = True
+        del books[-1]
+    else:
+        more = False
+    new_last_id = books[-1].id
+    return new_last_id, more
+
+
 @app.route("/search", methods=["GET", "POST"])
 def search_books():
     if request.method == 'POST':
         searchstr = request.form['searchstring']
         order_by_col = request.form['order_by_col']
         asc_desc = "ASC" if request.form['asc_desc'] == "ASC" else "DESC"
-        page = int(request.form.get("page", 1))
+        last_id = request.form.get("last_id", None)
     else:
         searchstr = request.args['searchstring']
         # prepare defaults so we dont always have to send them when using get
         order_by_col = request.args.get('order_by_col', "id")
         asc_desc = request.args.get('asc_desc', "DESC")
-        page = int(request.args.get("page", 1))
+        last_id = request.args.get("last_id", None)
 
     order_by = f"Books.{order_by_col} {asc_desc}"
-    books, total = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE,
-                              offset=(page-1)*BOOKS_PER_PAGE, count=True)
+    # get 1 entry more than BOOKS_PER_PAGE so we know if we need next btn
+    books = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE+1, last_id=last_id)
+    new_last_id, more = lastid_more(books)
 
     return render_template(
         "show_entries.html",
         books=books,
+        more=more,
         search_field=searchstr,
-        page=page,
-        total=math.ceil(total/BOOKS_PER_PAGE),
+        last_id=new_last_id,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 
@@ -365,6 +377,7 @@ def rate_book(book_id, rating):
 @app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>",
            methods=["GET"])
 def set_downloaded(book_id, ext_info_id, intbool):
+    # TODO try to get from id_map first?
     ExternalInfo.set_downloaded_id(mdb.db_con, ext_info_id, intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
