@@ -1,3 +1,6 @@
+from .constants import ColumnValue
+
+
 class DBRow:
 
     TABLENAME = ""
@@ -5,16 +8,16 @@ class DBRow:
     def __init__(self, manga_db, **kwargs):
         self.manga_db = manga_db
         # commited values get added when col gets modified
-        self._commited_state = {}
+        self._committed_state = {}
         # gets set to true when loaded from db through load_instance
         self._in_db = False
 
     @staticmethod
     def committed_state_callback(instance, col_name, value):
-        print("changed:", col_name, value)
-        if col_name not in instance._commited_state:
-            print("commit:", col_name, value)
-            instance._commited_state[col_name] = getattr(instance, col_name)
+        if col_name not in instance._committed_state:
+            before = getattr(instance, col_name)
+            if before is not ColumnValue.NO_VALUE:
+                instance._committed_state[col_name] = before
 
     @classmethod
     def from_dict(cls, manga_db, dic):

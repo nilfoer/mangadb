@@ -1,6 +1,7 @@
-from weakref import WeakKeyDicitonary
+from weakref import WeakKeyDictionary
 
 from .row import DBRow
+from .constants import ColumnValue
 
 
 class Column:
@@ -8,7 +9,7 @@ class Column:
     def __init__(self, value_type, default=None, **kwargs):
         self.type = value_type
         self.default = default
-        self.values = WeakKeyDicitonary()
+        self.values = WeakKeyDictionary()
         self.primary_key = kwargs.pop("primary_key", False)
         self.nullable = kwargs.pop("nullable", True)
         # callback that sets the current state as commited state on the instance
@@ -21,10 +22,15 @@ class Column:
         self.name = name
 
     def __get__(self, instance, owner):
-        return self.values.get(instance, self.default)
+        # if we would just return None we wouldn't be able to know
+        # if the actual value was None or if the key wasnt present yet (when in __init__)
+        try:
+            return self.values[instance]
+        except KeyError:
+            return ColumnValue.NO_VALUE
 
     def __set__(self, instance, value):
-        if isinstance(value, self.type):
+        if value is not None and not isinstance(value, self.type):
             raise TypeError("Value doesn't match the column's type!")
         # important to come b4 setting the value otherweise we cant get the old value
         self.committed_state_callback(instance, self.name, value)
@@ -39,10 +45,10 @@ class ColumnWithCallback(Column):
 
     def __init__(self, value_type, default=None, **kwargs):
         super().__init__(value_type, default=default, **kwargs)
-        self.callbacks = WeakKeyDicitonary()
+        self.callbacks = WeakKeyDictionary()
 
     def __set__(self, instance, value):
-        if type(value) != self.type:
+        if isinstance(value, self.type):
             raise TypeError("Value doesn't match the column's type!")
         self.committed_state_callback(instance, self.name, value)
         # call registered callback and inform them of new value

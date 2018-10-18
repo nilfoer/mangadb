@@ -1,6 +1,46 @@
-from weakref import WeakKeyDicitonary
+from weakref import WeakKeyDictionary
 
 from .row import DBRow
+from .constants import ColumnValue
+
+
+# adapted from https://stackoverflow.com/a/8859168 Andrew Clark
+def trackable_type(instance, name, base, on_change_callback, *init_args, **init_kwargs):
+    def func_add_callback(func):
+        def wrapped(self, *args, **kwargs):
+            before = base(self)
+            result = func(self, *args, **kwargs)
+            after = base(self)
+            if before != after:
+                # on_change_callback(instance, name, before, after)
+                on_change_callback(instance, name, before)
+            return result
+        return wrapped
+
+    # (<class 'method_descriptor'>, <class 'wrapper_descriptor'>)
+    methods = (type(list.append), type(list.__setitem__))
+    skip = set(['__iter__', '__len__', '__getattribute__'])
+
+    # ceate Metaclass for trackable class
+    class TrackableMeta(type):
+        def __new__(cls, name, bases, dct):
+            for attr in dir(base):
+                if attr not in skip:
+                    func = getattr(base, attr)
+                    if isinstance(func, methods):
+                        dct[attr] = func_add_callback(func)
+            return type.__new__(cls, name, bases, dct)
+
+    # inherit from base class and use metaclass TrackableMeta
+    # to apply callback to base class methods
+    class TrackableObject(base, metaclass=TrackableMeta):
+        # metaclass kwarg -> py3
+        # py2: __metaclass__ = TrackableMeta
+        pass
+    TrackableObject.__name__ = f"{name}_{base.__name__}"
+
+    # initialize TrackableObject (uses base.__init__) with init_args/kwargs
+    return TrackableObject(*init_args, **init_kwargs)
 
 
 class AssociatedColumn:
@@ -8,8 +48,8 @@ class AssociatedColumn:
     def __init__(self, table_name, assoc_table=None, **kwargs):
         self.table_name = table_name
         self.assoc_table = assoc_table
-        self.values = WeakKeyDicitonary()
-        self.callbacks = WeakKeyDicitonary()
+        self.values = WeakKeyDictionary()
+        self.callbacks = WeakKeyDictionary()
         # callback that sets the current state as commited state on the instance
         # the first time the value is changed after a commit
         self.committed_state_callback = DBRow.committed_state_callback
@@ -20,12 +60,19 @@ class AssociatedColumn:
         self.name = name
 
     def __get__(self, instance, owner):
-        v = self.values.get(instance, None)
-        # return frozenset so users cant modify it directly
-        return frozenset(v) if v else None
+        # if we would just return None we wouldn't be able to know
+        # if the actual value was None or if the key wasnt present yet (when in __init__)
+        try:
+            return self.values[instance]
+        except KeyError:
+            return ColumnValue.NO_VALUE
 
     def __set__(self, instance, value):
-        value = set(value)
+        if value:
+            value = trackable_type(instance, self.name, set, self.committed_state_callback, value)
+        else:
+            value = None
+        # since __get__ returns None if key isnt present
         self.committed_state_callback(instance, self.name, value)
         # call registered callback and inform them of new value
         # important this happens b4 setting the value otherwise we cant retrieve old value
@@ -36,21 +83,6 @@ class AssociatedColumn:
 
     def __delete__(self, instance):
         del self.values[instance]
-
-    def add(self, instance, value):
-        self.committed_state_callback(instance, self.name, value)
-        try:
-            self.values[instance].add(value)
-        except KeyError:
-            self.values[instance] = {value}
-
-    def discard(self, instance, value):
-        self.committed_state_callback(instance, self.name, value)
-        try:
-            self.values[instance].discard(value)
-            return True
-        except KeyError:
-            return
 
     def add_callback(self, instance, callback):
         """Add a new function to call everytime the descriptor updates

@@ -28,14 +28,14 @@ class MangaDBEntry(DBRow):
     pages = Column(int, nullable=False)
     status_id = Column(int, nullable=False)
     my_rating = Column(float)
-    category = AssociatedColumn(str)
-    collection = AssociatedColumn(str)
-    groups = AssociatedColumn(str)
-    artist = AssociatedColumn(str)
-    parody = AssociatedColumn(str)
-    character = AssociatedColumn(str)
-    list = AssociatedColumn(str)
-    tag = AssociatedColumn(str)
+    category = AssociatedColumn("Category")
+    collection = AssociatedColumn("Collection")
+    groups = AssociatedColumn("Groups")
+    artist = AssociatedColumn("Artist")
+    parody = AssociatedColumn("Parody")
+    character = AssociatedColumn("Character")
+    list = AssociatedColumn("List")
+    tag = AssociatedColumn("Tag")
     ext_infos = AssociatedColumn("ExternalInfo")
     last_change = Column(datetime.date)
     note = Column(str)
@@ -163,25 +163,25 @@ class MangaDBEntry(DBRow):
         else:
             return None
 
-    @property
-    def ext_infos(self):
-        if self.id is None:
-            # initialized from extracotr dict
-            if self._ext_infos and len(self._ext_infos) == 1:
-                return self._ext_infos
-            logger.warning("Couldn't get external info cause id is None")
-            return
-        if self._ext_infos is None:
-            self.update_ext_infos()
-        return self._ext_infos
+    # @property
+    # def ext_infos(self):
+    #     if self.id is None:
+    #         # initialized from extracotr dict
+    #         if self._ext_infos and len(self._ext_infos) == 1:
+    #             return self._ext_infos
+    #         logger.warning("Couldn't get external info cause id is None")
+    #         return
+    #     if self._ext_infos is None:
+    #         self.update_ext_infos()
+    #     return self._ext_infos
 
-    # has to come after defining the property!
-    @ext_infos.setter
-    def ext_infos(self, ext_infos):
-        if self._ext_infos is None:
-            self._ext_infos = ext_infos
-        else:
-            self._ext_infos = [ei for ei in self._ext_infos if ei not in ext_infos] + ext_infos
+    # # has to come after defining the property!
+    # @ext_infos.setter
+    # def ext_infos(self, ext_infos):
+    #     if self._ext_infos is None:
+    #         self._ext_infos = ext_infos
+    #     else:
+    #         self._ext_infos = [ei for ei in self._ext_infos if ei not in ext_infos] + ext_infos
 
     def _fetch_external_infos(self):
         ext_infos = []
