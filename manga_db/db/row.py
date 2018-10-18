@@ -43,7 +43,7 @@ class DBRow:
         Returns a dict with all the attributes of self that are stored in the row directly
         """
         result = {}
-        for attr in self.COLUMNS:
+        for attr in self.COLUMNS + self.PRIMARY_KEY_COLUMNS:
             val = getattr(self, attr)
             result[attr] = val
         return result

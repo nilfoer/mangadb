@@ -1,50 +1,27 @@
 - change offset queries to use keyset pagination -> store last(displayed)id in webgui, also get one more row than needed to check if we have a next page
     or mb even 2 more rows and grab the ten in the middle to know if prev/next btn needed?
-- implement identity map
-    have a func that handles turning row into object
-        check if in id map
-            refresh attributes from row
-        if not in id create new instance and populate them from row
-        sqlalchemy uses instance dict to set values on instance (see loading.py->_populate_full/_partial) using populators -> (attr name, operator.itemgetter(id in row)) tuples to set instance_dict[attr name] = getter(row)
-            several diff types of populators
-            ...
-            also differentiates between quick populators -> normal columns (further diffs between deferred cols etc.)
-            and populators for relationships etc. that might be lazy loaded
-            
-                loading techniques:
-                The loading of relationships falls into three categories; lazy loading, eager loading, and no loading. Lazy 
-                loading refers to objects are returned from a query without the related objects loaded at first. When the 
-                given collection or reference is first accessed on a particular object, an additional SELECT statement is 
-                emitted such that the requested collection is loaded.
 
-                Eager loading refers to objects returned from a query with the related collection or scalar reference 
-                already loaded up front. The Query achieves this either by augmenting the SELECT statement it would normally 
-                emit with a JOIN to load in related rows simultaneously, or by emitting additional SELECT statements after 
-                the primary one to load collections or scalar references at once.
-
-                “No” loading refers to the disabling of loading on a given relationship, either that the attribute is empty 
-                and is just never loaded, or that it raises an error when it is accessed, in order to guard against unwanted 
-                lazy loads.
-                
-                ___
-                
-                -> either leaves assoc col alone if theyre lazy loaded
-                -> or loads them if theyre eager loaded
 - mb remove title and use t_eng,t_foreign to uniquely identify row besides pk? since title is just other titles combined           
+- fix commited state callback still getting Nones when loading from db
+- assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
+    e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
+    or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy
                 
 
 - thread/subprocess for network stuff
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
+    - assoc col lazy
+                -> either leaves assoc col alone if theyre lazy loaded
+                -> or loads them if theyre eager loaded
 - create indices for Tags.name, Category.name etc.? + Books.title?
 - check newly added books for dl (on production db)
-- test triggers
-- mb add parent_id field so a chapter/volume can be attributed to a larger book
-    also works rn with collection but might spam the display if there are too many chapters+books in a collection
 - tests
 - webgui security
 
        
 --CANCELED-----------------------------------------------------------------------------------------------------------------
+- mb add parent_id field so a chapter/volume can be attributed to a larger book
+    also works rn with collection but might spam the display if there are too many chapters+books in a collection
 - mb switch to only ids when adding/removing joined col values from webGUI
     => NO since i need the names, because users are able to add new ones
         but mb switch later to add ALL the values using the names and then add them in bridge table with ids

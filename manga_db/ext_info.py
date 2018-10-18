@@ -235,9 +235,8 @@ class ExternalInfo(DBRow):
     def get_outdated_links_same_pageid(self):
         c = self.manga_db.db_con.execute("""
                 SELECT Books.id, ei.url
-                FROM Books, ExternalInfo ei, ExternalInfoBooks eib
-                WHERE eib.book_id = Books.id
-                AND eib.ext_info_id = ei.id
+                FROM Books, ExternalInfo ei
+                WHERE ei.book_id = Books.id
                 AND ei.id_onpage = ?
                 AND ei.imported_from = ?
                 AND ei.outdated = 1

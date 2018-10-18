@@ -6,7 +6,7 @@ from .db.loading import load_instance
 from .db.row import DBRow
 from .db.column import Column, ColumnWithCallback
 from .db.column_associated import AssociatedColumnMany
-from .db.constants import Relationship
+from .db.constants import Relationship, ColumnValue
 from .ext_info import ExternalInfo
 from .constants import STATUS_IDS
 from .db.util import joined_col_name_to_query_names
@@ -102,19 +102,10 @@ class Book(DBRow):
 
         # load associated columns
         # TODO lazy loading
-        self.update_assoc_columns()
+        self.update_assoc_columns_from_db()
 
         if self.last_change is None:
             self.set_last_change()
-
-    def _apply_changes(self):
-        for col, added_removed in self._changes.items():
-            added, removed = added_removed
-            if added:
-                self._add_associated_column_values(col, tuple(added))
-            if removed:
-                self._remove_associated_column_values(col, tuple(removed))
-        self._reset_changes()
 
     def set_last_change(self):
         self.last_change = datetime.date.today()
@@ -122,6 +113,10 @@ class Book(DBRow):
 
     @staticmethod
     def _title_change_callback(instance, name, before, after):
+        # ensure that other value was initialized
+        other_name = "title_eng" if name != "title_eng" else "title_foreign"
+        if getattr(instance, other_name) is ColumnValue.NO_VALUE:
+            return
         instance.reformat_title(**{name: after})
 
     def reformat_title(self, title_eng=None, title_foreign=None):
@@ -140,13 +135,10 @@ class Book(DBRow):
             self.title = title_eng or title_foreign
 
     def update_from_dict(self, dic):
-        """Values for ASSOCIATED_COLUMNS have to be of tuple/set/list
-        Can also be used for book that is not in DB yet, since self._changes gets
-        ignored and reset after adding"""
         # TODO validate input
-        for col in self.COLUMNS:
+        for col in self.COLUMNS + self.ASSOCIATED_COLUMNS:
             # never update id, last_change from dict, handle title and fav ourselves
-            if col in ("id", "last_change", "title", "favorite"):
+            if col in ("title", "favorite", "ext_infos"):
                 continue
             try:
                 new = dic[col]
@@ -154,21 +146,6 @@ class Book(DBRow):
                 pass
             else:
                 setattr(self, col, new)
-        for col in self.ASSOCIATED_COLUMNS:
-            if col == "ext_infos":
-                continue
-            try:
-                new = dic[col]
-            except KeyError:
-                pass
-            else:
-                old = getattr(self, f"_{col}")
-                setattr(self, f"_{col}", new)
-                added, removed = diff_update(old, new)
-                if added:
-                    self._changes[col][0].update(added)
-                if removed:
-                    self._changes[col][1].update(removed)
 
         # TODO ext_infos
         fav = dic.get("favorite", None)
@@ -189,26 +166,6 @@ class Book(DBRow):
         else:
             return None
 
-    # @property
-    # def ext_infos(self):
-    #     if self.id is None:
-    #         # initialized from extracotr dict
-    #         if self._ext_infos and len(self._ext_infos) == 1:
-    #             return self._ext_infos
-    #         logger.warning("Couldn't get external info cause id is None")
-    #         return
-    #     if self._ext_infos is None:
-    #         self.update_ext_infos()
-    #     return self._ext_infos
-
-    # # has to come after defining the property!
-    # @ext_infos.setter
-    # def ext_infos(self, ext_infos):
-    #     if self._ext_infos is None:
-    #         self._ext_infos = ext_infos
-    #     else:
-    #         self._ext_infos = [ei for ei in self._ext_infos if ei not in ext_infos] + ext_infos
-
     def _fetch_external_infos(self):
         ext_infos = []
         c = self.manga_db.db_con.execute("""
@@ -221,9 +178,12 @@ class Book(DBRow):
             ext_infos.append(ei)
         return ext_infos
 
-    def update_assoc_columns(self):
+    def update_assoc_columns_from_db(self):
         for col, val in self.get_associated_columns().items():
             setattr(self, col, val)
+        # possible changes overwritten -> remove assoc cols from _committed_state
+        self._committed_state = {k: v for k, v in self._committed_state.items() if k not in
+                                 self.ASSOCIATED_COLUMNS}
 
     def get_associated_columns(self):
         """
@@ -317,7 +277,7 @@ class Book(DBRow):
                 logger.debug("Called save on Book with title '%s' which was not "
                              "in DB! Adding Book instead!", self.title)
                 return self._add_entry()
-        return self._update_manga_db_entry()
+        return self._update_entry()
 
     def _add_entry(self):
         """Commits changes to db"""
@@ -338,22 +298,21 @@ class Book(DBRow):
 
             for col in self.ASSOCIATED_COLUMNS:
                 if col == "ext_infos":
-                    if self._ext_infos:
+                    if self.ext_infos:
                         # also save ext_infos
-                        for ext_info in self._ext_infos:
+                        for ext_info in self.ext_infos:
                             eid, outdated = ext_info.save()
                             if outdated:
                                 # save ext_info id that triggered outdated warning
                                 outdated_on_ei_ids.append(eid)
                     continue
-                value = getattr(self, f"_{col}")
+                value = getattr(self, col)
                 if value is not None:
                     self._add_associated_column_values(col, value)
 
         logger.info("Added book with title \"%s\"  as id '%d' to database!", self.title, self.id)
-        # also reset changes here since update_from_dict couldve been used which modifies _changes
-        # and if book would be updated after adding it would write unnecessary changes to DB
-        self._reset_changes()
+        # reset committed state since we just committed
+        self._committed_state = {}
 
         return self.id, outdated_on_ei_ids
 
@@ -394,7 +353,7 @@ class Book(DBRow):
             logger.error("No external info with id %d found!", _id)
             return None
         url = ext_info.url
-        self._ext_infos = [ei for ei in self.ext_infos if ei.id != _id]
+        self.ext_infos = [ei for ei in self.ext_infos if ei.id != _id]
         ext_info.remove()
         logger.info("Removed external info with id %d from book with id %d",
                     _id, self.id)
@@ -426,46 +385,58 @@ class Book(DBRow):
                 AND Book{table_name}.book_id = ?""", (*values, self.id))
         logger.debug("Removed '%s' from associated column '%s'", values, table_name)
 
-    def _update_manga_db_entry(self):
+    def _update_entry(self):
         """
         Commits changes to db
         Doesnt save changes in ext_infos
         """
 
-        db_con = self.manga_db.db_con
-        # @Speed remove getting data from db b4 update (replae with sth like
-        # setters for normal cols that also log the changes)
-        # get previous values from db
-        c = db_con.execute(
-            "SELECT * FROM Books WHERE id = ?",
-            (self.id, ))
-        row = c.fetchone()
-        changed_str, changed_cols = self.diff_normal_cols(row)
-        logger.info("Updating Book with id '%d' with the following changes:\n%s", self.id,
-                    changed_str)
-
-        update_dic = self.export_for_db()
-        self.set_last_change()
-        update_dic["last_change"] = self.last_change
-
-        if changed_cols or self.assoc_col_changes():
-            with db_con:
-                # addd ['last_change'] so we always write last_change
-                c.execute(f"""UPDATE Books SET
-                              {','.join((f'{col} = :{col}' for col in
-                               changed_cols + ['last_change']))}
-                              WHERE id = :id""", update_dic)
-
-                # update changes on ASSOCIATED_COLUMNS(except ext_infos)
-                self._apply_changes()
-
-            logger.info("Updated book with id %d in DB!", self.id)
-            # c.lastrowid only works for INSERT/REPLACE
-            return self.id, changed_str
-        else:
-            logger.debug("_update_manga_db_entry was called but there were no changes "
-                         "for book with id %d", self.id)
+        if not self._committed_state:
+            logger.debug("No changes to save for book with id %d", self.id)
             return self.id, None
+
+        db_con = self.manga_db.db_con
+        logger.info("Updating Book with id '%d'", self.id)
+
+        self.set_last_change()
+        update_dic = self.export_for_db()
+        changed_cols = [col for col in self._committed_state if col in self.COLUMNS]
+
+        with db_con:
+            # addd ['last_change'] so we always write last_change
+            db_con.execute(f"""UPDATE Books SET
+                          {','.join((f'{col} = :{col}' for col in changed_cols))}
+                          WHERE id = :id""", update_dic)
+
+            self._update_associated_columns()
+
+        logger.info("Updated book with id %d in DB!", self.id)
+        # reset _committed_state
+        self._committed_state = {}
+        # c.lastrowid only works for INSERT/REPLACE
+        return self.id, None
+
+    def _update_associated_columns(self):
+        changed_cols = [col for col in self._committed_state if col in self.ASSOCIATED_COLUMNS]
+        for col in changed_cols:
+            if col == "ext_infos":
+                continue
+            if getattr(Book, col).relationship in (
+                    Relationship.MANYTOONE, Relationship.ONETOONE):
+                # TODO
+                raise NotImplementedError
+            else:
+                old = self._committed_state[col]
+                new = getattr(self, col)
+                added, removed = diff_update(old, new)
+                if added:
+                    self._add_associated_column_values(col, added)
+                if removed:
+                    self._remove_associated_column_values(col, removed)
+
+    def changes_str(self):
+        return "\n".join([f"{col}: '{val}' changed to '{getattr(self, col)}'" for col, val in
+                          self._committed_state.items()])
 
     # repr -> unambiguos
     def __repr__(self):
