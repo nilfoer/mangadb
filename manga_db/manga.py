@@ -76,10 +76,13 @@ class Book(DBRow):
             **kwargs):
         super().__init__(manga_db, **kwargs)
         self.id = id
+        # dont change title yourself use reformat_title
         self.title = title
         self.title_eng = title_eng
         self.title_foreign = title_foreign
-        # TODO title reformat callback
+        # add callbacks to reformat title when either eng or foreign title changes
+        Book.title_eng.add_callback("title_eng", self._title_change_callback)
+        Book.title_foreign.add_callback("title_foreign", self._title_change_callback)
         self.language_id = language_id
         self.pages = pages
         self.status_id = status_id
@@ -117,15 +120,24 @@ class Book(DBRow):
         self.last_change = datetime.date.today()
         return self.last_change
 
-    def reformat_title(self):
+    @staticmethod
+    def _title_change_callback(instance, name, before, after):
+        instance.reformat_title(**{name: after})
+
+    def reformat_title(self, title_eng=None, title_foreign=None):
         """Please dont assign title yourself only ever modify title_eng and title_foreign
         and use reformat_title to combine them"""
         # build title ourselves so title is the correct format
-        if self.title_eng and self.title_foreign:
+        if title_eng is None:
+            title_eng = self.title_eng
+        if title_foreign is None:
+            title_foreign = self.title_foreign
+
+        if title_eng and title_foreign:
             self.title = self.MANGA_TITLE_FORMAT.format(
-                    english=self.title_eng, foreign=self.title_foreign)
+                    english=title_eng, foreign=title_foreign)
         else:
-            self.title = self.title_eng or self.title_foreign
+            self.title = title_eng or title_foreign
 
     def update_from_dict(self, dic):
         """Values for ASSOCIATED_COLUMNS have to be of tuple/set/list

@@ -11,7 +11,7 @@ def trackable_type(instance, name, base, on_change_callback, *init_args, **init_
             after = base(self)
             if before != after:
                 # on_change_callback(instance, name, before, after)
-                on_change_callback(instance, name, before)
+                on_change_callback(instance, name, before, after)
             return result
         return wrapped
 
@@ -105,22 +105,23 @@ class AssociatedColumnMany(AssociatedColumnBase):
         else:
             # dont set to None or other unwanted type use our trackable set instead
             value = trackable_type(instance, self.name, list, committed_state_callback)
-        committed_state_callback(instance, self.name, value)
-        # call registered callback and inform them of new value
-        # important this happens b4 setting the value otherwise we cant retrieve old value
-        for callback in self.callbacks.get(self.name, []):
-            callback(instance, self.name, value)
+        before = self.__get__(instance, instance.__class__)
+        committed_state_callback(instance, self.name, before, value)
 
         instance.__dict__[self.name] = value
+
+        for callback in self.callbacks.get(self.name, []):
+            callback(instance, self.name, before, value)
 
 
 class AssociatedColumnOne(AssociatedColumnBase):
 
     def __set__(self, instance, value):
-        committed_state_callback(instance, self.name, value)
+        before = self.__get__(instance, instance.__class__)
+        committed_state_callback(instance, self.name, before, value)
         # call registered callback and inform them of new value
         # important this happens b4 setting the value otherwise we cant retrieve old value
         for callback in self.callbacks.get(self.name, []):
-            callback(instance, self.name, value)
+            callback(instance, self.name, before, value)
 
         instance.__dict__[self.name] = value

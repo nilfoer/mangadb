@@ -5,9 +5,8 @@ from .constants import ColumnValue
 
 # callback that sets the current state as commited state on the instance
 # the first time the value is changed after a commit
-def committed_state_callback(instance, col_name, value):
+def committed_state_callback(instance, col_name, before, after):
     if col_name not in instance._committed_state:
-        before = getattr(instance, col_name)
         if before is not ColumnValue.NO_VALUE:
             instance._committed_state[col_name] = before
 
@@ -39,43 +38,55 @@ class Column:
         self.name = name
 
     def __get__(self, instance, owner):
+        # instance is None when we're being called from class level of instance
+        # return self so we can access descriptors methods
+        if instance is None:
+            return self
         # if we would just return None we wouldn't be able to know
         # if the actual value was None or if the key wasnt present yet (when in __init__)
         try:
-            return self.values[instance]
+            # use name (== name of assigned attribute) to access value on INSTANCE's __dict__
+            # so we can have unhashable types as instances (e.g. subclass of list or classes that
+            # define __eq__ but not __hash__ (ExternalInfo)
+            return instance.__dict__[self.name]
         except KeyError:
             return ColumnValue.NO_VALUE
 
     def __set__(self, instance, value):
         if value is not None and not isinstance(value, self.type):
             raise TypeError("Value doesn't match the column's type!")
-        # important to come b4 setting the value otherweise we cant get the old value
-        committed_state_callback(instance, self.name, value)
+        before = self.__get__(instance, instance.__class__)
+        committed_state_callback(instance, self.name, before, value)
 
-        self.values[instance] = value
+        instance.__dict__[self.name] = value
 
     def __delete__(self, instance):
-        del self.values[instance]
+        del instance.__dict__[self.name]
 
 
 class ColumnWithCallback(Column):
 
     def __init__(self, value_type, default=None, **kwargs):
         super().__init__(value_type, default=default, **kwargs)
-        self.callbacks = WeakKeyDictionary()
+        self.callbacks = {}
 
     def __set__(self, instance, value):
-        super().__set__(instance, value)
-        # call registered callback and inform them of new value
-        # important this happens b4 setting the value otherwise we cant retrieve old value
-        for callback in self.callbacks.get(instance, []):
-            callback(value)
+        if value is not None and not isinstance(value, self.type):
+            raise TypeError("Value doesn't match the column's type!")
+        before = self.__get__(instance, instance.__class__)
+        committed_state_callback(instance, self.name, before, value)
 
-    def add_callback(self, instance, callback):
+        instance.__dict__[self.name] = value
+
+        # call registered callback and inform them of new value
+        for callback in self.callbacks.get(self.name, []):
+            callback(instance, self.name, before, value)
+
+    def add_callback(self, name, callback):
         """Add a new function to call everytime the descriptor updates
-        To be able to call add_callback you have to call it on the class level,
+        To be able to call add_callback you have to call it on the class level (of the instance),
         since when descriptors get called they always invoke __get__ but when called
         on the class level the 1st argument to get is None"""
-        if instance not in self.callbacks:
-            self.callbacks[instance] = set()
-        self.callbacks[instance].add(callback)
+        if name not in self.callbacks:
+            self.callbacks[name] = set()
+        self.callbacks[name].add(callback)

@@ -30,8 +30,7 @@
                 
                 -> either leaves assoc col alone if theyre lazy loaded
                 -> or loads them if theyre eager loaded
-- use descriptors to represent columns
-- store commited values in id_map/session...                
+- mb remove title and use t_eng,t_foreign to uniquely identify row besides pk? since title is just other titles combined           
                 
 
 - thread/subprocess for network stuff
