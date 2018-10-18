@@ -1,6 +1,13 @@
 import enum
 
 
+class Relationship(enum.Enum):
+    ONETOONE = 0
+    ONETOMANY = 1
+    MANYTOONE = 2
+    MANYTOMANY = 3
+
+
 class ColumnValue(enum.Enum):
     NO_VALUE = 0
 

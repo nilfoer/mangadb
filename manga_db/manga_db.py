@@ -7,6 +7,7 @@ import urllib.request
 from .logging_setup import configure_logging
 from . import extractor
 from .db import search
+from .db.loading import load_instance
 from .db.id_map import IndentityMap
 from .manga import Book
 from .ext_info import ExternalInfo
@@ -97,11 +98,6 @@ class MangaDB:
             except KeyError:
                 logger.warning("Invalid language_id: %d", language)
 
-    def fetch_list_names(self):
-        c = self.db_con.execute("SELECT name FROM List")
-        result = c.fetchall()
-        return result if result else None
-
     def download_cover(self, url, filename, overwrite=False):
         # TODO use urlopen and add headers
         if not os.path.isfile(filename) or overwrite:
@@ -124,8 +120,8 @@ class MangaDB:
         extr = extractor_cls(self, url)
         data = extr.get_metadata()
         if data:
-            book = Book(self, data)
-            ext_info = ExternalInfo(self, book, data)
+            book = Book(self, **data)
+            ext_info = ExternalInfo(self, book, **data)
             book.ext_infos = [ext_info]
             return book, ext_info, extr.get_cover()
         else:
@@ -186,7 +182,7 @@ class MangaDB:
             total = total[0] if total else 0
 
         if rows:
-            return [Book(self, row) for row in rows], total
+            return [load_instance(self, Book, row) for row in rows], total
         else:
             return None, None
 
@@ -210,7 +206,7 @@ class MangaDB:
                     AND ei.outdated = 1
                     ORDER BY {order_by}""")
         rows = c.fetchall()
-        return [Book(self, row) for row in rows] if rows else None
+        return [load_instance(self, Book, row) for row in rows] if rows else None
 
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
@@ -258,8 +254,8 @@ class MangaDB:
         if not rows:
             return
 
-        for book_info in rows:
-            yield Book(self, book_info)
+        for row in rows:
+            yield load_instance(self, Book, row)
 
     def get_book(self, _id=None, title=None):
         """Only id or title can guarantee uniqueness and querying using the title
@@ -272,7 +268,7 @@ class MangaDB:
             logger.error("At least one of id or title needs to be supplied!")
 
         row = c.fetchone()
-        return Book(self, row) if row else None
+        return load_instance(self, Book, row) if row else None
 
     def get_book_id(self, title):
         """
@@ -295,7 +291,7 @@ class MangaDB:
 
     def get_ext_info(self, _id):
         c = self.db_con.execute("SELECT * FROM ExternalInfo WHERE id = ?", (_id,))
-        return ExternalInfo(self, None, c.fetchone())
+        return load_instance(self, ExternalInfo, c.fetchone(), None)
 
     def search(self, search_string, **kwargs):
         return self._search_sytnax_parser(search_string, **kwargs)
@@ -481,6 +477,7 @@ class MangaDB:
                  );
             CREATE TABLE IF NOT EXISTS ExternalInfo(
                     id INTEGER PRIMARY KEY ASC,
+                    book_id INTEGER NOT NULL,
                     -- url could be built from id but idk if thats true for all sites
                     -- so keep it for now
                     url TEXT NOT NULL,
@@ -495,19 +492,12 @@ class MangaDB:
                     downloaded INTEGER NOT NULL,
                     last_update DATE NOT NULL,
                     outdated INTEGER NOT NULL,
+                    FOREIGN KEY (book_id) REFERENCES Books(id)
+                       ON DELETE CASCADE,
                     FOREIGN KEY (imported_from) REFERENCES Sites(id)
                        ON DELETE RESTRICT,
                     FOREIGN KEY (censor_id) REFERENCES Censorship(id)
                        ON DELETE RESTRICT
-                );
-            CREATE TABLE IF NOT EXISTS ExternalInfoBooks(
-                    book_id INTEGER NOT NULL,
-                    ext_info_id INTEGER NOT NULL,
-                    FOREIGN KEY (book_id) REFERENCES Books(id)
-                    ON DELETE CASCADE,
-                    FOREIGN KEY (ext_info_id) REFERENCES ExternalInfo(id)
-                    ON DELETE CASCADE,
-                    PRIMARY KEY (book_id, ext_info_id)
                 );
             CREATE TABLE IF NOT EXISTS Collection(
                     id INTEGER PRIMARY KEY ASC,

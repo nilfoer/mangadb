@@ -3,7 +3,8 @@ import datetime
 
 from .db.row import DBRow
 from .db.column import Column
-from .db.column_associated import AssociatedColumn
+from .db.column_associated import AssociatedColumnOne
+from .db.constants import Relationship
 from .constants import CENSOR_IDS
 from .extractor import SUPPORTED_SITES
 
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 class ExternalInfo(DBRow):
 
     id = Column(int, primary_key=True)
+    book_id = Column(int, nullable=False)
     url = Column(str, nullable=False)
     id_onpage = Column(int, nullable=False)
     imported_from = Column(int, nullable=False)
@@ -25,11 +27,12 @@ class ExternalInfo(DBRow):
     downloaded = Column(int)
     last_update = Column(datetime.date)
     outdated = Column(int)
-    book = AssociatedColumn("Books")
+    book = AssociatedColumnOne("Books", Relationship.MANYTOONE)
 
     def __init__(
                 self, manga_db, book,
                 id=None,
+                book_id=None,
                 url=None,
                 id_onpage=None,
                 imported_from=None,
@@ -43,6 +46,7 @@ class ExternalInfo(DBRow):
                 last_update=None,
                 outdated=None,
                 **kwargs):
+        super().__init__(manga_db, **kwargs)
         self.book = book
         self.id = id
         self.url = url
@@ -57,11 +61,6 @@ class ExternalInfo(DBRow):
         self.downloaded = downloaded
         self.last_update = last_update
         self.outdated = outdated
-
-        # call to Base class init after assigning all the attributes !IMPORTANT!
-        # if called b4 assigning the attributes the ones initalized with data
-        # from the base class will be reset to None
-        super().__init__(manga_db, **kwargs)
 
         if self.last_update is None:
             self.last_update = datetime.date.today()
@@ -85,16 +84,6 @@ class ExternalInfo(DBRow):
     @property
     def site(self):
         return SUPPORTED_SITES[self.imported_from]
-
-    def fetch_associated_book_id(self):
-        c = self.manga_db.db_con.execute("""
-            SELECT Books.id
-            FROM Books, ExternalInfoBooks, ExternalInfo
-            WHERE Books.id = ExternalInfoBooks.book_id
-            AND ExternalInfoBooks.ext_info_id = ?
-            """, (self.id,))
-        book_id = c.fetchone()
-        return book_id[0] if book_id else None
 
     def update_from_dict(self, dic):
         for col in self.COLUMNS:

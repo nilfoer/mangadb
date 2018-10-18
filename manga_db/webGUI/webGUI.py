@@ -423,7 +423,7 @@ def show_add_book():
     # @Hack
     data = {"list": [], "tag": [], "category": [], "parody": [], "groups": [], "character": [],
             "collection": [], "artist": []}
-    book = Book(mdb, data)
+    book = Book(mdb, **data)
     book.title = "New Book!"
     available_options = book.get_all_options_for_assoc_columns()
     available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()
@@ -453,7 +453,7 @@ def add_book():
     for col in Book.ASSOCIATED_COLUMNS:
         val_list = request.form.getlist(col)
         data[col] = val_list
-    book = Book(mdb, data)
+    book = Book(mdb, **data)
     # so title is correct format !important
     book.reformat_title()
     bid, _ = book.save()

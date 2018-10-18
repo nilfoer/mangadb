@@ -2,9 +2,11 @@ import os
 import logging
 import datetime
 
+from .db.loading import load_instance
 from .db.row import DBRow
-from .db.column import Column
-from .db.column_associated import AssociatedColumn
+from .db.column import Column, ColumnWithCallback
+from .db.column_associated import AssociatedColumnMany
+from .db.constants import Relationship
 from .ext_info import ExternalInfo
 from .constants import STATUS_IDS
 from .db.util import joined_col_name_to_query_names
@@ -30,23 +32,28 @@ class Book(DBRow):
     pages = Column(int, nullable=False)
     status_id = Column(int, nullable=False)
     my_rating = Column(float)
-    category = AssociatedColumn("Category")
-    collection = AssociatedColumn("Collection")
-    groups = AssociatedColumn("Groups")
-    artist = AssociatedColumn("Artist")
-    parody = AssociatedColumn("Parody")
-    character = AssociatedColumn("Character")
-    list = AssociatedColumn("List")
-    tag = AssociatedColumn("Tag")
-    ext_infos = AssociatedColumn("ExternalInfo")
+    category = AssociatedColumnMany("Category", Relationship.MANYTOMANY,
+                                    assoc_table="BookCategory")
+    collection = AssociatedColumnMany("Collection", Relationship.MANYTOMANY,
+                                      assoc_table="BookCollection")
+    groups = AssociatedColumnMany("Groups", Relationship.MANYTOMANY, assoc_table="BookGroups")
+    artist = AssociatedColumnMany("Artist", Relationship.MANYTOMANY, assoc_table="BookArtist")
+    parody = AssociatedColumnMany("Parody", Relationship.MANYTOMANY, assoc_table="BookParody")
+    character = AssociatedColumnMany("Character", Relationship.MANYTOMANY,
+                                     assoc_table="BookCharacter")
+    list = AssociatedColumnMany("List", Relationship.MANYTOMANY,
+                                assoc_table="BookList")
+    tag = AssociatedColumnMany("Tag", Relationship.MANYTOMANY,
+                               assoc_table="BookTag")
+    ext_infos = AssociatedColumnMany("ExternalInfo", Relationship.ONETOMANY)
     last_change = Column(datetime.date)
     note = Column(str)
-    favorite = Column(str, nullable=False)
+    favorite = Column(int, nullable=False)
 
     def __init__(
             self,
             manga_db,
-            id_=None,
+            id=None,
             title=None,
             title_eng=None,
             title_foreign=None,
@@ -60,7 +67,7 @@ class Book(DBRow):
             artist=None,
             parody=None,
             character=None,
-            list_=None,
+            list=None,
             tag=None,
             ext_infos=None,
             last_change=None,
@@ -68,7 +75,7 @@ class Book(DBRow):
             favorite=None,
             **kwargs):
         super().__init__(manga_db, **kwargs)
-        self.id = id_
+        self.id = id
         self.title = title
         self.title_eng = title_eng
         self.title_foreign = title_foreign
@@ -83,12 +90,16 @@ class Book(DBRow):
         self.artist = artist
         self.parody = parody
         self.character = character
-        self.list = list_
+        self.list = list
         self.tag = tag
         self.ext_infos = ext_infos
         self.last_change = last_change
         self.note = note
         self.favorite = favorite
+
+        # load associated columns
+        # TODO lazy loading
+        self.update_assoc_columns()
 
         if self.last_change is None:
             self.set_last_change()
@@ -190,18 +201,17 @@ class Book(DBRow):
         ext_infos = []
         c = self.manga_db.db_con.execute("""
                         SELECT ei.*
-                        FROM ExternalInfo ei, ExternalInfoBooks eib, Books
-                        WHERE Books.id = eib.book_id
-                        AND ei.id = eib.ext_info_id
+                        FROM ExternalInfo ei, Books
+                        WHERE Books.id = ei.book_id
                         AND Books.id = ?""", (self.id,))
         for row in c.fetchall():
-            ei = ExternalInfo(self.manga_db, self, row)
+            ei = load_instance(self.manga_db, ExternalInfo, row, self)
             ext_infos.append(ei)
         return ext_infos
 
     def update_assoc_columns(self):
         for col, val in self.get_associated_columns().items():
-            setattr(self, "_" + col, val)
+            setattr(self, col, val)
 
     def get_associated_columns(self):
         """

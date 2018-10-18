@@ -19,12 +19,6 @@ class DBRow:
         return self.__class__, tuple((getattr(self, col) for col in self.PRIMARY_KEY_COLUMNS))
 
     @classmethod
-    def from_dict(cls, manga_db, dic):
-        # only update fields that are in cls.get_column_names()
-        row = cls(manga_db)
-        row.__dict__.update(cls.filter_dict(dic))
-
-    @classmethod
     def get_all_column_names(cls):
         """
         Returns list of strings containing all column names
@@ -51,8 +45,6 @@ class DBRow:
         result = {}
         for attr in self.COLUMNS:
             val = getattr(self, attr)
-            if (attr in self.NOT_NULL_COLS) and val is None:
-                raise ValueError(f"'self.{attr}' can't be NULL when exporting for DB!")
             result[attr] = val
         return result
 

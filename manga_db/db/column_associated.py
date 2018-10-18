@@ -1,7 +1,5 @@
-from weakref import WeakKeyDictionary
-
 from .column import committed_state_callback
-from .constants import ColumnValue
+from .constants import ColumnValue, Relationship
 
 
 # adapted from https://stackoverflow.com/a/8859168 Andrew Clark
@@ -43,13 +41,12 @@ def trackable_type(instance, name, base, on_change_callback, *init_args, **init_
     return TrackableObject(*init_args, **init_kwargs)
 
 
-class AssociatedColumn:
+class AssociatedColumnBase:
 
-    def __init__(self, table_name, assoc_table=None, **kwargs):
+    def __init__(self, table_name, relationship, **kwargs):
         self.table_name = table_name
-        self.assoc_table = assoc_table
-        self.values = WeakKeyDictionary()
-        self.callbacks = WeakKeyDictionary()
+        self.relationship = relationship
+        self.callbacks = {}
 
     # new in py3.6: Called at the time the owning class owner is created. The descriptor has been
     # assigned to name
@@ -62,35 +59,68 @@ class AssociatedColumn:
         self.name = name
 
     def __get__(self, instance, owner):
+        # instance is None when we're being called from class level of instance
+        # return self so we can access descriptors methods
+        if instance is None:
+            return self
         # if we would just return None we wouldn't be able to know
         # if the actual value was None or if the key wasnt present yet (when in __init__)
         try:
-            return self.values[instance]
+            # use name (== name of assigned attribute) to access value on INSTANCE's __dict__
+            # so we can have unhashable types as instances (e.g. subclass of list or classes that
+            # define __eq__ but not __hash__ (ExternalInfo)
+            return instance.__dict__[self.name]
         except KeyError:
             return ColumnValue.NO_VALUE
 
     def __set__(self, instance, value):
+        raise NotImplementedError
+
+    def __delete__(self, instance):
+        del instance.__dict__[self.name]
+
+    def add_callback(self, name, callback):
+        """Add a new function to call everytime the descriptor updates
+        To be able to call add_callback you have to call it on the class level (of the instance),
+        since when descriptors get called they always invoke __get__ but when called
+        on the class level the 1st argument to get is None"""
+        if name not in self.callbacks:
+            self.callbacks[name] = set()
+        self.callbacks[name].add(callback)
+
+
+class AssociatedColumnMany(AssociatedColumnBase):
+
+    def __init__(self, table_name, relationship, assoc_table=None, **kwargs):
+        super().__init__(table_name, relationship, **kwargs)
+        if self.relationship is Relationship.MANYTOMANY and not assoc_table:
+            raise ValueError("Value for assoc_table is needed when relationship"
+                             " is MANYTOMANY")
+        self.table_name = table_name
+        self.assoc_table = assoc_table
+
+    def __set__(self, instance, value):
         if value:
-            value = trackable_type(instance, self.name, set, committed_state_callback, value)
+            value = trackable_type(instance, self.name, list, committed_state_callback, value)
         else:
-            value = None
-        # since __get__ returns None if key isnt present
+            # dont set to None or other unwanted type use our trackable set instead
+            value = trackable_type(instance, self.name, list, committed_state_callback)
         committed_state_callback(instance, self.name, value)
         # call registered callback and inform them of new value
         # important this happens b4 setting the value otherwise we cant retrieve old value
-        for callback in self.callbacks.get(instance, []):
+        for callback in self.callbacks.get(self.name, []):
             callback(instance, self.name, value)
 
-        self.values[instance] = value
+        instance.__dict__[self.name] = value
 
-    def __delete__(self, instance):
-        del self.values[instance]
 
-    def add_callback(self, instance, callback):
-        """Add a new function to call everytime the descriptor updates
-        To be able to call add_callback you have to call it on the class level,
-        since when descriptors get called they always invoke __get__ but when called
-        on the class level the 1st argument to get is None"""
-        if instance not in self.callbacks:
-            self.callbacks[instance] = set()
-        self.callbacks[instance].add(callback)
+class AssociatedColumnOne(AssociatedColumnBase):
+
+    def __set__(self, instance, value):
+        committed_state_callback(instance, self.name, value)
+        # call registered callback and inform them of new value
+        # important this happens b4 setting the value otherwise we cant retrieve old value
+        for callback in self.callbacks.get(self.name, []):
+            callback(instance, self.name, value)
+
+        instance.__dict__[self.name] = value
