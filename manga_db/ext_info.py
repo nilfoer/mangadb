@@ -25,10 +25,10 @@ class ExternalInfo(DBRow):
     downloaded = Column(int)
     last_update = Column(datetime.date)
     outdated = Column(int)
-    manga_db_entry = AssociatedColumn("Books")
+    book = AssociatedColumn("Books")
 
     def __init__(
-                self, manga_db, manga_db_entry,
+                self, manga_db, book,
                 id=None,
                 url=None,
                 id_onpage=None,
@@ -43,7 +43,7 @@ class ExternalInfo(DBRow):
                 last_update=None,
                 outdated=None,
                 **kwargs):
-        self.manga_db_entry = manga_db_entry
+        self.book = book
         self.id = id
         self.url = url
         self.id_onpage = id_onpage
@@ -97,7 +97,7 @@ class ExternalInfo(DBRow):
         return book_id[0] if book_id else None
 
     def update_from_dict(self, dic):
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             # never update id, last_update
             if col in ("id", "last_update"):
                 continue
@@ -109,32 +109,32 @@ class ExternalInfo(DBRow):
                 setattr(self, col, new)
 
     def update_from_url(self, force=False):
-        if not self.id and self.manga_db_entry:
+        if not self.id and self.book:
             logger.info("Cant update external info without id and assoicated book!")
             return "id_or_book_missing", None
         # TODO mb propagate updates to Book?
         book, ext_info, _ = self.manga_db.retrieve_book_data(self.url)
         if book is None:
             return "no_data", None
-        if book.title != self.manga_db_entry.title:
+        if book.title != self.book.title:
             logger.warning("Title at URL of external info doesnt match title of associated "
                            "book! Aborting update! Use force=True to force update!\n"
                            "URL: %s\nTitle of associated book: %s\nTitle at URL: %s".
-                           self.url, self.manga_db_entry.title, book.title)
+                           self.url, self.book.title, book.title)
             if not force:
                 return "title_mismatch", None
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             if col == "id":
                 continue
             setattr(self, col, getattr(ext_info, col))
         return "updated", book
 
     def save(self):
-        # idea is that ExternalInfo only gets edited when also editing MangaDBEntry
+        # idea is that ExternalInfo only gets edited when also editing Book
         # and except downloaded everything else is edited by importing
         if self.id is None:
-            if self.manga_db_entry is None or self.manga_db_entry.id is None:
-                raise ValueError("ExternalInfo can only be saved with an id or MangaDBEntry.id!")
+            if self.book is None or self.book.id is None:
+                raise ValueError("ExternalInfo can only be saved with an id or Book.id!")
             return self._add_entry()
         else:
             # pass boolean if we have correct information for downloaded
@@ -168,7 +168,7 @@ class ExternalInfo(DBRow):
             outdated = None
 
         db_dict = self.export_for_db()
-        cols = [col for col in self.DB_COL_HELPER if col != "id"]
+        cols = [col for col in self.COLUMNS if col != "id"]
 
         with self.manga_db.db_con:
             c = self.manga_db.db_con.execute(f"""
@@ -178,7 +178,7 @@ class ExternalInfo(DBRow):
             self.id = c.lastrowid
             # insert connection in bridge table
             c.execute("""INSERT INTO ExternalInfoBooks(book_id, ext_info_id)
-                         VALUES (?, ?)""", (self.manga_db_entry.id, self.id))
+                         VALUES (?, ?)""", (self.book.id, self.id))
             if outdated:
                 # set invalid_link on external infos with same id_onpage,imported_from
                 # save to insert them like this since vals are from the db
@@ -258,15 +258,15 @@ class ExternalInfo(DBRow):
 
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()
-                                  if attr != "manga_db_entry"))
-        # dont use MangaDBEntry's repr otherwise the circular reference will spam the console
-        mdb_entry_info = f"id: '{self.manga_db_entry.id}', title: '{self.manga_db_entry.title}'"
-        return f"<ExternalInfo(manga_db_entry: 'MangaDBEntry({mdb_entry_info})', {selfdict_str})>"
+                                  if attr != "book"))
+        # dont use Book's repr otherwise the circular reference will spam the console
+        book_info = f"id: '{self.book.id}', title: '{self.book.title}'"
+        return f"<ExternalInfo(book: 'Book({book_info})', {selfdict_str})>"
 
     def to_export_string(self):
         # !! changes censor_id to sth human-readable (without lookin up the id that is)
         lines = []
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             val = getattr(self, col)
             col_name = col
             if col == "censor_id":

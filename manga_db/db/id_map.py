@@ -10,10 +10,10 @@ class IndentityMap:
         self._dict = weakref.WeakValueDictionary()
 
     def add(self, obj):
-        if obj.id is None:
+        if not obj._in_db:
             return False
         else:
-            key = (obj.__class__, obj.id)
+            key = obj.key
             if key in self._dict:
                 # TODO custom exception
                 raise Exception(f"Can't add {key} to IndentityMap, since there is already "

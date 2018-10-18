@@ -13,17 +13,19 @@ from .util import diff_update
 logger = logging.getLogger(__name__)
 
 
-class MangaDBEntry(DBRow):
+class Book(DBRow):
     """
     Fields of data that can have multiple values need to be of type list!!!
     """
+
+    TABLENAME = "Books"
 
     MANGA_TITLE_FORMAT = "{english} / {foreign}"
 
     id = Column(int, primary_key=True)
     title = Column(str, nullable=False)
-    title_eng = Column(str)
-    title_foreign = Column(str)
+    title_eng = ColumnWithCallback(str)
+    title_foreign = ColumnWithCallback(str)
     language_id = Column(int, nullable=False)
     pages = Column(int, nullable=False)
     status_id = Column(int, nullable=False)
@@ -70,6 +72,7 @@ class MangaDBEntry(DBRow):
         self.title = title
         self.title_eng = title_eng
         self.title_foreign = title_foreign
+        # TODO title reformat callback
         self.language_id = language_id
         self.pages = pages
         self.status_id = status_id
@@ -114,11 +117,11 @@ class MangaDBEntry(DBRow):
             self.title = self.title_eng or self.title_foreign
 
     def update_from_dict(self, dic):
-        """Values for JOINED_COLUMNS have to be of tuple/set/list
+        """Values for ASSOCIATED_COLUMNS have to be of tuple/set/list
         Can also be used for book that is not in DB yet, since self._changes gets
         ignored and reset after adding"""
         # TODO validate input
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             # never update id, last_change from dict, handle title and fav ourselves
             if col in ("id", "last_change", "title", "favorite"):
                 continue
@@ -128,7 +131,7 @@ class MangaDBEntry(DBRow):
                 pass
             else:
                 setattr(self, col, new)
-        for col in self.JOINED_COLUMNS:
+        for col in self.ASSOCIATED_COLUMNS:
             if col == "ext_infos":
                 continue
             try:
@@ -299,7 +302,7 @@ class MangaDBEntry(DBRow):
         if self.favorite is None:
             self.favorite = 0
         db_dict = self.export_for_db()
-        cols = [col for col in self.DB_COL_HELPER if col != "id"]
+        cols = [col for col in self.COLUMNS if col != "id"]
 
         # since were saving ext_infos we also have to pass along if we had
         # outdated links
@@ -311,7 +314,7 @@ class MangaDBEntry(DBRow):
                     )""", db_dict)
             self.id = c.lastrowid
 
-            for col in self.JOINED_COLUMNS:
+            for col in self.ASSOCIATED_COLUMNS:
                 if col == "ext_infos":
                     if self._ext_infos:
                         # also save ext_infos
@@ -431,7 +434,7 @@ class MangaDBEntry(DBRow):
                                changed_cols + ['last_change']))}
                               WHERE id = :id""", update_dic)
 
-                # update changes on JOINED_COLUMNS(except ext_infos)
+                # update changes on ASSOCIATED_COLUMNS(except ext_infos)
                 self._apply_changes()
 
             logger.info("Updated book with id %d in DB!", self.id)
@@ -445,7 +448,7 @@ class MangaDBEntry(DBRow):
     # repr -> unambiguos
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
-        return f"<MangaDBEntry({selfdict_str})>"
+        return f"<Book({selfdict_str})>"
 
     # str -> readable
     def __str__(self):
@@ -453,7 +456,7 @@ class MangaDBEntry(DBRow):
 
     def to_export_string(self):
         lines = []
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             val = getattr(self, col)
             col_name = col
             if col == "language_id":
@@ -463,7 +466,7 @@ class MangaDBEntry(DBRow):
                 val = STATUS_IDS[val]
                 col_name = "status"
             lines.append(f"{col_name}: {val}")
-        for col in self.JOINED_COLUMNS:
+        for col in self.ASSOCIATED_COLUMNS:
             if col == "ext_infos":
                 continue
             attr = getattr(self, f"_{col}")
@@ -484,13 +487,13 @@ class MangaDBEntry(DBRow):
         # doesnt diff ext_infos
         changes = {}
         change_str = []
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             val_self = getattr(self, col)
             val_other = getattr(manga_db_entry, col)
             if val_self != val_other:
                 changes[col] = val_other
                 change_str.append(f"Column '{col}' changed from '{val_self}' to '{val_other}'")
-        for col in self.JOINED_COLUMNS:
+        for col in self.ASSOCIATED_COLUMNS:
             if col == "ext_infos":
                 continue
             val_self = getattr(self, col)

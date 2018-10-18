@@ -8,7 +8,7 @@ from .logging_setup import configure_logging
 from . import extractor
 from .db import search
 from .db.id_map import IndentityMap
-from .manga import MangaDBEntry
+from .manga import Book
 from .ext_info import ExternalInfo
 
 
@@ -124,7 +124,7 @@ class MangaDB:
         extr = extractor_cls(self, url)
         data = extr.get_metadata()
         if data:
-            book = MangaDBEntry(self, data)
+            book = Book(self, data)
             ext_info = ExternalInfo(self, book, data)
             book.ext_infos = [ext_info]
             return book, ext_info, extr.get_cover()
@@ -186,7 +186,7 @@ class MangaDB:
             total = total[0] if total else 0
 
         if rows:
-            return [MangaDBEntry(self, row) for row in rows], total
+            return [Book(self, row) for row in rows], total
         else:
             return None, None
 
@@ -210,7 +210,7 @@ class MangaDB:
                     AND ei.outdated = 1
                     ORDER BY {order_by}""")
         rows = c.fetchall()
-        return [MangaDBEntry(self, row) for row in rows] if rows else None
+        return [Book(self, row) for row in rows] if rows else None
 
     def _validate_indentifiers_types(self, identifiers_types):
         if "url" in identifiers_types:
@@ -259,7 +259,7 @@ class MangaDB:
             return
 
         for book_info in rows:
-            yield MangaDBEntry(self, book_info)
+            yield Book(self, book_info)
 
     def get_book(self, _id=None, title=None):
         """Only id or title can guarantee uniqueness and querying using the title
@@ -272,7 +272,7 @@ class MangaDB:
             logger.error("At least one of id or title needs to be supplied!")
 
         row = c.fetchone()
-        return MangaDBEntry(self, row) if row else None
+        return Book(self, row) if row else None
 
     def get_book_id(self, title):
         """
@@ -354,7 +354,7 @@ class MangaDB:
             # first one
             part = part or multi_word
 
-            if search_col in MangaDBEntry.JOINED_COLUMNS:
+            if search_col in Book.ASSOCIATED_COLUMNS:
                 incl, excl = search.search_assoc_col_string_parse(part, delimiter=delimiter)
                 # make sure not to add an empty list otherwise we wont get an empty dic
                 # that evaluates to false for testing in search_normal_mult_assoc

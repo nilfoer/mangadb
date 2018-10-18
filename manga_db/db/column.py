@@ -1,7 +1,15 @@
 from weakref import WeakKeyDictionary
 
-from .row import DBRow
 from .constants import ColumnValue
+
+
+# callback that sets the current state as commited state on the instance
+# the first time the value is changed after a commit
+def committed_state_callback(instance, col_name, value):
+    if col_name not in instance._committed_state:
+        before = getattr(instance, col_name)
+        if before is not ColumnValue.NO_VALUE:
+            instance._committed_state[col_name] = before
 
 
 class Column:
@@ -12,13 +20,22 @@ class Column:
         self.values = WeakKeyDictionary()
         self.primary_key = kwargs.pop("primary_key", False)
         self.nullable = kwargs.pop("nullable", True)
-        # callback that sets the current state as commited state on the instance
-        # the first time the value is changed after a commit
-        self.committed_state_callback = DBRow.committed_state_callback
 
     # new in py3.6: Called at the time the owning class owner is created. The descriptor has been
     # assigned to name
     def __set_name__(self, owner, name):
+        if self.primary_key:
+            # add pk col separately
+            try:
+                owner.PRIMARY_KEY_COLUMNS.append(name)
+            except AttributeError:
+                owner.PRIMARY_KEY_COLUMNS = [name]
+        else:
+            # add col name to COLUMNS of class
+            try:
+                owner.COLUMNS.append(name)
+            except AttributeError:
+                owner.COLUMNS = [name]
         self.name = name
 
     def __get__(self, instance, owner):
@@ -33,7 +50,7 @@ class Column:
         if value is not None and not isinstance(value, self.type):
             raise TypeError("Value doesn't match the column's type!")
         # important to come b4 setting the value otherweise we cant get the old value
-        self.committed_state_callback(instance, self.name, value)
+        committed_state_callback(instance, self.name, value)
 
         self.values[instance] = value
 
@@ -48,15 +65,11 @@ class ColumnWithCallback(Column):
         self.callbacks = WeakKeyDictionary()
 
     def __set__(self, instance, value):
-        if isinstance(value, self.type):
-            raise TypeError("Value doesn't match the column's type!")
-        self.committed_state_callback(instance, self.name, value)
+        super().__set__(instance, value)
         # call registered callback and inform them of new value
         # important this happens b4 setting the value otherwise we cant retrieve old value
         for callback in self.callbacks.get(instance, []):
             callback(value)
-
-        self.values[instance] = value
 
     def add_callback(self, instance, callback):
         """Add a new function to call everytime the descriptor updates

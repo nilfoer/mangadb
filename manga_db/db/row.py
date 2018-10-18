@@ -1,9 +1,11 @@
-from .constants import ColumnValue
-
-
 class DBRow:
 
     TABLENAME = ""
+
+    PRIMARY_KEY_COLUMNS = None
+    # cant assign [] here otherwise col names of all subclasses will be appended to same list
+    COLUMNS = None
+    ASSOCIATED_COLUMNS = None
 
     def __init__(self, manga_db, **kwargs):
         self.manga_db = manga_db
@@ -12,12 +14,9 @@ class DBRow:
         # gets set to true when loaded from db through load_instance
         self._in_db = False
 
-    @staticmethod
-    def committed_state_callback(instance, col_name, value):
-        if col_name not in instance._committed_state:
-            before = getattr(instance, col_name)
-            if before is not ColumnValue.NO_VALUE:
-                instance._committed_state[col_name] = before
+    @property
+    def key(self):
+        return self.__class__, tuple((getattr(self, col) for col in self.PRIMARY_KEY_COLUMNS))
 
     @classmethod
     def from_dict(cls, manga_db, dic):
@@ -26,14 +25,11 @@ class DBRow:
         row.__dict__.update(cls.filter_dict(dic))
 
     @classmethod
-    def get_column_names(cls):
+    def get_all_column_names(cls):
         """
-        Returns tuple of strings containing all column names, including the ones
-        that can be attributed to the type of row using e.g. bridge tables
-        primary key columns are not included
+        Returns list of strings containing all column names
         """
-        # TODO loop through self vars and add Column/Assoc.. sublcasses
-        return cls.DB_COL_HELPER + cls.JOINED_COLUMNS
+        return cls.COLUMNS + cls.ASSOCIATED_COLUMNS
 
     @classmethod
     def filter_dict(cls, data):
@@ -53,7 +49,7 @@ class DBRow:
         Returns a dict with all the attributes of self that are stored in the row directly
         """
         result = {}
-        for attr in self.DB_COL_HELPER:
+        for attr in self.COLUMNS:
             val = getattr(self, attr)
             if (attr in self.NOT_NULL_COLS) and val is None:
                 raise ValueError(f"'self.{attr}' can't be NULL when exporting for DB!")
@@ -69,7 +65,7 @@ class DBRow:
     def diff_normal_cols(self, row):
         changed_str = []
         changed_cols = []
-        for col in self.DB_COL_HELPER:
+        for col in self.COLUMNS:
             self_attr = getattr(self, col)
             if row[col] != self_attr:
                 changed_str.append(f"Column '{col}' changed from '{row[col]}' to '{self_attr}'")

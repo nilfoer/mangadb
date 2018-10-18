@@ -13,7 +13,7 @@ from flask import (
 
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
-from ..manga import MangaDBEntry
+from ..manga import Book
 from ..ext_info import ExternalInfo
 from .. import extractor
 
@@ -200,9 +200,9 @@ def update_book_ext_info(book_id, ext_info_id):
     changes = {key: changes[key] for key in changes if key not in {"id", "last_change",
                                                                    "note", "title"}}
     converted = {"normal": {col: changes[col] for col in changes
-                            if col in MangaDBEntry.DB_COL_HELPER},
+                            if col in Book.COLUMNS},
                  "added_removed": {col: changes[col] for col in changes
-                                   if col in MangaDBEntry.JOINED_COLUMNS}
+                                   if col in Book.ASSOCIATED_COLUMNS}
                  }
     # convert to status/lang name instead of id
     try:
@@ -241,7 +241,7 @@ def apply_upd_changes(book_id):
             update_dic["status_id"] = STATUS_IDS[val]
         elif col == "language":
             update_dic["language_id"] = mdb.get_language(val)
-        elif col in MangaDBEntry.DB_COL_HELPER:
+        elif col in Book.COLUMNS:
             update_dic[col] = val
         else:
             add, remove = val.split(";;;")
@@ -334,13 +334,13 @@ def list_action_ajax(book_id, action):
         # there then something got left out of the request and the entire
         # request is invalid.
         # print("test",request.form["adjak"],"test")
-        MangaDBEntry.add_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
+        Book.add_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
         # pass url back to script since we cant use url_for
         return jsonify({"added": list_name,
                         "search_tag_url": url_for('search_books',
                                                   searchstring=f'tags:"{list_name}"')})
     elif action == "remove":
-        MangaDBEntry.remove_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
+        Book.remove_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
         # pass url back to script since we cant use url_for
         return jsonify({"removed": list_name})
     else:
@@ -350,14 +350,14 @@ def list_action_ajax(book_id, action):
 
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
-    MangaDBEntry.set_favorite_id(mdb.db_con, book_id, fav_intbool)
+    Book.set_favorite_id(mdb.db_con, book_id, fav_intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
 @app.route("/book/<book_id>/rate/<float:rating>")
 def rate_book(book_id, rating):
-    MangaDBEntry.rate_book_id(mdb.db_con, book_id, rating)
+    Book.rate_book_id(mdb.db_con, book_id, rating)
     return redirect(
         url_for("show_info", book_id=book_id))
 
@@ -423,7 +423,7 @@ def show_add_book():
     # @Hack
     data = {"list": [], "tag": [], "category": [], "parody": [], "groups": [], "character": [],
             "collection": [], "artist": []}
-    book = MangaDBEntry(mdb, data)
+    book = Book(mdb, data)
     book.title = "New Book!"
     available_options = book.get_all_options_for_assoc_columns()
     available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()
@@ -440,7 +440,7 @@ def show_add_book():
 @app.route("/book/add/submit", methods=["POST"])
 def add_book():
     data = {}
-    for col in MangaDBEntry.DB_COL_HELPER:
+    for col in Book.COLUMNS:
         val = request.form.get(col, None)
         if col in ("pages", "status_id", "language_id"):
             val = int(val)
@@ -450,10 +450,10 @@ def add_book():
                 continue
             val = float(val)
         data[col] = val
-    for col in MangaDBEntry.JOINED_COLUMNS:
+    for col in Book.ASSOCIATED_COLUMNS:
         val_list = request.form.getlist(col)
         data[col] = val_list
-    book = MangaDBEntry(mdb, data)
+    book = Book(mdb, data)
     # so title is correct format !important
     book.reformat_title()
     bid, _ = book.save()
@@ -492,7 +492,7 @@ def edit_book(book_id):
     book = mdb.get_book(book_id)
 
     update_dic = {}
-    # fine here since i just get the col names in DB_COL_HELPER and JOINED_COLUMNS
+    # fine here since i just get the col names in COLUMNS and ASSOCIATED_COLUMNS
     # but have to be careful not to just e.g. iterate over the request.form dict or
     # whatever and execute sql queries with col names substituted in f-string and not
     # through db api params (? and :kwarg), someone could change the name field on
@@ -501,7 +501,7 @@ def edit_book(book_id):
     # even if it got inserted still just produce an error
     # esp combination with executescript is dangerous since you can use ; to start
     # another statement ...;DROP Table
-    for col in MangaDBEntry.DB_COL_HELPER:
+    for col in Book.COLUMNS:
         val = request.form.get(col, None)
         if col in ("pages", "status_id", "language_id"):
             try:
@@ -523,7 +523,7 @@ def edit_book(book_id):
                 flash(f"{col} needs to be a floating point number!", "info")
                 return redirect(url_for("show_edit_book", book_id=book_id))
         update_dic[col] = val
-    for col in MangaDBEntry.JOINED_COLUMNS:
+    for col in Book.ASSOCIATED_COLUMNS:
         if col == "ext_infos":
             continue
         val_list = request.form.getlist(col)

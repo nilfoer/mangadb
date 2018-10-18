@@ -1,6 +1,6 @@
 from weakref import WeakKeyDictionary
 
-from .row import DBRow
+from .column import committed_state_callback
 from .constants import ColumnValue
 
 
@@ -50,13 +50,15 @@ class AssociatedColumn:
         self.assoc_table = assoc_table
         self.values = WeakKeyDictionary()
         self.callbacks = WeakKeyDictionary()
-        # callback that sets the current state as commited state on the instance
-        # the first time the value is changed after a commit
-        self.committed_state_callback = DBRow.committed_state_callback
 
     # new in py3.6: Called at the time the owning class owner is created. The descriptor has been
     # assigned to name
     def __set_name__(self, owner, name):
+        # add col name to ASSOCIATED_COLUMNS of class
+        try:
+            owner.ASSOCIATED_COLUMNS.append(name)
+        except AttributeError:
+            owner.ASSOCIATED_COLUMNS = [name]
         self.name = name
 
     def __get__(self, instance, owner):
@@ -69,11 +71,11 @@ class AssociatedColumn:
 
     def __set__(self, instance, value):
         if value:
-            value = trackable_type(instance, self.name, set, self.committed_state_callback, value)
+            value = trackable_type(instance, self.name, set, committed_state_callback, value)
         else:
             value = None
         # since __get__ returns None if key isnt present
-        self.committed_state_callback(instance, self.name, value)
+        committed_state_callback(instance, self.name, value)
         # call registered callback and inform them of new value
         # important this happens b4 setting the value otherwise we cant retrieve old value
         for callback in self.callbacks.get(instance, []):
