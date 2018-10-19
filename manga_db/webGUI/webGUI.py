@@ -55,17 +55,20 @@ def thumb_static(filename):
 @app.route('/', methods=["GET"])
 def show_entries():
     order_by_col = request.args.get('order_by_col', "id")
-    asc_desc = request.args.get('asc_desc', "DESC")
+    asc_desc = "ASC" if request.args.get('asc_desc', "DESC") == "ASC" else "DESC"
     order_by = f"Books.{order_by_col} {asc_desc}"
-    last_id = request.args.get("last_id", None)
-    books = mdb.get_x_books(BOOKS_PER_PAGE+1, last_id=last_id, order_by=order_by)
-    new_last_id, more = lastid_more(books)
+    after = request.args.get("after", None, type=int)
+    before = request.args.get("before", None, type=int)
+    books = mdb.get_x_books(BOOKS_PER_PAGE+1, after=after, before=before,
+                            order_by=order_by)
+    first_id, last_id, more = first_last_more(books, after, before)
 
     return render_template(
         'show_entries.html',
         books=books,
         more=more,
-        last_id=new_last_id,
+        first_id=first_id,
+        last_id=last_id,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 
@@ -289,41 +292,76 @@ def get_info_txt(book_id):
             )
 
 
-def lastid_more(books):
+def first_last_more(books, after=None, before=None):
+    more = {"next": None, "prev": None}
+
+    # we alway get one row more to know if there are more results after our current last_id
+    # in the direction we moved in
     if len(books) == BOOKS_PER_PAGE+1:
-        more = True
-        del books[-1]
+        onemore = True
     else:
-        more = False
-    new_last_id = books[-1].id
-    return new_last_id, more
+        onemore = False
+
+    if after is None and before is None:
+        # firstpage
+        if onemore:
+            more["next"] = True
+            del books[-1]
+        else:
+            more["next"] = False
+    elif after is not None:
+        # if we get args before/after there are more results for the opposite
+        # e.g. if we get a before=61 we had to have had an after=60 that led us to that page
+        more["prev"] = True
+        if onemore:
+            more["next"] = True
+            # remove additional book
+            del books[-1]
+        else:
+            more["next"] = False
+    elif before is not None:
+        more["next"] = True
+        if onemore:
+            more["prev"] = True
+            del books[0]
+        else:
+            more["prev"] = False
+
+    first_id = books[0].id
+    last_id = books[-1].id
+    return first_id, last_id, more
 
 
 @app.route("/search", methods=["GET", "POST"])
 def search_books():
+    after = before = None
+    # only use post for first page
     if request.method == 'POST':
         searchstr = request.form['searchstring']
         order_by_col = request.form['order_by_col']
         asc_desc = "ASC" if request.form['asc_desc'] == "ASC" else "DESC"
-        last_id = request.form.get("last_id", None)
     else:
         searchstr = request.args['searchstring']
         # prepare defaults so we dont always have to send them when using get
         order_by_col = request.args.get('order_by_col', "id")
-        asc_desc = request.args.get('asc_desc', "DESC")
-        last_id = request.args.get("last_id", None)
+        asc_desc = "ASC" if request.args.get('asc_desc', "DESC") == "ASC" else "DESC"
+        # TODO use type=
+        after = request.args.get("after", None, type=int)
+        before = request.args.get("before", None, type=int)
 
     order_by = f"Books.{order_by_col} {asc_desc}"
-    # get 1 entry more than BOOKS_PER_PAGE so we know if we need next btn
-    books = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE+1, last_id=last_id)
-    new_last_id, more = lastid_more(books)
+    # get 1 entry more than BOOKS_PER_PAGE so we know if we need btn in that direction
+    books = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE+1,
+                       after=after, before=before)
+    first_id, last_id, more = first_last_more(books, after, before)
 
     return render_template(
-        "show_entries.html",
+        'show_entries.html',
         books=books,
         more=more,
+        first_id=first_id,
+        last_id=last_id,
         search_field=searchstr,
-        last_id=new_last_id,
         order_col_libox=order_by_col,
         asc_desc=asc_desc)
 

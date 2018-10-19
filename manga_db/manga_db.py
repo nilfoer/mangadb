@@ -169,18 +169,17 @@ class MangaDB:
 
         return bid, book, outdated_on_ei_id
 
-    def get_x_books(self, x, last_id=None, order_by="Books.id DESC", count=False):
-        if last_id is not None:
-            keyset_pagination = f"WHERE id {'>' if order_by.endswith('DESC') else '<'} ?"
-        else:
-            keyset_pagination = ""
+    def get_x_books(self, x, after=None, before=None, order_by="Books.id DESC"):
 
         # order by has to come b4 limit/offset
-        c = self.db_con.execute(f"""
+        query = f"""
                 SELECT * FROM Books
-                {keyset_pagination}
                 ORDER BY {order_by}
-                LIMIT ?""", (x,) if last_id is None else (last_id, x))
+                LIMIT ?"""
+        query, vals_in_order = search.keyset_pagination_statment(
+                query, [], after=after, before=before,
+                order_by=order_by, first_cond=True)
+        c = self.db_con.execute(query, (*vals_in_order, x))
         rows = c.fetchall()
 
         if rows:

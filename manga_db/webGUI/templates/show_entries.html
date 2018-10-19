@@ -5,9 +5,6 @@
 {% endif %}
 <div class="row search-all">
 <form action="{{ url_for('search_books') }}" method=post class="search-tags">
-    {% if last_id is not none %}
-    <input type="hidden" name="last_id" value={{ last_id }}>
-    {% endif %}
 	<div class="search-text col-md-6 col-sm-12">
 	<div class="button-container" id="simple-container">
 		{# use divs to split up width of container and then align one to the left and one to the right so they always remain on the same line and shrink and grow with screen size -> container( div90%left div10%right ..) #}
@@ -124,22 +121,20 @@
 
 {% if last_id %}
 {% if search_field %}
-	{% if more %}
-    <a href="{{ url_for('search_books', last_id=last_id, searchstring=search_field,
+	{% if more.next %}
+    <a href="{{ url_for('search_books', after=last_id, searchstring=search_field,
 	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
 	{% endif %}
-    {# TODO #}
-	{% if last_id != 1 %}
-    <a href="{{ url_for('search_books', last_id=last_id, searchstring=search_field,
+	{% if more.prev %}
+    <a href="{{ url_for('search_books', before=first_id, searchstring=search_field,
 	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></a>
 	{% endif %}
 {% else %}
-	{% if more %}
-    <a href="{{ url_for('show_entries', last_id=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
+	{% if more.next %}
+    <a href="{{ url_for('show_entries', after=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
 	{% endif %}
-    {# TODO #}
-	{% if last_id != 1 %}
-    <a href="{{ url_for('show_entries', last_id=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></div></a>
+	{% if more.prev %}
+    <a href="{{ url_for('show_entries', before=first_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></div></a>
 	{% endif %}
 {% endif %}
 {% endif %}

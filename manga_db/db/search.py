@@ -62,11 +62,10 @@ def search_book_by_title(db_con,
     return rows
 
 
-def search_normal_mult_assoc(db_con, normal_col_values,
-                             int_col_values_dict, ex_col_values_dict,
-                             order_by="Books.id DESC",
-                             # no row limit when limit is neg. nr
-                             limit=-1, last_id=None):
+def search_normal_mult_assoc(
+        db_con, normal_col_values, int_col_values_dict, ex_col_values_dict,
+        order_by="Books.id DESC", limit=-1,  # no row limit when limit is neg. nr
+        after=None, before=None):
     """Can search in normal columns as well as multiple associated columns
     (connected via bridge table) and both include and exclude them"""
     # @Cleanup mb split into multiple funcs that just return the conditional string
@@ -125,20 +124,67 @@ def search_normal_mult_assoc(db_con, normal_col_values,
     table_bridge_names = ", ".join(table_bridge_names)
     cond_statements = "\n".join(cond_statements)
 
-    if last_id is not None:
-        keyset_pagination = f"AND Books.id {'<' if order_by.endswith('DESC') else '>'} ?"
-        vals_in_order.append(last_id)
-    else:
-        keyset_pagination = ""
-
-    c = db_con.execute(f"""
+    query = f"""
             SELECT Books.*
             FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
             {cond_statements}
-            {keyset_pagination}
             {assoc_incl_cond}
             ORDER BY {order_by}
-            LIMIT ?""", (*vals_in_order, limit))
+            LIMIT ?"""
+    # important to do this last and limit mustnt be in vals_in_order (since its after
+    # keyset param in sql substitution)
+    query, vals_in_order = keyset_pagination_statment(
+            query, vals_in_order, after=after, before=before,
+            order_by=order_by, first_cond=not bool(cond_statements)
+            )
+    c = db_con.execute(query, (*vals_in_order, limit))
     rows = c.fetchall()
 
     return rows
+
+
+def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
+                               order_by="Books.id DESC", first_cond=False):
+    """Finalizes query by inserting keyset pagination statement
+    Must be added/called last!
+    !! Assumes SQL statements are written in UPPER CASE !!
+    :param query: Query string
+    :param vals_in_order: List of values that come before id after/before in terms of parameter
+                          substitution; Might be None if caller wants to handle it himself
+    :return: Returns finalized query and vals_in_order"""
+    # CAREFUL order_by needs to be unique for keyset pagination, possible to add rnd cols
+    # to make it unique
+    if after is not None and before is not None:
+        raise ValueError("Either after or before can be supplied but not both!")
+    elif after is None and before is None:
+        return query, vals_in_order
+
+    result = None
+    # contrary to split partition returns list with the elements that were split on included
+    asc = True if order_by.lower().endswith("asc") else False
+    if after is not None:
+        comp = ">" if asc else "<"
+    else:
+        comp = "<" if asc else ">"
+
+    # @Cleanup assuming upper case ORDER BY
+    head, mid, tail = query.partition(f"ORDER BY {order_by}")
+    keyset_pagination = f"{'WHERE' if first_cond else 'AND'} Books.id {comp} ?"
+    result = "\n".join((head, keyset_pagination, mid, tail))
+    if vals_in_order is not None:
+        vals_in_order.append(after if after is not None else before)
+
+    if before is not None:
+        # @Cleanup assuming upper case order statment
+        # need to reverse order in query to not get results starting from first one possible
+        # to before(id) but rather to get limit nr of results starting from before(id)
+        result = result.replace(f"{' ASC' if asc else ' DESC'}", f"{' DESC' if asc else ' ASC'}")
+        result = f"""
+            SELECT *
+            FROM (
+                {result}
+            ) AS t
+            ORDER BY {order_by.replace('Books', 't', 1)}"""
+
+    print(result, vals_in_order)
+    return result, vals_in_order

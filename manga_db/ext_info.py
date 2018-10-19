@@ -29,7 +29,6 @@ class ExternalInfo(DBRow):
     downloaded = Column(int)
     last_update = Column(datetime.date)
     outdated = Column(int)
-    book = AssociatedColumnOne("Books", Relationship.MANYTOONE)
 
     def __init__(
                 self, manga_db, book,

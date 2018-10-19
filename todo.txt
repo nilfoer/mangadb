@@ -1,7 +1,5 @@
 - change offset queries to use keyset pagination -> store last(displayed)id in webgui, also get one more row than needed to check if we have a next page
     or mb even 2 more rows and grab the ten in the middle to know if prev/next btn needed?
-
-- mb remove title and use t_eng,t_foreign to uniquely identify row besides pk? since title is just other titles combined           
 - fix commited state callback still getting Nones when loading from db
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
@@ -9,8 +7,7 @@
 - if i reload a book in webgui since i e.g. changed downloaded to 1 in db
         will give me book from id_map
         -> should i just update the values on the book from row?
-            only for cols that havent changed?
-- fix search: title removed            
+            only for cols that havent changed?         
                 
 
 - thread/subprocess for network stuff
