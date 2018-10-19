@@ -54,8 +54,8 @@ def thumb_static(filename):
 
 @app.route('/', methods=["GET"])
 def show_entries():
-    order_by_col = request.args.get('order_by_col', "id")
-    asc_desc = "ASC" if request.args.get('asc_desc', "DESC") == "ASC" else "DESC"
+    order_by_col = request.args.get('order_by_col', "id", type=str)
+    asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
     order_by = f"Books.{order_by_col} {asc_desc}"
     after = request.args.get("after", None, type=int)
     before = request.args.get("before", None, type=int)
@@ -343,9 +343,8 @@ def search_books():
     else:
         searchstr = request.args['searchstring']
         # prepare defaults so we dont always have to send them when using get
-        order_by_col = request.args.get('order_by_col', "id")
-        asc_desc = "ASC" if request.args.get('asc_desc', "DESC") == "ASC" else "DESC"
-        # TODO use type=
+        order_by_col = request.args.get('order_by_col', "id", type=int)
+        asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
         after = request.args.get("after", None, type=int)
         before = request.args.get("before", None, type=int)
 
@@ -372,7 +371,7 @@ def search_books():
 # TODO add token
 @app.route("/book/<int:book_id>/list/<action>", methods=["POST", "GET"])
 def list_action_ajax(book_id, action):
-    list_name = request.form.get("name", None)
+    list_name = request.form.get("name", None, type=str)
     if list_name is None:
         return jsonify({"error": "Missing list name from data!"})
 
@@ -423,8 +422,8 @@ def set_downloaded(book_id, ext_info_id, intbool):
 
 @app.route("/outdated", methods=["GET"])
 def show_outdated_links():
-    id_onpage = request.args.get("id_onpage", None)
-    imported_from = request.args.get("imported_from", None)
+    id_onpage = request.args.get("id_onpage", None, type=int)
+    imported_from = request.args.get("imported_from", None, type=int)
     if id_onpage and imported_from:
         books = mdb.get_outdated(id_onpage, imported_from)
     else:
@@ -442,9 +441,9 @@ def show_outdated_links():
 
 @app.route("/book/<int:book_id>/add_ext_info", methods=["POST"])
 def add_ext_info(book_id):
-    url = request.form.get("url", None)
+    url = request.form.get("url", None, type=str)
     # need title to ensure that external link matches book
-    book_title = request.form.get("book_title", None)
+    book_title = request.form.get("book_title", None, type=str)
     if not url or not book_title:
         flash(f"URL empty!")
         return redirect(url_for("show_info", book_id=book_id))
