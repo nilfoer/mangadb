@@ -127,7 +127,8 @@
 	{% endif %}
 	{% if more.prev %}
     <a href="{{ url_for('search_books', before=first_id, searchstring=search_field,
-	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></a>
+	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div
+    id="page-prev-inner">‹</div></div></a>
 	{% endif %}
 {% else %}
 	{% if more.next %}
