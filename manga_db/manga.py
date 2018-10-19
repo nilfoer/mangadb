@@ -480,24 +480,44 @@ class Book(DBRow):
         return changes, change_str
 
     @staticmethod
-    def set_favorite_id(db_con, book_id, fav_intbool):
-        with db_con:
-            db_con.execute("UPDATE Books SET favorite = ? WHERE id = ?",
-                           (fav_intbool, book_id))
+    def set_favorite_id(mdb, book_id, fav_intbool):
+        # if book is loaded in id_map changes in db wont propagate
+        # so try to get it from db and apply changes
+        book = mdb.id_map.get((Book, (book_id,)))
+        if book is not None:
+            book.favorite = fav_intbool
+            # remove entry in commited so it wont save again
+            del book._committed_state["favorite"]
+        with mdb.db_con:
+            mdb.db_con.execute("UPDATE Books SET favorite = ? WHERE id = ?",
+                               (fav_intbool, book_id))
 
     @staticmethod
-    def rate_book_id(db_con, book_id, rating):
-        with db_con:
-            db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
-                           (rating, book_id))
+    def rate_book_id(mdb, book_id, rating):
+        book = mdb.id_map.get((Book, (book_id,)))
+        if book is not None:
+            book.my_rating = rating
+            # remove entry in commited so it wont save again
+            del book._committed_state["my_rating"]
+        with mdb.db_con:
+            mdb.db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
+                               (rating, book_id))
 
     @staticmethod
-    def add_assoc_col_on_book_id(db_con, book_id, col_name, values):
+    def add_assoc_col_on_book_id(mdb, book_id, col_name, values, before):
+        book = mdb.id_map.get((Book, (book_id,)))
+        if book is not None:
+            # we need to use set to overwrite possible prior changes
+            # otherwise .save() would produce unpredictable results
+            setattr(book, col_name, before + values)
+            # remove entry in commited so it wont save again
+            del book._committed_state[col_name]
+
         table_name, bridge_col_name = joined_col_name_to_query_names(col_name)
         # values gotta be list/tuple of lists/tuples
         li_of_tup = [(val,) for val in values]
-        with db_con:
-            c = db_con.executemany(
+        with mdb.db_con:
+            c = mdb.db_con.executemany(
                     f"INSERT OR IGNORE INTO {table_name}(name) VALUES (?)", li_of_tup)
 
             c.executemany(f"""INSERT OR IGNORE INTO Book{table_name}(book_id, {bridge_col_name})
@@ -507,10 +527,18 @@ class Book(DBRow):
         logger.debug("Added '%s' to associated column '%s'", ", ".join(values), table_name)
 
     @staticmethod
-    def remove_assoc_col_on_book_id(db_con, book_id, col_name, values):
+    def remove_assoc_col_on_book_id(mdb, book_id, col_name, values, before):
+        book = mdb.id_map.get((Book, (book_id,)))
+        if book is not None:
+            # we need to use set to overwrite possible prior changes
+            # otherwise .save() would produce unpredictable results
+            setattr(book, col_name, [v for v in before if v not in values])
+            # remove entry in commited so it wont save again
+            del book._committed_state[col_name]
+
         table_name, bridge_col_name = joined_col_name_to_query_names(col_name)
-        with db_con:
-            db_con.execute(f"""
+        with mdb.db_con:
+            mdb.db_con.execute(f"""
                     DELETE FROM Book{table_name}
                     WHERE Book{table_name}.{bridge_col_name} IN
                        (

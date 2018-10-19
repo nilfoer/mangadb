@@ -245,13 +245,23 @@
 		// list add/remove script
 		$(document).ready(function() {
 
+            // otherwise jquery will add brackets to key of ajax data of type array
+            // $.ajaxSetup({traditional: true});
 			// add click event for all elements with .mdb-list-add class
 			$('.mdb-list-add').click(function(event) {
+                let before = []
+                // this refers to the DOM element. To use jQuery functionality on this element you
+                // need to wrap it in a jQuery object, ie: $(this)
+                $('div.list-tag > a:first-child').each(function(index, value) {
+                    // normal js $(this).data("value") would be jquery
+                    before.push(this.dataset.value);
+                });
 				$.ajax({
 					data : {
 						// get target of click event and retrieve data
 						// attribute -value
-						name : $(event.target).data('value')
+						'name' : $(event.target).data('value'),
+                        'before': before
 					},
 					type : 'POST',
 					url : "{{ url_for('list_action_ajax', book_id=book.id, action='add') }}",
@@ -263,8 +273,6 @@
 
 					if (data.error) {
 						console.log(data.error);
-						//$('#errorAlert').text(data.error).show();
-						//$('#successAlert').hide();
 					}
 					else {
 						var html_string =[
@@ -276,7 +284,16 @@
 						data.added,
 						'" href="#"><i class="fas fa-times" style="vertical-align: middle;"></i></a></div>'].join("");
 						// add HTMLString to element with id List
-						$('#List').append(html_string);
+                        // use appendTo so we get reference back and add func to click event
+                        // since Event handlers are bound only to the currently selected elements;
+                        // they must exist on the page at the time your code makes the call
+                        let new_tag = $(html_string).appendTo('#List');
+                        // $(selector) returns collection of matched elems -> select first (and
+                        // only)
+                        // new_tag[0].children[1] is normal js use $() to be able to use jquery
+                        // .click binding
+                        $(new_tag[0].children[1]).click(handle_list_remove);
+
 						// select all mdb-list-add options
 						$('#list-dropdown-container .mdb-dropdown-content .mdb-list-add')
 						// get the one that was added and remove it
@@ -295,9 +312,17 @@
 
 			});
 
-
 			// add click event for all elements with .mdb-list-add class
-			$('.mdb-list-remove').click(function(event) {
+			$('.mdb-list-remove').click(handle_list_remove);
+
+            function handle_list_remove(event) {
+                let before = []
+                // this refers to the DOM element. To use jQuery functionality on this element you
+                // need to wrap it in a jQuery object, ie: $(this)
+                $('div.list-tag > a:first-child').each(function(index, value) {
+                    // normal js $(this).data("value") would be jquery
+                    before.push(this.dataset.value);
+                });
 				// e.target is what triggers the event dispatcher to trigger and
 				// e.currentTarget is what you assigned your listener to
 				// here:
@@ -307,7 +332,8 @@
 					data : {
 						// get target of click event and retrieve data
 						// attribute -value
-						name : $(event.currentTarget).data('value')
+						name : $(event.currentTarget).data('value'),
+                        'before': before
 					},
 					type : 'POST',
 					url : "{{ url_for('list_action_ajax', book_id=book.id, action='remove') }}",
@@ -319,8 +345,6 @@
 
 					if (data.error) {
 						console.log(data.error);
-						//$('#errorAlert').text(data.error).show();
-						//$('#successAlert').hide();
 					}
 					else {
 						// go through all a tags in vv
@@ -344,7 +368,7 @@
 
 				event.preventDefault();
 
-			});
+			}
 
 		});
 	</script>

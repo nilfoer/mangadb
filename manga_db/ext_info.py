@@ -272,7 +272,13 @@ class ExternalInfo(DBRow):
         return "\n".join(lines)
 
     @staticmethod
-    def set_downloaded_id(db_con, ext_info_id, intbool):
-        with db_con:
-            db_con.execute("UPDATE ExternalInfo SET downloaded = ? WHERE id = ?",
-                           (intbool, ext_info_id))
+    def set_downloaded_id(mdb, ext_info_id, intbool):
+        ei = mdb.id_map.get((ExternalInfo, (ext_info_id,)))
+        if ei is not None:
+            ei.downloaded = intbool
+            # remove entry in commited so it wont save again
+            del ei._committed_state["downloaded"]
+
+        with mdb.db_con:
+            mdb.db_con.execute("UPDATE ExternalInfo SET downloaded = ? WHERE id = ?",
+                               (intbool, ext_info_id))

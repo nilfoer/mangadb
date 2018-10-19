@@ -293,6 +293,9 @@ def get_info_txt(book_id):
 
 
 def first_last_more(books, after=None, before=None):
+    if not books:
+        return None, None, None
+
     more = {"next": None, "prev": None}
 
     # we alway get one row more to know if there are more results after our current last_id
@@ -372,6 +375,8 @@ def search_books():
 @app.route("/book/<int:book_id>/list/<action>", methods=["POST", "GET"])
 def list_action_ajax(book_id, action):
     list_name = request.form.get("name", None, type=str)
+    # jquery will add brackets to key of ajax data of type array
+    before = request.form.getlist("before[]", type=str)
     if list_name is None:
         return jsonify({"error": "Missing list name from data!"})
 
@@ -383,13 +388,13 @@ def list_action_ajax(book_id, action):
         # there then something got left out of the request and the entire
         # request is invalid.
         # print("test",request.form["adjak"],"test")
-        Book.add_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
+        Book.add_assoc_col_on_book_id(mdb, book_id, "list", [list_name], before)
         # pass url back to script since we cant use url_for
         return jsonify({"added": list_name,
                         "search_tag_url": url_for('search_books',
-                                                  searchstring=f'tags:"{list_name}"')})
+                                                  searchstring=f'tag:"{list_name}"')})
     elif action == "remove":
-        Book.remove_assoc_col_on_book_id(mdb.db_con, book_id, "list", [list_name])
+        Book.remove_assoc_col_on_book_id(mdb, book_id, "list", [list_name], before)
         # pass url back to script since we cant use url_for
         return jsonify({"removed": list_name})
     else:
@@ -399,14 +404,14 @@ def list_action_ajax(book_id, action):
 
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
-    Book.set_favorite_id(mdb.db_con, book_id, fav_intbool)
+    Book.set_favorite_id(mdb, book_id, fav_intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
 @app.route("/book/<book_id>/rate/<float:rating>")
 def rate_book(book_id, rating):
-    Book.rate_book_id(mdb.db_con, book_id, rating)
+    Book.rate_book_id(mdb, book_id, rating)
     return redirect(
         url_for("show_info", book_id=book_id))
 
@@ -414,8 +419,7 @@ def rate_book(book_id, rating):
 @app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>",
            methods=["GET"])
 def set_downloaded(book_id, ext_info_id, intbool):
-    # TODO try to get from id_map first?
-    ExternalInfo.set_downloaded_id(mdb.db_con, ext_info_id, intbool)
+    ExternalInfo.set_downloaded_id(mdb, ext_info_id, intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
