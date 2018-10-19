@@ -107,12 +107,16 @@ class Book(DBRow):
 
     @property
     def title(self):
+        return self.build_title(self.title_eng, self.title_foreign)
+
+    @staticmethod
+    def build_title(title_eng, title_foreign):
         # build title ourselves so title is the correct format
-        if self.title_eng and self.title_foreign:
-            return self.MANGA_TITLE_FORMAT.format(
-                    english=self.title_eng, foreign=self.title_foreign)
+        if title_eng and title_foreign:
+            return Book.MANGA_TITLE_FORMAT.format(
+                    english=title_eng, foreign=title_foreign)
         else:
-            return self.title_eng or self.title_foreign
+            return title_eng or title_foreign
 
     def update_from_dict(self, dic):
         # TODO validate input

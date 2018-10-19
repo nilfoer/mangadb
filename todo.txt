@@ -1,3 +1,4 @@
+- change order by title to _eng + _foreign
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
     or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    

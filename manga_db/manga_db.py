@@ -287,7 +287,7 @@ class MangaDB:
 
     def get_collection_info(self, name, order_by="id ASC"):
         c = self.db_con.execute(f"""
-                SELECT b.id, b.title, b.pages, b.my_rating
+                SELECT b.id, b.title_eng, title_foreign, b.pages, b.my_rating
                 FROM Books b, Collection c, BookCollection bc
                 WHERE bc.collection_id = c.id
                 AND c.name = ?

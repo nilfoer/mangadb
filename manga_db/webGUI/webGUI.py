@@ -107,6 +107,9 @@ def show_info(book_id, book=None, **kwargs):
         'show_info.html',
         book=book,
         collections=collections,
+        # rather than spend a lot of time/code to replace title_eng and _foreign with title in
+        # rows make title func available to jinja by passing it in as param
+        build_title=Book.build_title,
         lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")],
         book_upd_changes=book_upd_changes,
         outdated=outdated)

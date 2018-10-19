@@ -20,7 +20,7 @@ def search_assoc_col_string_parse(valuestring, delimiter=";"):
     return vals_and, vals_ex
 
 
-VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title",
+VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title_eng", "Books.title_foreign",
                   "Books.pages", "Books.my_rating", "Books.last_change")
 
 
