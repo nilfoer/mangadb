@@ -168,9 +168,12 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
         comp = "<" if asc else ">"
 
     # @Cleanup assuming upper case ORDER BY
-    head, mid, tail = query.partition(f"ORDER BY {order_by}")
+    lines = [l.strip() for l in query.splitlines()]
+    insert_before = [i for i, l in enumerate(lines) if l.startswith("GROUP BY") or
+                     l.startswith("ORDER BY")][0]
     keyset_pagination = f"{'WHERE' if first_cond else 'AND'} Books.id {comp} ?"
-    result = "\n".join((head, keyset_pagination, mid, tail))
+    lines.insert(insert_before, keyset_pagination)
+    result = "\n".join(lines)
     if vals_in_order is not None:
         vals_in_order.append(after if after is not None else before)
 
@@ -186,5 +189,4 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
             ) AS t
             ORDER BY {order_by.replace('Books', 't', 1)}"""
 
-    print(result, vals_in_order)
     return result, vals_in_order
