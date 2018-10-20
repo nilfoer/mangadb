@@ -7,8 +7,7 @@ def load_instance(manga_db, cls, row, *args, **kwargs):
     # when we have lazy loading we have to populate cls instance with parts that havent been loaded
     # yet
     if instance is None:
-        instance = cls(manga_db, *args, **row, **kwargs)
-        instance._in_db = True
+        instance = cls(manga_db, *args, **row, in_db=True, **kwargs)
         id_map.add(instance)
     return instance
 

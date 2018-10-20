@@ -2,11 +2,7 @@
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
     or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    
                 
-- changing import_book etc. -> assoc cols dont get imported properly
-- thread/subprocess/async for network stuff
-    if i wanted to use async i cant use my synchronous functions and libraries e.g. i have to use aiohttp instead of urllib
-        or To use requests (or any other blocking libraries) with asyncio, you can use BaseEventLoop.run_in_executor to run a function in another thread and yield from it to get the result
-    and the other way around async code from sync i have to create an eventloop for them to run    
+- prog doesnt terminate waaiting for threads
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
     - assoc col lazy
                 -> either leaves assoc col alone if theyre lazy loaded

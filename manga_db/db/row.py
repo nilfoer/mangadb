@@ -7,12 +7,14 @@ class DBRow:
     COLUMNS = None
     ASSOCIATED_COLUMNS = None
 
-    def __init__(self, manga_db, **kwargs):
+    def __init__(self, manga_db, in_db, **kwargs):
         self.manga_db = manga_db
         # commited values get added when col gets modified
         self._committed_state = {}
-        # gets set to true when loaded from db through load_instance
-        self._in_db = False
+        # defaul false, true when loaded from db through load_instance
+        # get_book_id can return an id but still doesnt mean that the book is in db
+        # it might just have the same title as the book whose id was returned
+        self._in_db = in_db
 
     @property
     def key(self):

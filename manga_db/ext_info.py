@@ -45,8 +45,9 @@ class ExternalInfo(DBRow):
                 downloaded=None,
                 last_update=None,
                 outdated=None,
+                in_db=False,
                 **kwargs):
-        super().__init__(manga_db, **kwargs)
+        super().__init__(manga_db, in_db, **kwargs)
         self.book = book
         self.id = id
         self.url = url

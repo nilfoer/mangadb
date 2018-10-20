@@ -72,8 +72,9 @@ class Book(DBRow):
             last_change=None,
             note=None,
             favorite=None,
+            in_db=False,
             **kwargs):
-        super().__init__(manga_db, **kwargs)
+        super().__init__(manga_db, in_db, **kwargs)
         self.id = id
         self.title_eng = title_eng
         self.title_foreign = title_foreign
@@ -93,10 +94,10 @@ class Book(DBRow):
         self.last_change = last_change
         self.note = note
         self.favorite = favorite
-
-        # load associated columns
-        # TODO lazy loading
-        self.update_assoc_columns_from_db()
+        if in_db:
+            # load associated columns
+            # TODO lazy loading
+            self.update_assoc_columns_from_db()
 
         if self.last_change is None:
             self.set_last_change()
@@ -171,6 +172,9 @@ class Book(DBRow):
         """
         Gets columns that are associated to this row by a bridge table from DB
         """
+        if self.id is None:
+            raise ValueError("Id must be set in order to get associated columns from DB!")
+
         result = {
             "list": None,
             "tag": None,
