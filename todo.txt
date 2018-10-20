@@ -1,4 +1,3 @@
-- change order by title to _eng + _foreign
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
     or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    
@@ -13,7 +12,10 @@
 - actual DBRow obj in assoc col
 - use ids for adding removing from db (+name for displaying)
     or option for both and decide based on param type?
+- mb remove last update trigger since it also triggers when we change downloaded    
+- re-add last_change trigger since we dont update last change when using staticmehtods
 - check newly added books for dl (on production db)
+- rather show edit book when importing?
 - tests
 - webgui security
 

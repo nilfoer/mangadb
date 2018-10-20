@@ -381,7 +381,7 @@ class MangaDB:
                     order_by=order_by, **kwargs)
             return [load_instance(self, Book, row) for row in rows]
         else:
-            return self.get_x_books(60, order_by=order_by, **kwargs)
+            return self.get_x_books(kwargs.pop("limit", 60), order_by=order_by, **kwargs)
 
     @staticmethod
     def _load_or_create_sql_db(filename):
