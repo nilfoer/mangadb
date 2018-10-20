@@ -64,7 +64,7 @@ class ExternalInfo(DBRow):
         self.outdated = outdated
 
         if self.last_update is None:
-            self.last_update = datetime.date.today()
+            self.set_updated()
 
     def __eq__(self, other):
         return all(self.id_onpage == other.id_onpage, self.imported_from == other.imported_from,
@@ -73,6 +73,9 @@ class ExternalInfo(DBRow):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def set_updated(self):
+        self.last_update = datetime.date.today()
 
     @property
     def censorship(self):
@@ -117,6 +120,8 @@ class ExternalInfo(DBRow):
             if col == "id":
                 continue
             setattr(self, col, getattr(ext_info, col))
+
+        self.set_updated()
         return "updated", book
 
     def save(self):

@@ -586,20 +586,30 @@ class MangaDB:
                     ON DELETE CASCADE,
                     PRIMARY KEY (book_id, character_id)
                 );
+
+            CREATE INDEX IF NOT EXISTS idx_id_onpage_imported_from ON
+            ExternalInfo (id_onpage, imported_from);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_artist_name ON Artist (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_category_name ON Category (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_character_name ON Character (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_collection_name ON Collection (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_name ON Groups (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_list_name ON List (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_parody_name ON Parody (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_tag_name ON Tag (name);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_title_eng_foreign
+                ON Books (title_eng, title_foreign);
+            CREATE INDEX IF NOT EXISTS idx_id_onpage_imported_from ON ExternalInfo
+                (id_onpage, imported_from);
+
+            CREATE TRIGGER IF NOT EXISTS set_books_last_change
+                                 AFTER UPDATE ON Books
+                                 BEGIN
+                                    UPDATE Books
+                                    SET last_change = DATE('now', 'localtime')
+                                    WHERE id = NEW.id;
+                                 END
                  """)
-
-        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_title_eng_foreign "
-                  "ON Books (title_eng, title_foreign)")
-        c.execute("CREATE INDEX IF NOT EXISTS id_onpage_on_site ON ExternalInfo"
-                  "(id_onpage, imported_from)")
-
-        c.execute("""CREATE TRIGGER IF NOT EXISTS set_last_update_ext_info
-                     AFTER UPDATE ON ExternalInfo
-                     BEGIN
-                        UPDATE ExternalInfo
-                        SET last_update = DATE('now', 'localtime')
-                        WHERE id = NEW.id;
-                     END""")
 
         # commit changes
         conn.commit()

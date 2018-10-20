@@ -8,12 +8,9 @@
     - assoc col lazy
                 -> either leaves assoc col alone if theyre lazy loaded
                 -> or loads them if theyre eager loaded
-- create indices for Tags.name, Category.name etc.?
 - actual DBRow obj in assoc col
 - use ids for adding removing from db (+name for displaying)
     or option for both and decide based on param type?
-- mb remove last update trigger since it also triggers when we change downloaded    
-- re-add last_change trigger since we dont update last change when using staticmehtods
 - check newly added books for dl (on production db)
 - rather show edit book when importing?
 - tests

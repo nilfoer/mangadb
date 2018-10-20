@@ -493,7 +493,8 @@ class Book(DBRow):
             # remove entry in commited so it wont save again
             del book._committed_state["favorite"]
         with mdb.db_con:
-            mdb.db_con.execute("UPDATE Books SET favorite = ? WHERE id = ?",
+            mdb.db_con.execute("UPDATE Books SET favorite = ?, "
+                               "last_change = DATE('now', 'localtime') WHERE id = ?",
                                (fav_intbool, book_id))
 
     @staticmethod
@@ -504,7 +505,8 @@ class Book(DBRow):
             # remove entry in commited so it wont save again
             del book._committed_state["my_rating"]
         with mdb.db_con:
-            mdb.db_con.execute("UPDATE Books SET my_rating = ? WHERE id = ?",
+            mdb.db_con.execute("UPDATE Books SET my_rating = ?, "
+                               "last_change = DATE('now', 'localtime') WHERE id = ?",
                                (rating, book_id))
 
     @staticmethod
@@ -528,6 +530,10 @@ class Book(DBRow):
                               SELECT ?, {table_name}.id
                               FROM {table_name}
                               WHERE {table_name}.name = ?""", zip([book_id] * len(values), values))
+            
+            c.execute("UPDATE Books SET last_change = DATE('now', 'localtime') WHERE id = ?",
+                      (book_id,))
+
         logger.debug("Added '%s' to associated column '%s'", ", ".join(values), table_name)
 
     @staticmethod
@@ -542,7 +548,7 @@ class Book(DBRow):
 
         table_name, bridge_col_name = joined_col_name_to_query_names(col_name)
         with mdb.db_con:
-            mdb.db_con.execute(f"""
+            c = mdb.db_con.execute(f"""
                     DELETE FROM Book{table_name}
                     WHERE Book{table_name}.{bridge_col_name} IN
                        (
@@ -551,4 +557,8 @@ class Book(DBRow):
                        ({table_name}.name IN ({', '.join(['?']*len(values))}))
                        )
                     AND Book{table_name}.book_id = ?""", (*values, book_id))
+
+            c.execute("UPDATE Books SET last_change = DATE('now', 'localtime') WHERE id = ?",
+                      (book_id,))
+
         logger.debug("Removed '%s' from associated column '%s'", values, table_name)
