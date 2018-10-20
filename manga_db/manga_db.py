@@ -98,7 +98,8 @@ class MangaDB:
             except KeyError:
                 logger.warning("Invalid language_id: %d", language)
 
-    def download_cover(self, url, filename, overwrite=False):
+    @staticmethod
+    def download_cover(url, filename, overwrite=False):
         # TODO use urlopen and add headers
         if not os.path.isfile(filename) or overwrite:
             try:
@@ -115,57 +116,52 @@ class MangaDB:
                          url, filename)
             return None
 
-    def retrieve_book_data(self, url):
+    @staticmethod
+    def retrieve_book_data(url):
         extractor_cls = extractor.find(url)
-        extr = extractor_cls(self, url)
+        extr = extractor_cls(url)
         data = extr.get_metadata()
         if data:
-            book = Book(self, **data)
-            ext_info = ExternalInfo(self, book, **data)
-            book.ext_infos = [ext_info]
-            return book, ext_info, extr.get_cover()
+            return data, extr.get_cover()
         else:
-            logger.warning("No data to create book at url '%s' from!", url)
-            return None, None, None
+            logger.warning("No book data recieved! URL was '%s'!", url)
+            return None, None
 
-    def import_book(self, url=None, lists=None, book=None, thumb_url=None):
+    # !!! also change single_thread_import in threads when this gets changed
+    def import_book(self, url, lists):
         """
         Imports book into DB and downloads cover
         Either url and lists or book and thumb_url has to be supplied
         """
-        thumb_url = thumb_url
-        if url and lists is not None:
-            book, _, thumb_url = self.retrieve_book_data(url)
-            if book is None:
-                logger.warning("Importing book failed!")
-                return None, None
-            # @Cleanup find a better way to add/set data esp. b4 adding to db
-            # works here since changes are ignored when adding to db and reset afterwards
-            book.update_from_dict({"list": lists})
-        elif book and thumb_url:
-            book = book
-        else:
-            logger.error("Either url and lists or book and thumb_url have to be supplied")
+        extr_data, thumb_url = self.retrieve_book_data(url)
+        if extr_data is None:
+            logger.warning("Importing book failed!")
             return None, None
+        # @Cleanup @Temporary convert lanugage in data to id
+        extr_data["language_id"] = self.get_language(extr_data["language"])
+        del extr_data["language"]
 
-        # @Cleanup getting id twice (once here 2nd time in book.save)
-        bid = self.get_book_id(book.title_eng, book.title_foreign)
-        outdated_on_ei_id = None
+        book = Book(self, **extr_data)
+        ext_info = ExternalInfo(self, book, **extr_data)
+        book.ext_infos = [ext_info]
+        book.list = lists
+
+        bid, outdated_on_ei_id = book.save(block_update=True)
         if bid is None:
-            bid, outdated_on_ei_ids = book.save()
-            # book.save returns list of ext_info_ids but import book only ever has one
-            # ext_info per book -> so later just return first one if true
-            outdated_on_ei_id = outdated_on_ei_ids[0] if outdated_on_ei_ids else None
-
-            cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
-            # always pass headers = extr.headers?
-            if self.download_cover(thumb_url, cover_path):
-                logger.info("Thumb for book %s downloaded successfully!", book.title)
-            else:
-                logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
-        else:
             logger.info("Book at url '%s' was already in DB!",
                         url if url is not None else book.ext_infos[0].url)
+            return None, None, None
+
+        # book.save returns list of ext_info_ids but import book only ever has one
+        # ext_info per book -> so later just return first one if true
+        outdated_on_ei_id = outdated_on_ei_id[0] if outdated_on_ei_id else None
+
+        cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
+        # always pass headers = extr.headers?
+        if self.download_cover(thumb_url, cover_path):
+            logger.info("Thumb for book %s downloaded successfully!", book.title)
+        else:
+            logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
 
         return bid, book, outdated_on_ei_id
 

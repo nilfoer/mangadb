@@ -70,7 +70,7 @@ def _cl_import_book(args, mdb):
 
 
 def _cl_get_info(args, mdb):
-    book, _, _ = mdb.retrieve_book_data(args.url)
+    book, _, _ = MangaDB.retrieve_book_data(args.url)
     if book is None:
         return
     if args.output_filename:
@@ -96,17 +96,7 @@ def _cl_collector(args, mdb):
         lc = LinkCollector.from_json("link_collect_resume.json", args.standard_list)
     else:
         lc = LinkCollector(args.standard_list)
-        lc.cmdloop()
-    logger.info("Started working on list with %d Book-URLs!", len(lc.links))
-    for url, lists in lc.links.items():
-        try:
-            bid, book, _ = mdb.import_book(url=url, lists=lists)
-        except Exception:
-            lc.export_json("link_collect_resume.json")
-            logger.error("Unexepected crash! Saved links to link_collect_resume.json!"
-                         " Resume working on list with option collect --resume")
-            raise
-    logger.info("Finished working on list!")
+    lc.cmdloop()
 
 
 def _cl_export(args, mdb):

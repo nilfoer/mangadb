@@ -249,7 +249,7 @@ class Book(DBRow):
         else:
             logger.warning("Type of status needs to be string!")
 
-    def save(self):
+    def save(self, block_update=False):
         """
         Save changes to DB
         """
@@ -257,6 +257,10 @@ class Book(DBRow):
             bid = self.manga_db.get_book_id(self.title_eng, self.title_foreign)
             if bid is None:
                 return self._add_entry()
+            elif block_update:
+                logger.debug("Book was found in DB(id %d) but saving was blocked due to "
+                             "block_update option!", bid)
+                return None, None
         return self._update_entry()
 
     def _add_entry(self):

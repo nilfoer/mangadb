@@ -7,6 +7,7 @@ import json
 import pyperclip
 
 from . import extractor
+from .threads import import_multiple
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +77,30 @@ class LinkCollector(cmd.Cmd):
         if rem is not None:
             logger.info("Removed %s from link list!", rem)
 
+    def do_import(self, args):
+        logger.info("Started working on list with %d items!", len(self.links))
+        try:
+            import_multiple(self.links)
+        # baseexception so we also except KeyboardInterrupt etc.
+        except BaseException:
+            self.export_json("link_collect_resume.json")
+            logger.error("Unexepected crash! Saved links to link_collect_resume.json!"
+                         " Resume working on list with option collect --resume")
+            raise
+        logger.info("Finished working on list!")
+
     def do_exit(self, args):
-        # cmdloop returns when postcmd() method returns true value
-        return True
+        imp = cli_yes_no("Do you want to import the collected links before exiting?\n"
+                         "They're gonna be lost otherwise!")
+        if imp:
+            self.do_import(None)
+            return True
+        else:
+            # cmdloop returns when postcmd() method returns true value
+            return True
+
+    def do_export(self, args):
+        self.export_json("link_collect_resume.json")
 
     def export_json(self, filename):
         with open(filename, "w", encoding="UTF-8") as f:
@@ -92,6 +114,17 @@ class LinkCollector(cmd.Cmd):
         lc = cls(standard_lists)
         lc.links = links
         return lc
+
+
+def cli_yes_no(question_str):
+    ans = input(f"{question_str} y/n:\n")
+    while True:
+        if ans == "n":
+            return False
+        elif ans == "y":
+            return True
+        else:
+            ans = input(f"\"{ans}\" was not a valid answer, type in \"y\" or \"n\":\n")
 
 
 def write_resume_info(filename, info):

@@ -454,7 +454,7 @@ def add_ext_info(book_id):
     if not url or not book_title:
         flash(f"URL empty!")
         return redirect(url_for("show_info", book_id=book_id))
-    book, ext_info, _ = mdb.retrieve_book_data(url)
+    book, ext_info, _ = MangaDB.retrieve_book_data(url)
     if book is None:
         flash("Adding external link failed!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")

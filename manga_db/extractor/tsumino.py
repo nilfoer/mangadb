@@ -28,8 +28,8 @@ class TsuminoExtractor(BaseMangaExtractor):
             "tag": "Tag", "url": None, "id_onpage": None
             }
 
-    def __init__(self, manga_db, url):
-        super().__init__(manga_db, url.strip("-"))
+    def __init__(self, url):
+        super().__init__(url.strip("-"))
         self.id_onpage = TsuminoExtractor.book_id_from_url(url)
         self.thumb_url = f"http://www.tsumino.com/Image/Thumb/{self.id_onpage}"
         self.html = None
@@ -112,8 +112,8 @@ class TsuminoExtractor(BaseMangaExtractor):
         if metadata:
             logger.warning("There are still metadata keys left! The HTML on tsumino.com"
                            "probably changed! Keys left over: %s", ", ".join(metadata.keys()))
-        # tsumino only has English books
-        result["language_id"] = self.manga_db.language_map["English"]
+
+        result["language"] = "English"
         result["status_id"] = STATUS_IDS["Unknown"]
         result["imported_from"] = SUPPORTED_SITES["tsumino.com"]
 

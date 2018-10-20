@@ -3,8 +3,7 @@ import datetime
 
 from .db.row import DBRow
 from .db.column import Column
-from .db.column_associated import AssociatedColumnOne
-from .db.constants import Relationship
+from .db.constants import ColumnValue
 from .constants import CENSOR_IDS
 from .extractor import SUPPORTED_SITES
 
@@ -144,6 +143,8 @@ class ExternalInfo(DBRow):
             self.downloaded = 0
         if self.outdated is None:
             self.outdated = 0
+        if self.book_id is None or self.book_id is ColumnValue.NO_VALUE:
+            self.book_id = self.book.id
 
         # check if id_onpage,imported_from is already in db and warn
         # since it prob means that there is a new version available on the site
