@@ -2,7 +2,6 @@
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
     or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    
                 
-- prog doesnt terminate waaiting for threads
 - webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
     - assoc col lazy
                 -> either leaves assoc col alone if theyre lazy loaded

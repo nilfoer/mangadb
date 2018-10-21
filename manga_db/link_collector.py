@@ -87,6 +87,8 @@ class LinkCollector(cmd.Cmd):
             logger.error("Unexepected crash! Saved links to link_collect_resume.json!"
                          " Resume working on list with option collect --resume")
             raise
+        self.links = {}
+        self._recent_value = ""
         logger.info("Finished working on list!")
 
     def do_exit(self, args):
