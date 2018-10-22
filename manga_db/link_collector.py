@@ -92,14 +92,13 @@ class LinkCollector(cmd.Cmd):
         logger.info("Finished working on list!")
 
     def do_exit(self, args):
-        imp = cli_yes_no("Do you want to import the collected links before exiting?\n"
-                         "They're gonna be lost otherwise!")
-        if imp:
-            self.do_import(None)
-            return True
-        else:
-            # cmdloop returns when postcmd() method returns true value
-            return True
+        if self.links:
+            imp = cli_yes_no("Do you want to import the collected links before exiting?\n"
+                             "They're gonna be lost otherwise!")
+            if imp:
+                self.do_import(None)
+        # cmdloop returns when postcmd() method returns true value
+        return True
 
     def do_export(self, args):
         self.export_json("link_collect_resume.json")

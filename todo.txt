@@ -1,17 +1,17 @@
-- assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
-    e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
-    or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    
-                
-- webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
-    - assoc col lazy
-                -> either leaves assoc col alone if theyre lazy loaded
-                -> or loads them if theyre eager loaded
-- actual DBRow obj in assoc col
 - use ids for adding removing from db (+name for displaying)
     or option for both and decide based on param type?
 - check newly added books for dl (on production db)
 - tests
 - webgui security
+
+- assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
+    e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
+    or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    
+- webGUI: mb dont immediately load assoc col when importing from row -> webGUI displays a lot of entries and doesnt need the cols
+    - assoc col lazy
+                -> either leaves assoc col alone if theyre lazy loaded
+                -> or loads them if theyre eager loaded
+- actual DBRow obj in assoc col
 
        
 --CANCELED-----------------------------------------------------------------------------------------------------------------
