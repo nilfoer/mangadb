@@ -69,7 +69,7 @@ $(document).ready(function() {
 </div>
 <div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
 	<div class="row row-no-margin">
-		<div class="book-title">{{ book.title }}</div>
+		<div class="book-title">{{ book.title if book.title else 'New Book' }}</div>
 	<hr>
 	</div>
 <div class="book-info-container" style="border-spacing: 3px;min-width:100%;">
@@ -226,7 +226,45 @@ $(document).ready(function() {
 <div class="edit-book-info"></div>
 <div class="book-data" id="">
 <button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
-<a href={{ url_for('show_info', book_id=book.id) if book.id is not none else url_for('show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+<a id="cancel-add-book" href={{ url_for('show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+{% if not book.id %}
+    <script type="text/javascript">
+    $(document).ready(function() {
+        $("#cancel-add-book").click(function(event) {
+            event.preventDefault();
+            let req_url = "{{ url_for('cancel_add_book') }}";
+            let redirect_func = function() {
+                                    // location.href = "..." would work like a link -> saved
+                                    // in history etc.
+                                    // location.replace() just replaces the current doc
+                                    window.location.href = "{{ url_for('show_entries') }}";
+                                }
+            let cover_temp_name = $('#add-book-form input[name="cover_temp_name"]');
+
+            let data = "";
+            if (cover_temp_name.length) {
+                data = cover_temp_name.val();
+            } else {
+                data = "";
+            }
+            // $.post(url, data, success, dataType) usees default contentType:
+            // 'application/x-www-form-urlencoded; charset=UTF-8'
+            $.ajax({
+                type: "POST",
+                url: req_url,
+                contentType: "text/plain; charset=UTF-8",
+                data: data,
+                success: redirect_func,
+                // type were expecting back
+                // if none is specified, jQuery will try to infer it based on the MIME type
+                dataType: null
+            });
+        // to also prevent default
+        return false;
+        });
+    });
+    </script>
+{% endif %}
 </div>
 </div>
 <script>

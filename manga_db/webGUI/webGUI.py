@@ -122,7 +122,11 @@ def import_book(url=None):
             url = request.form['ext_url']
         else:
             url = request.args['ext_url']
-    bid, book, outdated_on_ei_id = mdb.import_book(url, lists=[])
+    data, thumb_url = mdb.retrieve_book_data(url)
+    book, ext_info = mdb.book_ext_info_from_data(data, [])
+    import uuid
+    filename = uuid.uuid4().hex
+    #TODO
     if book is None:
         flash("Failed getting book!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
@@ -481,7 +485,6 @@ def show_add_book():
     data = {"list": [], "tag": [], "category": [], "parody": [], "groups": [], "character": [],
             "collection": [], "artist": []}
     book = Book(mdb, **data)
-    book.title = "New Book!"
     available_options = book.get_all_options_for_assoc_columns()
     available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()
                                      if type(_id) == int]
@@ -521,6 +524,30 @@ def add_book():
         os.rename(os.path.join(app.config["THUMBS_FOLDER"], temp_name),
                   os.path.join(app.config["THUMBS_FOLDER"], str(bid)))
     return show_info(book_id=bid, book=book)
+
+
+@app.route("/book/add/cancel", methods=["POST"])
+def cancel_add_book():
+    # instead of using js to read out cover_temp_name and using ajax to send POST request
+    # to this funcs url i could insert a form with only one field a hidden input with
+    # cover_temp_name as value and bind the cancel button to submit the form
+    # (cant do it in the noraml form since i have required fields)
+
+    # Use request.get_data() to get the raw data, regardless of content type.
+    # The data is cached and you can subsequently access request.data, request.json,
+    # request.form at will.
+    # If you access request.data first, it will call get_data with an argument to parse form data
+    # first. If the request has a form content type (multipart/form-data,
+    # application/x-www-form-urlencoded, or application/x-url-encoded) then the raw data will be
+    # consumed. request.data and request.json will appear empty in this case.
+    # print(request.get_data())
+    # specified contentType text/plain here so .data works
+    # del temp book cover file if we dont add book
+    temp_name = request.data
+    if temp_name:
+        os.remove(os.path.join(app.config["THUMBS_FOLDER"], temp_name.decode("UTF-8")))
+    # js takes care of the redirection
+    return url_for("show_entries")
 
 
 @app.route("/book/edit/<int:book_id>")
@@ -657,8 +684,9 @@ def remove_ext_info(book_id, ext_info_id):
     return show_info(book_id=book_id, book=book)
 
 
-def main():
-    app.run()
+def main(debug=False):
+    # debug=True, port=5000
+    app.run(debug=debug)
 
 
 if __name__ == "__main__":

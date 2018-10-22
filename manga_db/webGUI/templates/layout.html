@@ -1,6 +1,6 @@
 <!doctype html>
 {% if book %}
-<title>{{ book.title + ' - MangaDB' }}</title>
+<title>{{ book.title if book.title else 'New Book' + ' - MangaDB' }}</title>
 {% else %}
 <title>MangaDB</title>
 {% endif %}
