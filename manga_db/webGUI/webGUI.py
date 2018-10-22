@@ -514,9 +514,7 @@ def add_book():
         val_list = request.form.getlist(col)
         data[col] = val_list
     book = Book(mdb, **data)
-    # so title is correct format !important
-    book.reformat_title()
-    bid, _ = book.save()
+    bid, _ = book.save(block_update=True)
 
     # rename book cover if one was uploaded with temp name
     temp_name = request.form.get("cover_temp_name", None)
@@ -648,6 +646,11 @@ def upload_cover(book_id):
             # need to generate a UUID, this is probably what you want.
             import uuid
             filename = uuid.uuid4().hex
+
+            # del old cover if there is one
+            old_temp = request.form.get("old_cover_temp_name", None)
+            if old_temp:
+                os.remove(os.path.join(app.config['THUMBS_FOLDER'], old_temp))
         else:
             filename = str(book_id)
         from PIL import Image
@@ -657,7 +660,7 @@ def upload_cover(book_id):
         # convert to thumbnail (in-place) tuple is max size, keeps apsect ratio
         img.thumbnail((400, 600))
         # when saving without extension we need to pass format kwarg
-        img.save(os.path.join(app.config['THUMBS_FOLDER'], filename), format="jpeg")
+        img.save(os.path.join(app.config['THUMBS_FOLDER'], filename), format=img.format)
         img.close()
         file_data.close()
         return jsonify({'cover_path': url_for('thumb_static', filename=filename)})

@@ -27,6 +27,16 @@ $(document).ready(function() {
         // add files of input type file to form_data
         form_data.append('file', $('#cover-file')[0].files[0]);
 
+        let hidden_temp = $('#cover_temp_name');
+        // check if another cover was uploaded b4
+        if (hidden_temp.length) {
+            // hidden_temp.get() (like [0]) gets the DOM element, if you want a jQuery object
+            // use .eq(0) or .first()
+            // with [0] id have to use .value instead of val()
+            // val(): Get the current value of the first element in the set of matched elements.
+            form_data.append("old_cover_temp_name", hidden_temp.val());
+        }
+
         $.ajax({
                // whole mistake was forgetting " around url
                url: "{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}",
@@ -53,10 +63,17 @@ $(document).ready(function() {
                 var temp_name = data.cover_path.split("/")
                 // get last element
                 temp_name = temp_name[temp_name.length-1]
-                // add temp name of cover (no id yet) as hidden field so we can rename it
-                var hidden_temp_name = "<input type='hidden' name='cover_temp_name' value='" +
-                    temp_name + "'/>"
-                $("#add-book-form").prepend(hidden_temp_name)
+
+                if (hidden_temp.length) {
+                    // change value attr if there was a hidden field for temp name b4
+                    // val(value) sets value on all matched
+                    hidden_temp.val(temp_name);
+                } else {
+                    // add temp name of cover (no id yet) as hidden field so we can rename it
+                    var hidden_temp_name = "<input type='hidden' id='cover_temp_name' name='cover_temp_name' value='" +
+                        temp_name + "'/>"
+                    $("#add-book-form").prepend(hidden_temp_name)
+                }
                 {% endif %}
            }
         });
@@ -239,7 +256,7 @@ $(document).ready(function() {
                                     // location.replace() just replaces the current doc
                                     window.location.href = "{{ url_for('show_entries') }}";
                                 }
-            let cover_temp_name = $('#add-book-form input[name="cover_temp_name"]');
+            let cover_temp_name = $('#cover_temp_name');
 
             let data = "";
             if (cover_temp_name.length) {
