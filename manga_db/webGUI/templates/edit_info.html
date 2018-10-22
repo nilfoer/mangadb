@@ -263,6 +263,39 @@ $(document).ready(function() {
 <div class="edit-book-info"></div>
 <div class="book-data" id="">
 <button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
+    <script>
+    $(document).ready(function() {
+        $("#updateBtn").click(function(event) {
+            let title_eng = $("input[name=title_eng]").val();
+            let title_foreign = $("input[name=title_foreign]").val();
+            let page_val = $("input[name=pages]").val();
+            let my_rating = $("input[name=my_rating]").val();
+            let nr = parseFloat(my_rating);
+
+            if (!title_eng && !title_foreign) {
+                alert("Either english or foreign title have to be supplied!");
+                event.preventDefault();
+                return false;
+            } else if (!Number.isInteger(+page_val)) {
+                // The value of the input element is returned, revert it into a number using + sign
+                // could also use modulo
+                alert("Pages is not a whole number!");
+                event.preventDefault();
+                return false;
+            } else if (Number.isNaN(+my_rating)) {
+                alert("My Rating is not a number!");
+                event.preventDefault();
+                return false;
+            } else if (nr < 0 || nr > 5) {
+                alert("My Rating has to be a number from 0 to 5!");
+                event.preventDefault();
+                return false;
+            } else {
+                return true;
+            }
+        });
+    });
+    </script>
 <a id="cancel-add-book" href={{ url_for('show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
 {% if not book.id %}
     <script type="text/javascript">

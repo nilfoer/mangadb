@@ -612,13 +612,7 @@ def edit_book(book_id):
     for col in Book.COLUMNS:
         val = request.form.get(col, None)
         if col in ("pages", "status_id", "language_id"):
-            try:
-                val = int(val)
-            except ValueError:
-                app.logger.warning("Couldnt convert value '%s' to int for column '%s'",
-                                   val, col)
-                flash(f"{col} needs to be a number!", "info")
-                return redirect(url_for("show_edit_book", book_id=book_id))
+            val = int(val)
         elif col == "my_rating":
             # dont add if empty string or 0..
             if not val:
