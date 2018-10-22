@@ -10,7 +10,6 @@
 - use ids for adding removing from db (+name for displaying)
     or option for both and decide based on param type?
 - check newly added books for dl (on production db)
-- rather show edit book when importing
 - None in add/edit book
 - tests
 - webgui security

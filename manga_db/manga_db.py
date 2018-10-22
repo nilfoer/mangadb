@@ -127,17 +127,6 @@ class MangaDB:
             logger.warning("No book data recieved! URL was '%s'!", url)
             return None, None
 
-    def book_ext_info_from_data(self, data, lists):
-        # @Cleanup @Temporary convert lanugage in data to id
-        data["language_id"] = self.get_language(data["language"])
-        del data["language"]
-
-        book = Book(self, **data)
-        ext_info = ExternalInfo(self, book, **data)
-        book.ext_infos = [ext_info]
-        book.list = lists
-        return book, ext_info
-
     # !!! also change single_thread_import in threads when this gets changed
     def import_book(self, url, lists):
         """
@@ -147,15 +136,21 @@ class MangaDB:
         extr_data, thumb_url = self.retrieve_book_data(url)
         if extr_data is None:
             logger.warning("Importing book failed!")
-            return None, None, None
+            return None, None
+        # @Cleanup @Temporary convert lanugage in data to id
+        extr_data["language_id"] = self.get_language(extr_data["language"])
+        del extr_data["language"]
 
-        book, ext_info = self.book_ext_info_from_data(extr_data, lists)
+        book = Book(self, **extr_data)
+        ext_info = ExternalInfo(self, book, **extr_data)
+        book.ext_infos = [ext_info]
+        book.list = lists
 
         bid, outdated_on_ei_id = book.save(block_update=True)
         if bid is None:
             logger.info("Book at url '%s' was already in DB!",
                         url if url is not None else book.ext_infos[0].url)
-            return None, book, None
+            return None, None, None
 
         # book.save returns list of ext_info_ids but import book only ever has one
         # ext_info per book -> so later just return first one if true

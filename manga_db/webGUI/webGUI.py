@@ -5,12 +5,14 @@ Description: Creates webGUI for manga_db using flask
 
 import os.path
 import math
+import json
 from flask import (
         Flask, request, redirect, url_for,
         render_template, flash, send_from_directory,
         jsonify, send_file
 )
 
+from .json import to_serializable
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
 from ..manga import Book
@@ -122,29 +124,38 @@ def import_book(url=None):
             url = request.form['ext_url']
         else:
             url = request.args['ext_url']
-    data, thumb_url = mdb.retrieve_book_data(url)
-    book, ext_info = mdb.book_ext_info_from_data(data, [])
-    import uuid
-    filename = uuid.uuid4().hex
-    #TODO
-    if book is None:
+    extr_data, thumb_url = mdb.retrieve_book_data(url)
+    if extr_data is None:
         flash("Failed getting book!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
         return redirect(url_for("show_entries"))
+    book = Book(mdb, **extr_data)
+    # convert data to json so we can rebuilt ext_info when we add it to DB
+    # as we have to take all data from edit_info page or store a json serialized ExternalInfo
+    # in session; jsonify return flask.Response i just need a str
+    extr_data_json = json.dumps(extr_data, default=to_serializable)
 
-    # book hasnt been imported since id isnt set -> was alrdy in DB
-    # -> add extinfo instead of importing whole book
-    if book.id is None:
+    bid = mdb.get_book_id(book.title_eng, book.title_foreign)
+    if bid is not None:
+        # book was alrdy in DB
+        # -> add extinfo instead of importing whole book
         book.id = bid
-        ext_info = book.ext_infos[0]
+        ext_info = ExternalInfo(mdb, book, **extr_data)
         eid, outdated = ext_info.save()
         flash(f"Added external link at '{ext_info.url}' to book!")
         return show_info(book_id=bid, show_outdated=eid if outdated else None)
     else:
-        return show_info(book_id=None, book=book,
-                         show_outdated=outdated_on_ei_id if outdated_on_ei_id else None)
+        # dl cover as temp uuid name and display add book page
+        import uuid
+        filename = uuid.uuid4().hex
+        cover_path = os.path.join(app.config["THUMBS_FOLDER"], filename)
+        cover_dled = mdb.download_cover(thumb_url, cover_path)
+        if not cover_dled:
+            flash("Thumb couldnt be downloaded!")
+        return show_add_book(book=book, cover_temp=filename if cover_dled else None,
+                             extr_data=extr_data_json)
 
 
 @app.route('/jump', methods=["GET", "POST"])
@@ -480,11 +491,12 @@ def add_ext_info(book_id):
 
 
 @app.route("/book/add")
-def show_add_book():
-    # @Hack
-    data = {"list": [], "tag": [], "category": [], "parody": [], "groups": [], "character": [],
-            "collection": [], "artist": []}
-    book = Book(mdb, **data)
+def show_add_book(book=None, cover_temp=None, extr_data=None):
+    if book is None:
+        # @Hack
+        data = {"list": [], "tag": [], "category": [], "parody": [],
+                "groups": [], "character": [], "collection": [], "artist": []}
+        book = Book(mdb, **data)
     available_options = book.get_all_options_for_assoc_columns()
     available_options["language"] = [(_id, name) for _id, name in mdb.language_map.items()
                                      if type(_id) == int]
@@ -494,7 +506,9 @@ def show_add_book():
     return render_template(
         'edit_info.html',
         book=book,
-        available_options=available_options)
+        available_options=available_options,
+        cover_temp_name=cover_temp,
+        extr_data=extr_data)
 
 
 @app.route("/book/add/submit", methods=["POST"])
@@ -514,14 +528,26 @@ def add_book():
         val_list = request.form.getlist(col)
         data[col] = val_list
     book = Book(mdb, **data)
-    bid, _ = book.save(block_update=True)
+    extr_data = request.form.get("extr_data_json", None)
+    if extr_data:
+        extr_data = json.loads(extr_data)
+        # convert date string back to dateteime date
+        import datetime
+        extr_data["upload_date"] = datetime.datetime.strptime(
+                extr_data["upload_date"], "%Y-%m-%d").date()
+        ext_info = ExternalInfo(mdb, book, **extr_data)
+        book.ext_infos = [ext_info]
+
+    # we also use add_book to import books -> we need outdated_on_ei_id
+    bid, outdated_on_ei_id = book.save(block_update=True)
+    outdated_on_ei_id = outdated_on_ei_id[0] if outdated_on_ei_id else None
 
     # rename book cover if one was uploaded with temp name
     temp_name = request.form.get("cover_temp_name", None)
     if temp_name is not None:
         os.rename(os.path.join(app.config["THUMBS_FOLDER"], temp_name),
                   os.path.join(app.config["THUMBS_FOLDER"], str(bid)))
-    return show_info(book_id=bid, book=book)
+    return show_info(book_id=bid, book=book, show_outdated=outdated_on_ei_id)
 
 
 @app.route("/book/add/cancel", methods=["POST"])

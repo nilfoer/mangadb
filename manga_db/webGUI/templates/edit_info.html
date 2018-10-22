@@ -8,7 +8,8 @@
 	filename=book.id) }}>
 {% else %}
 	<img alt="{{ book.title }}" class="book-page-image img-responsive"
-		src={{ url_for('static', filename='no-image.png') }}>
+		src={{ url_for('static', filename='no-image.png') if not cover_temp_name else
+        url_for('thumb_static', filename=cover_temp_name) }}>
 {% endif %}
 <form id=upload-cover action="{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
       <input id=cover-file type=file name=file style="background-color:#333;" required />
@@ -96,6 +97,12 @@ $(document).ready(function() {
 <form id=edit-book-form action={{ url_for('edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
 {% else %}
 <form id=add-book-form action={{ url_for('add_book') }} method=post style="min-width:100%;width:100%;">
+{% if cover_temp_name %}
+<input type='hidden' id='cover_temp_name' name='cover_temp_name' value="{{ cover_temp_name }}"/>
+{% endif %}
+{% if extr_data %}
+<input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}""/>
+{% endif %}
 {% endif %}
 <div class="book-line">
 <div class="edit-book-info">English Title</div>
@@ -264,6 +271,7 @@ $(document).ready(function() {
             } else {
                 data = "";
             }
+
             // $.post(url, data, success, dataType) usees default contentType:
             // 'application/x-www-form-urlencoded; charset=UTF-8'
             $.ajax({
