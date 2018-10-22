@@ -107,19 +107,32 @@ $(document).ready(function() {
 <div class="book-line">
 <div class="edit-book-info">English Title</div>
 <div class="book-data" id="EnglishTitle" style="width:100%;">
-	<input type="text" class="selectize-input" name="title_eng" id="EnglishTitle" value="{{ book.title_eng }}">
+	<input type="text" class="selectize-input" name="title_eng" id="EnglishTitle"
+    {% if book.title_eng %}
+    value="{{ book.title_eng }}"
+    {% endif %}
+    />
 </div>
 </div>
 <div class="book-line">
 <div class="edit-book-info">Foreign Title</div>
 <div class="book-data" id="ForeignTitle">
-	<input type="text" class="selectize-input" name="title_foreign" id="ForeignTitle" value="{{ book.title_foreign }}">
+	<input type="text" class="selectize-input" name="title_foreign" id="ForeignTitle"
+    {% if book.title_foreign %}
+    value="{{ book.title_foreign }}"
+    {% endif %}
+    />
 </div>
 </div>
 <div class="book-line">
 <div class="edit-book-info">Pages</div>
 <div class="book-data" id="Pages">
-	<input required type="text" class="selectize-input" name="pages" id="Pages" value="{{ book.pages }}">
+	<input required type="text" class="selectize-input" name="pages" id="Pages"
+    placeholder="Number of pages as a whole number"
+    {% if book.pages is not none %}
+        value="{{ book.pages }}"
+    {% endif %}
+    />
 </div>
 </div>
 <div class="book-line">
