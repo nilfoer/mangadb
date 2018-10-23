@@ -28,6 +28,7 @@
 	<div class="col-md-5">
 		<span class="book-title" style="font-size:1.8em;">Differences from Book at external link:</span>
 		<form action="{{ url_for('apply_upd_changes', book_id=book.id) }}" method=post>
+        {{ csrf_token_field() }}
 		<ul class="flash-messages">
 		{% for col, change in book_upd_changes['normal'].items() %}
 			{% if change %}
@@ -508,6 +509,7 @@ BACK TO INDEX
 <div style="margin: 1em 0;"></div>
 <div class="row row-no-margin">
 	<form action="{{ url_for('add_ext_info', book_id=book.id) }}" method=post class="search-tags" style="width:100%;">
+        {{ csrf_token_field() }}
 		<input type=hidden name=book_title value="{{ book.title }}">
 		<label style="float: left;width: 100%;font-weight: normal;">
 			<div style="float: left;margin-right: 5px;" class="ext-info-title">Add External Link: </div>

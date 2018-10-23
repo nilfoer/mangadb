@@ -17,6 +17,7 @@
       <br/>Note: Otimal width is 400px and optimal aspect ratio is 5:7
       <br/>Image won't be cropped but if it differs too much from an aspect ratio of 5:7 it will
       look distorted when displayed as thumbnail!
+    {{ csrf_token_field() }}
 </form>
 <script>
 $(document).ready(function() {
@@ -104,6 +105,7 @@ $(document).ready(function() {
 <input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}""/>
 {% endif %}
 {% endif %}
+{{ csrf_token_field() }}
 <div class="book-line">
 <div class="edit-book-info">English Title</div>
 <div class="book-data" id="EnglishTitle" style="width:100%;">

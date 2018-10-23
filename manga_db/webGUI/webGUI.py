@@ -4,12 +4,12 @@ Description: Creates webGUI for manga_db using flask
 """
 
 import os.path
-import math
 import json
+import secrets
 from flask import (
         Flask, request, redirect, url_for,
         render_template, flash, send_from_directory,
-        jsonify, send_file
+        jsonify, send_file, abort, session, Markup
 )
 
 from .json import to_serializable
@@ -30,7 +30,9 @@ app = Flask(__name__)  # create the application instance :)
 app.config.update(
     dict(
         # DATABASE=os.path.join(app.root_path, 'flaskr.db'),
-        SECRET_KEY='development key',
+        # unsafe key for dev purposes otherwise use tru random bytes like:
+        # python -c "import os; print(os.urandom(24))"
+        SECRET_KEY='mangadb dev',
         USERNAME='admin',
         PASSWORD='default'))
 
@@ -52,6 +54,57 @@ app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024
 @app.route('/thumbs/<path:filename>')
 def thumb_static(filename):
     return send_from_directory(app.config['THUMBS_FOLDER'], filename)
+
+
+@app.before_request
+def validate_csrf_token():
+    # decorator @app.before_request to execute this b4 every req
+    # TODO add lifetime
+    if request.method == "POST":
+        # pop from session so its only lasts one req
+        token = session.pop("_csrf_token", None)
+        if not token:
+            app.logger.error("Session is missing CSRF token!")
+            abort(403)
+
+        # is_xhr -> ajax request
+        if request.is_xhr:
+            # configured jquery ajax to send token as X-CSRFToken header
+            if token != request.headers.get("X-CSRFToken", None):
+                app.logger.error("AJAX request CSRF token is invalid!")
+                abort(403)
+        elif token != request.form.get("_csrf_token", None):
+            app.logger.error("Request CSRF token is invalid!")
+            abort(403)
+
+
+@app.after_request
+def new_csrf_token(response):
+    # since we dont refresh the page when using ajax we have to send
+    # js the new csfr token
+    if request.is_xhr:
+        app.logger.error("New token!")
+        response.headers["X-CSRFToken"] = generate_csrf_token()
+    return response
+
+
+# partly taken from http://flask.pocoo.org/snippets/3/
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        # As of 2015, it is believed that 32 bytes (256 bits) of randomness is sufficient for the
+        # typical use-case expected for the secrets module
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+    return session['_csrf_token']
+
+
+def generate_csrf_token_field():
+    token = generate_csrf_token()
+    return Markup(f"<input type='hidden' name='_csrf_token' value='{token}' />")
+
+
+# register func to gen token field so we can us it in template
+app.jinja_env.globals['csrf_token_field'] = generate_csrf_token_field
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
 
 @app.route('/', methods=["GET"])
@@ -420,6 +473,7 @@ def list_action_ajax(book_id, action):
         return redirect(url_for("show_info", book_id=book_id))
 
 
+# TODO should only allow this if user is logged in otherwise use post
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
     Book.set_favorite_id(mdb, book_id, fav_intbool)

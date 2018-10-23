@@ -11,6 +11,34 @@
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 {# src https://appelsiini.net/projects/lazyload or https://github.com/tuupola/jquery_lazyload/tree/2.x #}
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script type="text/javascript">
+    // configure jquery ajax requests to send csrf_token as X-CSRF-Token header on POST request
+    // taken from flask-wtf
+
+    // The settings specified here will affect all calls to $.ajax or Ajax-based derivatives
+    // such as $.get(). This can cause undesirable behavior since other callers (for example,
+    // plugins) may be expecting the normal default settings. For that reason we strongly
+    // recommend against using this API. Instead, set the options explicitly in the call
+    // or define a simple plugin to do so.
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", $('meta[name="csrf-token"]').attr('content'));
+            }
+        },
+        // after we get response and success etc was called
+        complete: function(jqXHR, textStatus) {
+            // get and set new token
+            let new_token = jqXHR.getResponseHeader("X-CSRFToken");
+            if (new_token) {
+                $('meta[name="csrf-token"]').attr('content', new_token);
+                // also set hidden csrf-token fields otherwise their token will be invalid
+                $('input[name="_csrf_token"]').attr("value", new_token);
+            }
+        }
+    });
+</script>
 <script src="{{ url_for('static', filename='lazyload.js') }}"></script>
 {# <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script> #}
 <div class=page>
@@ -40,6 +68,7 @@
 
 <div class="jump-book-container">
     <form action="{{ url_for('jump_to_book_by_url') }}" method=post class="search-tags">
+    {{ csrf_token_field() }}
 	<div class="container-align-left" id="jump-url-field-container">
 	<input value="" type=text name="ext_url" class="data-search" id="jumpURL">
 	</div>

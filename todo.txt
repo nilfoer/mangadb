@@ -1,8 +1,7 @@
-- use ids for adding removing from db (+name for displaying)
-    or option for both and decide based on param type?
 - check newly added books for dl (on production db)
 - tests
 - webgui security
+
 
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
@@ -20,6 +19,8 @@
 	-> if we tried to get book from id_map in static methods it would work for normal columns since prior changes would be overwritten (would need to reset commited_state for that col)
 		but it wouldnt work for assoc cols since changes wouldnt get overwritten
 		unless we used set
+- use ids for adding removing from db (+name for displaying)
+    or option for both and decide based on param type?        
 - mb add parent_id field so a chapter/volume can be attributed to a larger book
     also works rn with collection but might spam the display if there are too many chapters+books in a collection
 - mb switch to only ids when adding/removing joined col values from webGUI

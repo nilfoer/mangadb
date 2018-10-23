@@ -581,4 +581,60 @@ sqlalchemy has a function that handles turning rows into objects/instances
                 
                 -> either leaves assoc col alone if theyre lazy loaded
                 -> or loads them if theyre eager loaded
-__________________________________________________________________________________________________________                
+__________________________________________________________________________________________________________
+
+GET or POST?
+
+The GET Method
+GET is used to request data from a specified resource.
+GET is one of the most common HTTP methods.
+
+Note that the query string (name/value pairs) is sent in the URL of a GET request:
+/test/demo_form.php?name1=value1&name2=value2
+
+Some other notes on GET requests:
+
+GET requests can be cached
+GET requests remain in the browser history
+GET requests can be bookmarked
+GET requests should never be used when dealing with sensitive data
+GET requests have length restrictions
+GET requests is only used to request data (not modify)
+
+The POST Method
+POST is used to send data to a server to create/update a resource.
+
+The data sent to the server with POST is stored in the request body of the HTTP request:
+POST /test/demo_form.php HTTP/1.1
+Host: w3schools.com
+name1=value1&name2=value2
+POST is one of the most common HTTP methods.
+
+Some other notes on POST requests:
+
+POST requests are never cached
+POST requests do not remain in the browser history
+POST requests cannot be bookmarked
+POST requests have no restrictions on data length
+
+==> should only use POST when i change data in MangaDB
+            for just displaying/querying data -> GET
+
+webgui security:
+
+CSRF protection is only needed for state-changing operations because of the same-origin policy. This policy states that:
+a web browser permits scripts contained in a first web page to access data in a second web page, but only if both web 
+pages have the same origin.
+
+So the CSRF attack will not be able to access the data it requests because it is a cross-site (that's the CS in CSRF) 
+request and prohibited by the same-origin policy. So illicit data access is not a problem with CSRF.
+
+As a CSRF attack can execute commands but can't see their results, it is forced to act blindly. For example, a CSRF 
+attack can tell your browser to request your bank account balance, but it can't see that balance. This is obviously a 
+pointless attack (unless you're trying to DDoS the bank server or something). But it is not pointless if, for example, 
+the CSRF attack tells your browser to instruct your bank to transfer money from your account to the attacker's account. 
+The success or failure page for the transfer is inaccessible to the attacking script. Fortunately for the attacker, they 
+don't need to see the bank's response, they just want the money in their account.
+
+As only state-changing operations are likely to be targets of CSRF attacks, only they need CSRF defenses.
+__________________________________________________________________________________________________________
