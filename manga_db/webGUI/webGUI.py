@@ -588,7 +588,13 @@ def add_book():
             if not val:
                 continue
             val = float(val)
-        data[col] = val
+        if not isinstance(val, str):
+            data[col] = val
+        else:
+            val = val.strip()
+            # dont add empty strings!
+            if val != "":
+                data[col] = val
     for col in Book.ASSOCIATED_COLUMNS:
         val_list = request.form.getlist(col)
         data[col] = val_list
@@ -689,7 +695,12 @@ def edit_book(book_id):
                                    val, col)
                 flash(f"{col} needs to be a floating point number!", "info")
                 return redirect(url_for("show_edit_book", book_id=book_id))
-        update_dic[col] = val
+        if not isinstance(val, str):
+            update_dic[col] = val
+        else:
+            val = val.strip()
+            # add None instead of empty strings!
+            update_dic[col] = val if val else None
     for col in Book.ASSOCIATED_COLUMNS:
         if col == "ext_infos":
             continue
