@@ -1,6 +1,7 @@
 - check newly added books for dl (on production db)
 - tests
 - webgui security
+    only allow authenticated users to access urls like /book/<int:book_id>/ext_info/<int:ext_info_id>/update
 
 
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

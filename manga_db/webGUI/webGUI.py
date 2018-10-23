@@ -170,13 +170,10 @@ def show_info(book_id, book=None, **kwargs):
         outdated=outdated)
 
 
-@app.route('/import', methods=["GET", "POST"])
+@app.route('/import', methods=["POST"])
 def import_book(url=None):
     if url is None:
-        if request.method == 'POST':
-            url = request.form['ext_url']
-        else:
-            url = request.args['ext_url']
+        url = request.form['ext_url']
     extr_data, thumb_url = mdb.retrieve_book_data(url)
     if extr_data is None:
         flash("Failed getting book!", "warning")
@@ -211,12 +208,9 @@ def import_book(url=None):
                              extr_data=extr_data_json)
 
 
-@app.route('/jump', methods=["GET", "POST"])
+@app.route('/jump', methods=["POST"])
 def jump_to_book_by_url():
-    if request.method == 'POST':
-        url = request.form['ext_url']
-    else:
-        url = request.args['ext_url']
+    url = request.form['ext_url']
 
     extr_cls = extractor.find(url)
     id_onpage = extr_cls.book_id_from_url(url)
@@ -253,7 +247,7 @@ def jump_to_book_by_url():
         return show_info(book_id=None, book=books[0])
 
 
-@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=["GET"])
+@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update')
 def update_book_ext_info(book_id, ext_info_id):
     old_book = mdb.get_book(book_id)
     # could also pass in url using post or get
@@ -310,9 +304,10 @@ def update_book_ext_info(book_id, ext_info_id):
 def apply_upd_changes(book_id):
     book = mdb.get_book(book_id)
     update_dic = {}
-    assoc_changes = {}
     for col, val in request.form.items():
-        if col == "status":
+        if col == "_csrf_token":
+            continue
+        elif col == "status":
             update_dic["status_id"] = STATUS_IDS[val]
         elif col == "language":
             update_dic["language_id"] = mdb.get_language(val)
@@ -320,14 +315,13 @@ def apply_upd_changes(book_id):
             update_dic[col] = val
         else:
             add, remove = val.split(";;;")
-            # if we dont check for empty string we get set {''}
-            # and it will get added as tag
             add = add.split(";") if add else []
             remove = remove.split(";") if remove else []
-            assoc_changes[col] = (set(add), set(remove))
+            # + add could produce duplicates but we know that none of the items in add
+            # are in the col
+            update_dic[col] = [v for v in getattr(book, col) + add if v not in remove]
 
     book.update_from_dict(update_dic)
-    book.update_changes_dict(assoc_changes)
     book.save()
 
     return show_info(book_id=book_id, book=book)
@@ -406,21 +400,14 @@ def first_last_more(books, after=None, before=None):
     return first_id, last_id, more
 
 
-@app.route("/search", methods=["GET", "POST"])
+@app.route("/search", methods=["GET"])
 def search_books():
-    after = before = None
-    # only use post for first page
-    if request.method == 'POST':
-        searchstr = request.form['searchstring']
-        order_by_col = request.form['order_by_col']
-        asc_desc = "ASC" if request.form['asc_desc'] == "ASC" else "DESC"
-    else:
-        searchstr = request.args['searchstring']
-        # prepare defaults so we dont always have to send them when using get
-        order_by_col = request.args.get('order_by_col', "id", type=int)
-        asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
-        after = request.args.get("after", None, type=int)
-        before = request.args.get("before", None, type=int)
+    searchstr = request.args['searchstring']
+    # prepare defaults so we dont always have to send them when using get
+    order_by_col = request.args.get('order_by_col', "id", type=int)
+    asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
+    after = request.args.get("after", None, type=int)
+    before = request.args.get("before", None, type=int)
 
     order_by = f"Books.{order_by_col} {asc_desc}"
     # get 1 entry more than BOOKS_PER_PAGE so we know if we need btn in that direction
@@ -443,7 +430,7 @@ def search_books():
 # without reloading the page or going to edit
 # WARNING vulnerable to cross-site requests
 # TODO add token
-@app.route("/book/<int:book_id>/list/<action>", methods=["POST", "GET"])
+@app.route("/book/<int:book_id>/list/<action>", methods=["POST"])
 def list_action_ajax(book_id, action):
     list_name = request.form.get("name", None, type=str)
     # jquery will add brackets to key of ajax data of type array
@@ -473,7 +460,7 @@ def list_action_ajax(book_id, action):
         return redirect(url_for("show_info", book_id=book_id))
 
 
-# TODO should only allow this if user is logged in otherwise use post
+# TODO should only allow access to urls that change data if user is logged in otherwise use post
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
     Book.set_favorite_id(mdb, book_id, fav_intbool)
@@ -488,8 +475,7 @@ def rate_book(book_id, rating):
         url_for("show_info", book_id=book_id))
 
 
-@app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>",
-           methods=["GET"])
+@app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
 def set_downloaded(book_id, ext_info_id, intbool):
     ExternalInfo.set_downloaded_id(mdb, ext_info_id, intbool)
     return redirect(
