@@ -9,9 +9,10 @@ import secrets
 from flask import (
         Flask, request, redirect, url_for,
         render_template, flash, send_from_directory,
-        jsonify, send_file, abort, session, Markup
+        jsonify, send_file, abort, session, Markup,
 )
 
+from .auth import auth_bp, load_admin_credentials
 from .json import to_serializable
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
@@ -32,9 +33,10 @@ app.config.update(
         # DATABASE=os.path.join(app.root_path, 'flaskr.db'),
         # unsafe key for dev purposes otherwise use tru random bytes like:
         # python -c "import os; print(os.urandom(24))"
-        SECRET_KEY='mangadb dev',
-        USERNAME='admin',
-        PASSWORD='default'))
+        SECRET_KEY='mangadb dev'))
+
+# register blueprint has to come after routes were added to it
+app.register_blueprint(auth_bp)
 
 # blueprint = Blueprint('thumbs', __name__, static_url_path='/thumbs', static_folder='/thumbs')
 # app.register_blueprint(blueprint)
@@ -83,7 +85,6 @@ def new_csrf_token(response):
     # since we dont refresh the page when using ajax we have to send
     # js the new csfr token
     if request.is_xhr:
-        app.logger.error("New token!")
         response.headers["X-CSRFToken"] = generate_csrf_token()
     return response
 
@@ -105,6 +106,31 @@ def generate_csrf_token_field():
 # register func to gen token field so we can us it in template
 app.jinja_env.globals['csrf_token_field'] = generate_csrf_token_field
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+
+# check login on all pages but those that are marked is_public (by public_route decorator)
+# src: https://stackoverflow.com/a/52572337
+# Kristof Gilicze
+@app.before_request
+def check_route_access():
+    if request.endpoint is None:  # can be None so check it first
+        return
+    if any([
+            request.endpoint.startswith('static'),
+            request.endpoint.startswith("thumb_static"),
+            # auth/logout endpoint is auth.logout
+            request.endpoint.startswith("auth."),  # allow access to auth pages by default
+            "authenticated" in session,  # user is logged in
+            # allow access to is_public marked functions
+            getattr(app.view_functions[request.endpoint], 'is_public', False)]):
+        return  # Access granted
+    else:
+        return redirect(url_for('auth.login'))
+
+
+def public_route(decorated_function):
+    decorated_function.is_public = True
+    return decorated_function
 
 
 @app.route('/', methods=["GET"])
@@ -460,7 +486,6 @@ def list_action_ajax(book_id, action):
         return redirect(url_for("show_info", book_id=book_id))
 
 
-# TODO should only allow access to urls that change data if user is logged in otherwise use post
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
     Book.set_favorite_id(mdb, book_id, fav_intbool)
@@ -748,6 +773,7 @@ def remove_ext_info(book_id, ext_info_id):
 
 
 def main(debug=False):
+    load_admin_credentials(app)
     # debug=True, port=5000
     app.run(debug=debug)
 

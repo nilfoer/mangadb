@@ -43,6 +43,11 @@
 {# <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script> #}
 <div class=page>
 	<h1><a href="/" id="title-anchor">MangaDB</a>
+    {% if "authenticated" in session %}
+    <span class="nav-login-out"><a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i></a></span>
+    {% else %}
+    <span class="nav-login-out"><a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i></a></span>
+    {% endif %}
     <a id="add-book-btn" class="book-read-button button-stack red-color" href="{{ url_for('show_add_book') }}">
         <i class="fas fa-plus"></i>
     </a>

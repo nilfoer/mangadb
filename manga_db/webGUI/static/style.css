@@ -8,6 +8,9 @@ h1, h2          { font-family: 'Open Sans',sans-serif; margin: 0; }
 h1              { border-bottom: 2px solid #eee; margin-bottom: 1em;}
 h2              { font-size: 1.2em; }
 h3              { color: #22a7f0; }
+.nav-login-out {
+    font-size: medium;
+}
 .search-tags input{ margin-bottom: 0 }
 
 .page           { margin: 2em auto; width: 75%;
