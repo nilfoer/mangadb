@@ -23,21 +23,34 @@ def thread_retrieve_data_or_cover(url_queue, book_queue):
         if task is None:
             break
         if task == RETRIEVE_BOOK_DATA:
-            url, lists = data
-            print(f"Getting data for url {url}")
-            extr_data, thumb_url = MangaDB.retrieve_book_data(url)
-            if extr_data is not None:
+            try:
+                url, lists = data
+                print(f"{current_thread().name}: Getting data for url {url}")
+                extr_data, thumb_url = MangaDB.retrieve_book_data(url)
+                # also put None in the queue so importer know the link was processed
                 book_queue.put((url, extr_data, thumb_url))
-            # Indicate that a formerly enqueued task is complete.
-            # Used by queue consumer threads.
-            # For each get() used to fetch a task, a subsequent call to task_done()
-            # tells the queue that the processing on the task is complete.
-            url_queue.task_done()
+            except Exception:
+                # communicate to importer that failed link was processed
+                # so importer can terminate properly
+                book_queue.put((None, None, None))
+                raise
+            finally:
+                # wrap task_done in finally so even when we get an exception (thread wont exit)
+                # the task will be marked as done
+                # otherwise there could be mixups
+
+                # Indicate that a formerly enqueued task is complete.
+                # Used by queue consumer threads.
+                # For each get() used to fetch a task, a subsequent call to task_done()
+                # tells the queue that the processing on the task is complete.
+                url_queue.task_done()
         elif task == DOWNLOAD_COVER:
-            url, filename = data
-            print(f"Downloading cover to {filename}")
-            MangaDB.download_cover(url, filename)
-            url_queue.task_done()
+            try:
+                url, filename = data
+                print(f"{current_thread().name}: Downloading cover to {filename}")
+                MangaDB.download_cover(url, filename)
+            finally:
+                url_queue.task_done()
         else:
             print("Didnt recognize task {task}!")
         time.sleep(URL_WORKER_SLEEP)
@@ -49,36 +62,47 @@ def single_thread_import(url_lists, to_process, url_queue, book_queue):
 
     processed = 0
     while True:
-        url, extr_data, thumb_url = book_queue.get()
-        processed += 1
-        print(f"Adding book at {url}")
-        # @Cleanup @Temporary convert lanugage in data to id
-        extr_data["language_id"] = mdb.get_language(extr_data["language"])
-        del extr_data["language"]
-
-        book = Book(mdb, **extr_data)
-        ext_info = ExternalInfo(mdb, book, **extr_data)
-        book.ext_infos = [ext_info]
-        book.list = url_lists[url]
-
-        bid, outdated_on_ei_id = book.save(block_update=True)
-        if bid is None:
-            logger.info("Book at url '%s' was already in DB!",
-                        url if url is not None else book.ext_infos[0].url)
-            # also counts as processed/done
-            book_queue.task_done()
-            continue
-
-        cover_path = os.path.join(mdb.root_dir, "thumbs", f"{book.id}")
-        url_queue.put((DOWNLOAD_COVER, (thumb_url, cover_path)))
-
-        book_queue.task_done()
+        # check on top so it doesnt get skipped if we continue
         if processed == to_process:
             # send url workers signal to stop
-            for i in range(NUMBER_OF_THREADS):
+            for _ in range(NUMBER_OF_THREADS):
                 url_queue.put((None, None))
             break
         time.sleep(0.1)
+
+        try:
+            url, extr_data, thumb_url = book_queue.get()
+            if extr_data is None:
+                continue
+            print(f"{current_thread().name}: Adding book at {url}")
+            # @Cleanup @Temporary convert lanugage in data to id
+            extr_data["language_id"] = mdb.get_language(extr_data["language"])
+            del extr_data["language"]
+
+            book = Book(mdb, **extr_data)
+            ext_info = ExternalInfo(mdb, book, **extr_data)
+            book.ext_infos = [ext_info]
+            book.list = url_lists[url]
+
+            bid, outdated_on_ei_id = book.save(block_update=True)
+        except Exception:
+            # except needed for else
+            raise
+        else:
+            if bid is None:
+                logger.info("Book at url '%s' was already in DB!",
+                            url if url is not None else book.ext_infos[0].url)
+                # also counts as processed/done
+                # book_done called in finally
+                continue
+            cover_path = os.path.join(mdb.root_dir, "thumbs", f"{book.id}")
+            url_queue.put((DOWNLOAD_COVER, (thumb_url, cover_path)))
+        finally:
+            processed += 1
+            # wrap task_done in finally so even when we get an exception (thread wont exit)
+            # the task will be marked as done
+            # otherwise there could be mixups esp. with the covers and their filenames
+            book_queue.task_done()
 
 
 def import_multiple(url_lists):

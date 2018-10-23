@@ -276,8 +276,12 @@ class MangaDB:
         """
         Returns internal db id for book with given title or None
         """
-        c = self.db_con.execute("SELECT id FROM Books WHERE title_eng = ? "
-                                "AND title_foreign = ?", (title_eng, title_foreign))
+        # where col = null doesnt work -> use col is null or col isnull
+        t_eng_cond = "= ?" if title_eng is not None else "IS NULL"
+        t_foreign_cond = "= ?" if title_foreign is not None else "IS NULL"
+        vals = [v for v in (title_eng, title_foreign) if v is not None]
+        c = self.db_con.execute(f"SELECT id FROM Books WHERE title_eng {t_eng_cond} "
+                                f"AND title_foreign {t_foreign_cond}", vals)
         _id = c.fetchone()
         return _id[0] if _id else None
 
