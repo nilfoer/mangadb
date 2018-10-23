@@ -19,7 +19,7 @@ class TsuminoExtractor(BaseMangaExtractor):
                                 r"(Info|View|Index)/(\d+)/?([\w-]+)?")
     ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
     TITLE_RE = re.compile(r"^(.+) \/ (.+)")
-    RATING_FULL_RE = re.compile(r"(\d\.\d{1,2}) \((\d+) users / (\d+) favs\)")
+    RATING_FULL_RE = re.compile(r"(\d\.\d{1,2}|\d) \((\d+) users / (\d+) favs\)")
     metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
             "title": "Title", "uploader": "Uploader", "upload_date": "Uploaded",
             "pages": "Pages", "rating": "Rating", "my_rating": "My Rating",
