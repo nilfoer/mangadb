@@ -61,6 +61,9 @@ class LinkCollector(cmd.Cmd):
         use 'recent' as url to change lists of most recently added url
         """
         arg_li = args.split()
+        if not arg_li:
+            print("No arguments supplied!")
+            return
         # shortcut to change most recent book
         url = arg_li[0] if arg_li[0] != "recent" else self._recent_value
         lists = arg_li[1:]
