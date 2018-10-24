@@ -20,7 +20,7 @@
 .idea/
 **/__pycache__/
 **/config_script.ini
-**/*.log
+**/*.log*
 **/.ipynb_checkpoints/
 # also ignore wheels since theyre binary and git doesnt deal well with that (cant compress as well etc)
 dist/
@@ -50,3 +50,4 @@ manga_db_testing.ipynb
 link_collect_resume.json
 test.py
 manga_db/webGUI/admin.txt
+.*/

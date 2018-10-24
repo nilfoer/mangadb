@@ -83,7 +83,6 @@ class TsuminoExtractor(BaseMangaExtractor):
             elif attr == "upload_date":
                 result[attr] = datetime.datetime.strptime(value, "%Y %B %d").date()
             elif attr == "title":
-                result[attr] = value
                 title = re.match(self.TITLE_RE, value)
                 if title:
                     result["title_eng"] = title.group(1)
