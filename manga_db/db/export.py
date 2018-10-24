@@ -83,9 +83,16 @@ def export_csv_from_sql(filename, db_con):
                         FROM BookParody bt, Parody
                         WHERE  Books.id = bt.book_id
                         AND Parody.id = bt.Parody_id
-                    ) AS parodies
+                    ) AS parodies,
+                ei.*
                 FROM Books
-                GROUP BY Books.id
+                -- returns one row for each external info, due to outer joins also returns
+                -- a row for books without external info
+                -- no good way as far as i know to have it as one row (unless i know how many
+                -- external infos there are per book and its the same for every book
+                -- -> then i could use group_concat or subqueries with limit)
+                LEFT JOIN ExternalInfo ei ON Books.id = ei.book_id
+                GROUP BY Books.id, ei.id
             """)
         rows = c.fetchall()
 
