@@ -39,7 +39,7 @@ def test_search_book_by_title(setup_mdb_dir):
             (("atsu", "Books.id ASC", -1, None), 2, 2),
             (("atsu", "Books.pages DESC", -1, None), 6, 2),
             (("atsu", "Books.id DESC", 1, None), 6, 1),
-            (("top", "Books.id DESC", -1, None), 5, 1),
+            (("top", "Books.id DESC", -1, None), 12, 2),
             (("afhnksagjoiks", "Books.id DESC", -1, None), None, None)
             ]
 
@@ -161,7 +161,7 @@ def test_search_normal_mult_assoc(setup_mdb_dir):
                     {},
                     "Books.id DESC", -1, None, None
                 ),
-                list(range(8, 0, -1))
+                list(range(17, 0, -1))
             ),
             (
                 (
@@ -173,7 +173,7 @@ def test_search_normal_mult_assoc(setup_mdb_dir):
                     {},
                     "Books.id DESC", 5, None, None
                 ),
-                list(range(8, 3, -1))
+                list(range(17, 12, -1))
             ),
             (
                 (
@@ -245,7 +245,7 @@ def test_search_normal_mult_assoc(setup_mdb_dir):
                     {},
                     "Books.id DESC", -1, None, None
                 ),
-                [8, 6, 5, 4, 3, 2, 1]
+                [17, 15, 14, 13, 12, 11, 10, 9, 8, 6, 5, 4, 3, 2, 1]
             ),
             (
                 (
@@ -257,7 +257,7 @@ def test_search_normal_mult_assoc(setup_mdb_dir):
                     {},
                     "Books.id DESC", 5, None, 3
                 ),
-                [8, 6, 5, 4]
+                [9, 8, 6, 5, 4]
             )
         ]
 
