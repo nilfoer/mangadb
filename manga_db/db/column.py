@@ -82,6 +82,16 @@ class ColumnWithCallback(Column):
         for callback in self.callbacks.get(self.name, []):
             callback(instance, self.name, before, value)
 
+    # CAREFUL!
+    # if we create a 2nd instance of e.g. Obj that contains this cls the callback that appends to
+    # events will already be present when event is initialized
+    # Obj __init__:
+    # self.event = event
+    # self.events = []
+    # Obj.event.add_callback("event", event_callback)
+    # -> tries to append to attr that doesnt exist
+    # either make sure the element exists before the descriptors instance is assigned
+    # or handle it in the callback by checking if before value is ColumnValue.NO_VALUE
     def add_callback(self, name, callback):
         """Add a new function to call everytime the descriptor updates
         To be able to call add_callback you have to call it on the class level (of the instance),

@@ -1,7 +1,5 @@
 - check newly added books for dl (on production db)
 - tests:
-    search_normal_mult_assoc
-    col+assoc col test commited_state and callbacks, types for col
     id_map (basically includes load_instance)
     MangaDB
     Book

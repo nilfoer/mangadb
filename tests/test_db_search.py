@@ -1,5 +1,3 @@
-import pytest
-
 from utils import setup_mdb_dir
 
 from manga_db.manga_db import MangaDB
@@ -143,3 +141,127 @@ def test_keyset_pagination():
         exp_q = [l.strip() for l in exp_q.splitlines() if l.strip()]
         assert q == exp_q
         assert vals == exp_v
+
+
+def test_search_normal_mult_assoc(setup_mdb_dir):
+    tmpdir, mdb_file = setup_mdb_dir
+    mdb = MangaDB(tmpdir, mdb_file)
+    # db_con, normal_col_values, int_col_values_dict, ex_col_values_dict,
+    # order_by="Books.id DESC", limit=-1,  # no row limit when limit is neg. nr
+    # after=None, before=None
+
+    args_expected = [
+            (
+                (
+                    # normal col
+                    {},
+                    # int assoc
+                    {},
+                    # ex assoc
+                    {},
+                    "Books.id DESC", -1, None, None
+                ),
+                list(range(8, 0, -1))
+            ),
+            (
+                (
+                    # normal col
+                    {},
+                    # int assoc
+                    {},
+                    # ex assoc
+                    {},
+                    "Books.id DESC", 5, None, None
+                ),
+                list(range(8, 3, -1))
+            ),
+            (
+                (
+                    # normal col
+                    {},
+                    # int assoc
+                    {},
+                    # ex assoc
+                    {},
+                    "Books.id ASC", 4, None, 6
+                ),
+                list(range(2, 6))
+            ),
+            (
+                (
+                    # normal col
+                    {},
+                    # int assoc
+                    {},
+                    # ex assoc
+                    {},
+                    "Books.id DESC", 3, 6, None
+                ),
+                list(range(5, 2, -1))
+            ),
+            (
+                (
+                    # normal col
+                    {"pages": 25},
+                    # int assoc
+                    {},
+                    # ex assoc
+                    {},
+                    "Books.id ASC", -1, None, None
+                ),
+                [3, 4]
+            ),
+            (
+                (
+                    # normal col
+                    {"pages": 25},
+                    # int assoc
+                    {"tag": ["Large Breasts", "Big Ass"]},
+                    # ex assoc
+                    {},
+                    "Books.id DESC", -1, None, None
+                ),
+                [4, 3]
+            ),
+            (
+                (
+                    # normal col
+                    {"pages": 25},
+                    # int assoc
+                    {"tag": ["Large Breasts", "Big Ass"]},
+                    # ex assoc
+                    {"artist": ["Jirou"]},
+                    "Books.id DESC", -1, None, None
+                ),
+                [3]
+            ),
+            (
+                (
+                    # normal col
+                    {},
+                    # int assoc
+                    {"tag": ["Nakadashi"]},
+                    # ex assoc
+                    {},
+                    "Books.id DESC", -1, None, None
+                ),
+                [8, 6, 5, 4, 3, 2, 1]
+            ),
+            (
+                (
+                    # normal col
+                    {},
+                    # int assoc
+                    {"tag": ["Nakadashi"]},
+                    # ex assoc
+                    {},
+                    "Books.id DESC", 5, None, 3
+                ),
+                [8, 6, 5, 4]
+            )
+        ]
+
+    for args, expected in args_expected:
+        rows = search_normal_mult_assoc(mdb.db_con, *args)
+        for i, row in enumerate(rows):
+            assert row["id"] == expected[i]
