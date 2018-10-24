@@ -17,7 +17,13 @@ def trackable_type(instance, name, base, on_change_callback, *init_args, **init_
 
     # (<class 'method_descriptor'>, <class 'wrapper_descriptor'>)
     methods = (type(list.append), type(list.__setitem__))
-    skip = set(['__iter__', '__len__', '__getattribute__'])
+    # we also exclude __init__ here so when we initialize the instance
+    # it wont call the callback/count as change
+    # -> otherwise loading from db would count as change
+    # if __init__ is also wrapped it also tracks when item is assigned to
+    # a trackable type e.g. instance.tag = ["Tag1", "Tag2"] would add the prev
+    # val to _committed_state
+    skip = set(['__iter__', '__len__', '__getattribute__', '__init__'])
 
     # ceate Metaclass for trackable class
     class TrackableMeta(type):
