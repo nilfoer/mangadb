@@ -1,6 +1,5 @@
 - check newly added books for dl (on production db)
 - tests:
-    MangaDB
     Book
     ExternalInfo
 - remove copy pasted html/css

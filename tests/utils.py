@@ -63,12 +63,30 @@ def setup_tmpdir():
 
 @pytest.fixture
 def setup_mdb_dir():
-    tmpdir = os.path.join(TESTS_DIR, "tmp")
-    try:
-        shutil.rmtree(tmpdir)
-    except FileNotFoundError:
-        pass
-    os.makedirs(tmpdir)
+    # we wont return after yielding if the test raises an exception
+    # -> better way to delete at start of next test so we also
+    # have the possiblity to check the content of tmpdir manually
+    # -> but then we also have to except FileNotFoundError since tmpdir
+    # might not exist yet
+    tmpdir_list = [dirpath for dirpath in os.listdir(TESTS_DIR) if dirpath.startswith(
+                   "tmp_") and os.path.isdir(os.path.join(TESTS_DIR, dirpath))]
+    for old_tmpdir in tmpdir_list:
+        try:
+            shutil.rmtree(os.path.join(TESTS_DIR, old_tmpdir))
+        except FileNotFoundError:
+            pass
+        except PermissionError:
+            pass
+
+    i = 0
+    while True:
+        tmpdir = os.path.join(TESTS_DIR, f"tmp_{i}")
+        if os.path.isdir(tmpdir):
+            i += 1
+            continue
+        os.makedirs(tmpdir)
+        break
+
     mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite")
     shutil.copy(mdb_file, tmpdir)
 
@@ -137,3 +155,77 @@ def cleanup(request):
                 if os.path.isdir(p):
                     shutil.rmtree(p)
     request.addfinalizer(remove_tmp_dirs)
+
+
+def all_book_info(db_con, book_id=None, include_id=True):
+    # dont get id since ids wont match since order changes every time
+    # same for dates
+    # order by sth predictable like title_eng
+    c = db_con.execute(f"""
+            SELECT Books.title_eng, Books.title_foreign, Books.language_id, Books.pages,
+                   Books.status_id, Books.my_rating, Books.note, Books.favorite,
+                   {'Books.id,' if include_id else ''}
+                (
+                    SELECT group_concat(Tag.name, ';')
+                    FROM BookTag bt, Tag
+                    WHERE  Books.id = bt.book_id
+                    AND Tag.id = bt.tag_id
+                ) AS tags,
+                (
+                    SELECT group_concat(Artist.name, ';')
+                    FROM BookArtist bt, Artist
+                    WHERE  Books.id = bt.book_id
+                    AND Artist.id = bt.artist_id
+                ) AS artists,
+                (
+                    SELECT group_concat(Category.name, ';')
+                    FROM BookCategory bt, Category
+                    WHERE  Books.id = bt.book_id
+                    AND Category.id = bt.category_id
+                ) AS categories,
+                (
+                    SELECT group_concat(Character.name, ';')
+                    FROM BookCharacter bt, Character
+                    WHERE  Books.id = bt.book_id
+                    AND Character.id = bt.Character_id
+                ) AS characters,
+                (
+                    SELECT group_concat(Collection.name, ';')
+                    FROM BookCollection bt, Collection
+                    WHERE  Books.id = bt.book_id
+                    AND Collection.id = bt.Collection_id
+                ) AS collections,
+                (
+                    SELECT group_concat(Groups.name, ';')
+                    FROM BookGroups bt, Groups
+                    WHERE  Books.id = bt.book_id
+                    AND Groups.id = bt.Group_id
+                ) AS groups,
+                (
+                    SELECT group_concat(List.name, ';')
+                    FROM BookList bt, List
+                    WHERE  Books.id = bt.book_id
+                    AND List.id = bt.List_id
+                ) AS lists,
+                (
+                    SELECT group_concat(Parody.name, ';')
+                    FROM BookParody bt, Parody
+                    WHERE  Books.id = bt.book_id
+                    AND Parody.id = bt.Parody_id
+                ) AS parodies,
+            {'ei.id, ei.book_id,' if include_id else ''}
+            ei.url, ei.id_onpage, ei.imported_from, ei.upload_date, ei.uploader, ei.censor_id,
+            ei.rating, ei.ratings, ei.favorites, ei.downloaded, ei.outdated
+            FROM Books
+            -- returns one row for each external info, due to outer joins also returns
+            -- a row for books without external info
+            -- no good way as far as i know to have it as one row (unless i know how many
+            -- external infos there are per book and its the same for every book
+            -- -> then i could use group_concat or subqueries with limit)
+            LEFT JOIN ExternalInfo ei ON Books.id = ei.book_id
+            {'WHERE Books.id = ?' if book_id else ''}
+            GROUP BY Books.id, ei.id
+            ORDER BY Books.title_eng
+        """, (book_id,) if book_id else ())
+    rows = c.fetchone() if book_id else c.fetchall()
+    return rows
