@@ -22,6 +22,14 @@ class IndentityMap:
                 self._dict[key] = obj
                 return True
 
+    def add_unprecedented(self, obj):
+        if not obj._in_db:
+            return False
+        else:
+            key = obj.key
+            self._dict[key] = obj
+            return True
+
     def remove(self, key):
         del self._dict[key]
 

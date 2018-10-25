@@ -181,6 +181,9 @@ class ExternalInfo(DBRow):
                     UPDATE ExternalInfo SET outdated = 1
                     WHERE ExternalInfo.id in ({', '.join((str(o[0]) for o in outdated))})""")
         self._in_db = True
+        # add self to id_map so we always work on the same instance even if we re-fetch this
+        # row from db
+        self.manga_db.id_map.add_unprecedented(self)
         # we just commited the values -> reset _committed_state
         self._committed_state = {}
 

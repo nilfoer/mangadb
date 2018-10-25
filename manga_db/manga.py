@@ -295,11 +295,17 @@ class Book(DBRow):
                                 outdated_on_ei_ids.append(eid)
                     continue
                 value = getattr(self, col)
-                if value is not None:
+                # assoc col many returns empty trackable if no value whereas assoc col one
+                # returns None
+                if ((isinstance(value, list) and value) or
+                        (not isinstance(value, list) and value is not None)):
                     self._add_associated_column_values(col, value)
 
         logger.info("Added book with title \"%s\"  as id '%d' to database!", self.title, self.id)
         self._in_db = True
+        # add self to id_map so we always work on the same instance even if we re-fetch this
+        # book from db
+        self.manga_db.id_map.add_unprecedented(self)
         # reset committed state since we just committed
         self._committed_state = {}
 
