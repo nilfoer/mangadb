@@ -263,8 +263,8 @@ class MangaDB:
 
             c = self.db_con.execute("SELECT * FROM Books WHERE id = ?", (_id,))
         elif title_eng or title_foreign:
-            c = self.db_con.execute("SELECT * FROM Books WHERE title_eng = ? "
-                                    "AND title_foreign = ?", (title_eng, title_foreign))
+            title_cond, vals = self._title_cond(title_eng, title_foreign)
+            c = self.db_con.execute(f"SELECT * FROM Books {title_cond}", vals)
         else:
             logger.error("At least one of id or (title_eng and title_foreign) "
                          "needs to be supplied!")
@@ -272,16 +272,20 @@ class MangaDB:
         row = c.fetchone()
         return load_instance(self, Book, row) if row else None
 
-    def get_book_id(self, title_eng, title_foreign):
-        """
-        Returns internal db id for book with given title or None
-        """
+    def _title_cond(self, title_eng, title_foreign, first_cond=True):
         # where col = null doesnt work -> use col is null or col isnull
         t_eng_cond = "= ?" if title_eng is not None else "IS NULL"
         t_foreign_cond = "= ?" if title_foreign is not None else "IS NULL"
         vals = [v for v in (title_eng, title_foreign) if v is not None]
-        c = self.db_con.execute(f"SELECT id FROM Books WHERE title_eng {t_eng_cond} "
-                                f"AND title_foreign {t_foreign_cond}", vals)
+        return (f"{'WHERE' if first_cond else 'AND'} title_eng {t_eng_cond} AND "
+                f"title_foreign {t_foreign_cond}", vals)
+
+    def get_book_id(self, title_eng, title_foreign):
+        """
+        Returns internal db id for book with given title or None
+        """
+        title_cond, vals = self._title_cond(title_eng, title_foreign)
+        c = self.db_con.execute(f"SELECT id FROM Books {title_cond}", vals)
         _id = c.fetchone()
         return _id[0] if _id else None
 
