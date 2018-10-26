@@ -69,6 +69,10 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     # remove
     ei_del = get_extinfo(mdb, 8)
     ei_del.remove()
+    assert ei_del._in_db is False
+    # deleted from id map
+    with pytest.raises(KeyError):
+        mdb.id_map[ei_del.key]
     ei8 = mdb.db_con.execute("SELECT id FROM ExternalInfo WHERE id = 8").fetchone()
     assert not ei8
 
@@ -129,14 +133,21 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
         else:
             assert ei_row[k] == data[k]
 
-    b13 = DummyBook(13, "Venus Nights")
+    b13 = DummyBook(None, "Venus Nights")
     data = dict(
             book_id=13, url="http://tsumino.com/Book/Info/112233/test-url",
             id_onpage=43460, imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=1
             )
-    new_ei = ExternalInfo(mdb, b13, **data)
+    new_ei = ExternalInfo(mdb, None, **data)
+    # cant save without book or book wihout id
+    with pytest.raises(ValueError):
+        new_ei.save()
+    new_ei.book = b13
+    with pytest.raises(ValueError):
+        new_ei.save()
+    new_ei.book.id = 13
     ei_id, outdated = new_ei.save()
     assert not new_ei._committed_state
     assert new_ei._in_db is True

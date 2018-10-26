@@ -53,7 +53,6 @@ class Book(DBRow):
             self,
             manga_db,
             id=None,
-            title=None,
             title_eng=None,
             title_foreign=None,
             language_id=None,
@@ -329,6 +328,10 @@ class Book(DBRow):
                                 WHERE
                                 id = ?""", (self.id, ))
 
+        self._in_db = False
+        # delete from id_map
+        self.manga_db.id_map.remove(self.key)
+
         # also delete book thumb
         try:
             os.remove(os.path.join("thumbs", str(self.id)))
@@ -343,8 +346,11 @@ class Book(DBRow):
             logger.warning("No external infos on book with id %d or not fetched from DB yet!",
                            self.id)
             return None
-        ext_info = next((ei for ei in self.ext_infos if ei.id == _id))
-        if not ext_info:
+        try:
+            ext_info = next((ei for ei in self.ext_infos if ei.id == _id))
+        except StopIteration:
+            ext_info = None
+        if ext_info is None:
             logger.error("No external info with id %d found!", _id)
             return None
         url = ext_info.url

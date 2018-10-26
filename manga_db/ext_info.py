@@ -67,9 +67,9 @@ class ExternalInfo(DBRow):
             self.set_updated()
 
     def __eq__(self, other):
-        return all(self.id_onpage == other.id_onpage, self.imported_from == other.imported_from,
-                   self.uploader == other.uploader, self.upload_date == other.upload_date,
-                   self.downloaded == other.downloaded)
+        return all((self.id_onpage == other.id_onpage, self.imported_from == other.imported_from,
+                    self.uploader == other.uploader, self.upload_date == other.upload_date,
+                    self.downloaded == other.downloaded))
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -251,6 +251,9 @@ class ExternalInfo(DBRow):
                 FROM ExternalInfo
                 WHERE
                 id = ?""", (self.id, ))
+        self._in_db = False
+        # del from id_map
+        self.manga_db.id_map.remove(self.key)
 
         logger.info("Removed external info with id %d and url %s", self.id, self.url)
 
