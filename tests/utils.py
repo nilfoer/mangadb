@@ -161,10 +161,13 @@ def all_book_info(db_con, book_id=None, include_id=True):
     # dont get id since ids wont match since order changes every time
     # same for dates
     # order by sth predictable like title_eng
+    # if row has multiple cols with same name and we use sqlite3.Row
+    # it will just return the first result for that col name and it wont error
+    # -> use AS to rename cols so their names are unique or use indices
     c = db_con.execute(f"""
             SELECT Books.title_eng, Books.title_foreign, Books.language_id, Books.pages,
-                   Books.status_id, Books.my_rating, Books.note, Books.favorite,
-                   {'Books.id,' if include_id else ''}
+                   Books.status_id, Books.my_rating, Books.note, Books.last_change, Books.favorite,
+                   {'Books.id AS bid,' if include_id else ''}
                 (
                     SELECT group_concat(Tag.name, ';')
                     FROM BookTag bt, Tag
@@ -213,9 +216,9 @@ def all_book_info(db_con, book_id=None, include_id=True):
                     WHERE  Books.id = bt.book_id
                     AND Parody.id = bt.Parody_id
                 ) AS parodies,
-            {'ei.id, ei.book_id,' if include_id else ''}
+            {'ei.id AS eid, ei.book_id,' if include_id else ''}
             ei.url, ei.id_onpage, ei.imported_from, ei.upload_date, ei.uploader, ei.censor_id,
-            ei.rating, ei.ratings, ei.favorites, ei.downloaded, ei.outdated
+            ei.rating, ei.ratings, ei.favorites, ei.downloaded, ei.last_update, ei.outdated
             FROM Books
             -- returns one row for each external info, due to outer joins also returns
             -- a row for books without external info

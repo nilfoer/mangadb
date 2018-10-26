@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import logging
+import datetime
 import pytest
 
 from utils import setup_mdb_dir, all_book_info
@@ -56,8 +57,16 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     actual = all_book_info(mdb.db_con, 18, include_id=False)
 
     for i, v in enumerate(actual):
-        if i == 14:
+        if i == 15:
             assert v == "to-read;to-download"
+            continue
+        elif i == 7:
+            # last_change
+            assert v == datetime.date.today()
+            continue
+        elif i == 27:
+            # last_update
+            assert v == datetime.date.today()
             continue
         assert v == expected[i]
 
