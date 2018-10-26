@@ -227,5 +227,8 @@ def all_book_info(db_con, book_id=None, include_id=True):
             GROUP BY Books.id, ei.id
             ORDER BY Books.title_eng
         """, (book_id,) if book_id else ())
-    rows = c.fetchone() if book_id else c.fetchall()
-    return rows
+    rows = c.fetchall()
+    if rows:
+        return rows if len(rows) > 1 else rows[0]
+    else:
+        return None

@@ -404,7 +404,6 @@ class Book(DBRow):
         changed_cols = [col for col in self._committed_state if col in self.COLUMNS]
 
         with db_con:
-            # addd ['last_change'] so we always write last_change
             db_con.execute(f"""UPDATE Books SET
                           {','.join((f'{col} = :{col}' for col in changed_cols))}
                           WHERE id = :id""", update_dic)

@@ -149,7 +149,7 @@ class MangaDB:
         if extr_data is None:
             logger.warning("Importing book failed!")
             return None, None
-        book, ext_info = self._book_from_data(extr_data)
+        book, ext_info = self.book_from_data(extr_data)
         book.list = lists
 
         bid, outdated_on_ei_id = book.save(block_update=True)
