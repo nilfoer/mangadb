@@ -1,7 +1,6 @@
 - check newly added books for dl (on production db)
 - tests:
     Book
-    ExternalInfo
 - remove copy pasted html/css
 
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
