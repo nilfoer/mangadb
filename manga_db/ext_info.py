@@ -102,22 +102,23 @@ class ExternalInfo(DBRow):
                 setattr(self, col, new)
 
     def update_from_url(self, force=False):
-        if not self.id and self.book:
+        if not self.id or not self.book:
             logger.info("Cant update external info without id and assoicated book!")
             return "id_or_book_missing", None
         # TODO mb propagate updates to Book?
-        book, ext_info, _ = self.manga_db.retrieve_book_data(self.url)
+        extr_data, _ = self.manga_db.retrieve_book_data(self.url)
+        book, ext_info = self.manga_db.book_from_data(extr_data)
         if book is None:
             return "no_data", None
         if book.title != self.book.title:
             logger.warning("Title at URL of external info doesnt match title of associated "
                            "book! Aborting update! Use force=True to force update!\n"
-                           "URL: %s\nTitle of associated book: %s\nTitle at URL: %s".
+                           "URL: %s\nTitle of associated book: %s\nTitle at URL: %s",
                            self.url, self.book.title, book.title)
             if not force:
-                return "title_mismatch", None
+                return "title_missmatch", None
         for col in self.COLUMNS:
-            if col == "id":
+            if col in ("id", "book_id"):
                 continue
             setattr(self, col, getattr(ext_info, col))
 
@@ -146,6 +147,9 @@ class ExternalInfo(DBRow):
             self.outdated = 0
         if self.book_id is None or self.book_id is ColumnValue.NO_VALUE:
             self.book_id = self.book.id
+        elif self.book_id != self.book.id:
+            # TODO custom exc
+            raise ValueError("book_id and book's id don't match!")
 
         # check if id_onpage,imported_from is already in db and warn
         # since it prob means that there is a new version available on the site
@@ -232,6 +236,8 @@ class ExternalInfo(DBRow):
                           {','.join((f'{col} = :{col}' for col in changed_cols))}
                           WHERE id = :id""", update_dic)
             logger.info("Updated ext_info with url \"%s\" in database!", self.url)
+        # we just commited the values -> reset _committed_state
+        self._committed_state = {}
         return self.id, field_change_str
 
     def remove(self):

@@ -127,6 +127,18 @@ class MangaDB:
             logger.warning("No book data recieved! URL was '%s'!", url)
             return None, None
 
+    def book_from_data(self, data):
+        if not data:
+            return None, None
+        # @Cleanup @Temporary convert lanugage in data to id
+        data["language_id"] = self.get_language(data["language"])
+        del data["language"]
+
+        book = Book(self, **data)
+        ext_info = ExternalInfo(self, book, **data)
+        book.ext_infos = [ext_info]
+        return book, ext_info
+
     # !!! also change single_thread_import in threads when this gets changed
     def import_book(self, url, lists):
         """
@@ -137,13 +149,7 @@ class MangaDB:
         if extr_data is None:
             logger.warning("Importing book failed!")
             return None, None
-        # @Cleanup @Temporary convert lanugage in data to id
-        extr_data["language_id"] = self.get_language(extr_data["language"])
-        del extr_data["language"]
-
-        book = Book(self, **extr_data)
-        ext_info = ExternalInfo(self, book, **extr_data)
-        book.ext_infos = [ext_info]
+        book, ext_info = self._book_from_data(extr_data)
         book.list = lists
 
         bid, outdated_on_ei_id = book.save(block_update=True)

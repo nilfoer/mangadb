@@ -285,7 +285,7 @@ def update_book_ext_info(book_id, ext_info_id):
         flash(f"URL was: {ext_info.url}")
         flash("Check the logs for more details!", "info")
         return show_info(book_id=book_id, book=old_book)
-    elif status == "title_mismatch":
+    elif status == "title_missmatch":
         flash("Update failed!", "warning")
         flash(f"Title of book at URL didn't match title '{old_book.title}'", "info")
         return show_info(book_id=book_id, book=old_book)
