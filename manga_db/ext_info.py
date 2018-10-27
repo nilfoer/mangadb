@@ -118,7 +118,7 @@ class ExternalInfo(DBRow):
             if not force:
                 return "title_missmatch", None
         for col in self.COLUMNS:
-            if col in ("id", "book_id"):
+            if col in ("id", "book_id", "outdated"):
                 continue
             setattr(self, col, getattr(ext_info, col))
 
