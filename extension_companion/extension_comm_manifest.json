@@ -1,0 +1,7 @@
+{
+  "name": "MangaDB",
+  "description": "Co-app for MangaDB",
+  "path": "N:\\coding\\tsu-info\\extension_companion\\extension_comm.bat",
+  "type": "stdio",
+  "allowed_extensions": [ "mangadb_companion@example.org" ]
+}

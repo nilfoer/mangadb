@@ -1,0 +1,38 @@
+{
+
+  "description": "Co-app for MangaDB",
+  "manifest_version": 2,
+  "name": "MangaDB Companion-App",
+  "version": "0.1",
+  "icons": {
+    "48": "ico/mangadb.png"
+  },
+
+  "applications": {
+    "gecko": {
+      "id": "mangadb_companion@example.org",
+      "strict_min_version": "50.0"
+    }
+  },
+
+  "background": {
+    "scripts": ["mangadb_co.js"]
+  },
+
+  "browser_action": {
+    "browser_style": true,
+    "default_icon": "ico/fourchandl.png",
+    "default_title": "MangaDB Companion",
+    "default_popup": "book_info_popup.html"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["*://tsumino.com/*/*"],
+      "js": ["tsu_book.js"]
+    }
+  ],
+ 
+  "permissions": ["nativeMessaging", "activeTab"]
+
+}
