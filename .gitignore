@@ -51,3 +51,4 @@ link_collect_resume.json
 test.py
 manga_db/webGUI/admin.txt
 .*/
+venv/

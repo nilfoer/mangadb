@@ -2,6 +2,8 @@ import datetime
 
 from manga_db.extractor.tsumino import TsuminoExtractor
 
+from utils import build_testsdir_furl
+
 
 manual = {
         "url": "http://www.tsumino.com/Book/Info/43357/negimatic-paradise-05-05",
@@ -32,8 +34,7 @@ manual = {
 
 def test_extr_tsu():
     t = TsuminoExtractor("http://www.tsumino.com/Book/Info/43357/negimatic-paradise-05-05-")
-    t.html = TsuminoExtractor.get_html("file:///N:/coding/tsu-info/tests/extr_tsu_files/"
-                                       "tsumino_43357_negimatic-paradise-05-05.html")
+    t.html = TsuminoExtractor.get_html(build_testsdir_furl("extr_tsu_files/tsumino_43357_negimatic-paradise-05-05.html"))
     res = t.get_metadata()
 
     assert res == manual

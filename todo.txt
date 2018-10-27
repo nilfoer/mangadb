@@ -1,4 +1,14 @@
 - check newly added books for dl (on production db)
+- test webgui: ??
+    auth system
+    import_book
+    update_book_ext_info
+    apply_upd_changes
+    list_action_ajax
+    add_ext_info
+    add_book + cancel
+    edit_book
+    upload_cover
 - remove copy pasted html/css
 
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

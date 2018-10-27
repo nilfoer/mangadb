@@ -235,3 +235,8 @@ def all_book_info(db_con, book_id=None, include_id=True):
         return rows if len(rows) > 1 else rows[0]
     else:
         return None
+
+
+def build_testsdir_furl(rel_path):
+    conv_slashes = TESTS_DIR.replace("\\", "/")
+    return f"file:///{conv_slashes}/{rel_path}"
