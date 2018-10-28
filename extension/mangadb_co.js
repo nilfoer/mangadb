@@ -38,7 +38,7 @@ function doWork(text, data) {
 Now, text will be actually 'text' in doWork and data will be the value resolved by the Promise
 */
 function sendResponseToActiveTab(msg) {    
-    console.log("To conentjs: " + msg);
+    console.log("To conentjs: ", msg);
     // use tabs.query() to get the currently active tab
     var querying = browser.tabs.query({
         active: true,
@@ -49,26 +49,17 @@ function sendResponseToActiveTab(msg) {
 }
 
 function sendNativeMsg(req) {
-    console.log("From conentjs: " + req.book_info);
-    var sending = port.postMessage(req.book_info);
-    sending.then(onResponse, onError);
+    console.log("From conentjs: ", req);
+    port.postMessage(req);
 }
 
 function onResponse(response) {    
     // these msgs only appear when debugging the addon with the addon-debugger
     // -> about:debugging -> check enable addon debugging and click on debug for your addon
-    console.log("Received " + response);
-    cover_url = response[0]
-    book_info = response[1]
-    ei_info = response[2]
+    console.log("Received ", response);
     // event will be fired in each page in your extension, except for the frame that called
     // runtime.sendMessage -> dont have to check title in sendNativeMsg
-    browser.runtime.sendMessage({
-        title: "show_book_info",
-        cover_url: cover_url,
-        book_info: book_info,
-        ei_info: ei_info
-    });
+    browser.runtime.sendMessage(response);
 }
 
 function onError(error) {
@@ -86,5 +77,5 @@ Listen for messages from the app.
 */
 port.onMessage.addListener(onResponse);
 
-// wait for content script to send msg
+// wait for content script or popup to send msg
 browser.runtime.onMessage.addListener(sendNativeMsg);

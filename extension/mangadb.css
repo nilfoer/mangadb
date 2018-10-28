@@ -1,0 +1,11 @@
+.button {
+    background-color: #0a84ff;
+    color: #fff;
+}
+#toggle-dl {
+    border: #595959 solid 1px;
+    padding: 1px;
+    background-color: #ccc;
+    color: #232323;
+    font-size: smaller;
+}

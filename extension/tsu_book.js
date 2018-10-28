@@ -9,7 +9,7 @@ function sendBookInfo() {
     book_info = getBookInfo();
     console.log(book_info);
     browser.runtime.sendMessage({
-        title: "tsu_book",
+        action: "get_book_info",
         book_info: book_info
     });
 }

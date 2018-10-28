@@ -4,6 +4,7 @@
   <head>
     <meta charset="utf-8">
     <meta id="current-url" name="ext-url" content="">
+    <link rel=stylesheet type=text/css href="mangadb.css">
   </head>
 
 <body>
@@ -25,6 +26,10 @@
       <div class="text" id="error" style="display:none"></div>
     <div class="panel-section-separator"></div>
     <div class="panel-section panel-section-list" id="ext-info-data-container">
+        <div style="display:none;" id="multiple-ei-warning" class="panel-list-item ext-info-data">
+            <div class="text">WARNING: There were multiple matching external links!
+            Only displaying first one!</div>
+        </div>
         <div class="panel-list-item ext-info-data">
             <div class="text">Uploader: <span id="Uploader"></span></div>
         </div>
@@ -35,18 +40,21 @@
             <div class="text">Censorship: <span id="Censorship"></span></div>
         </div>
         <div class="panel-list-item ext-info-data">
-            <div class="text">Downloaded: <span id="Downloaded"></span></div>
+            <div class="text">Downloaded: <span id="Downloaded"></span>
+                <span id="toggle-dl" data-ei-id="" onclick="toggleDl(this);">Toggle</span>
+            </div>
         </div>
         <div class="panel-list-item ext-info-data">
             <div class="text">Last Update: <span id="LastUpdate"></span></div>
         </div>
     </div>
 
-    <!--<div class="panel-section panel-section-footer">
-      <div id="open" class="panel-section-footer-button">Open</div>
-      <div class="panel-section-footer-separator"></div>
-      <div id="remove" class="panel-section-footer-button default">Remove</div>
-      </div>--!>
+    <div class="panel-section panel-section-footer">
+        <div id="goto-book" class="panel-section-footer-button button">
+            <a href="#" id="goto-book-link" target="_blank" style="text-decoration: none;
+                color: inherit;">Show in MangaDB</a>
+        </div>
+    </div>
   </div>
 
   <script src="show_book_info.js"></script>
