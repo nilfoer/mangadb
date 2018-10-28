@@ -11,6 +11,14 @@ from manga_db.manga_db import MangaDB
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
+def test_mdb_readonly(setup_mdb_dir):
+    tmpdir, mdb_file = setup_mdb_dir
+    mdb = MangaDB(tmpdir, mdb_file, read_only=True)
+    with pytest.raises(sqlite3.OperationalError) as e:
+        mdb.db_con.execute("INSERT INTO Tag(name) VALUES ('adkada')")
+    assert "attempt to write a readonly database" in str(e.value)
+
+
 def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     tmpdir, mdb_file = setup_mdb_dir
     tests_files_dir = os.path.join(TESTS_DIR, "mangadb_test_files")

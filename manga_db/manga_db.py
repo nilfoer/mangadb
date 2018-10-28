@@ -43,8 +43,8 @@ class MangaDB:
                          "category", "artist", "parody", "character", "collection", "groups",
                          "tag", "list"}
 
-    def __init__(self, root_dir, db_path, settings=None):
-        self.db_con, _ = self._load_or_create_sql_db(db_path)
+    def __init__(self, root_dir, db_path, read_only=False, settings=None):
+        self.db_con, _ = self._load_or_create_sql_db(db_path, read_only)
         self.db_con.row_factory = sqlite3.Row
         self.root_dir = os.path.abspath(os.path.normpath(root_dir))
         # TODO if we have mutliple users in e.g. webgui we need to have separate IdentityMaps
@@ -394,14 +394,23 @@ class MangaDB:
             return self.get_x_books(kwargs.pop("limit", 60), order_by=order_by, **kwargs)
 
     @staticmethod
-    def _load_or_create_sql_db(filename):
+    def _load_or_create_sql_db(filename, read_only=False):
         """
-        Creates connection to sqlite3 db and a cursor object. Creates the table+file if it
-        doesnt exist yet.
+        Creates connection to sqlite3 db and a cursor object. Creates the tables if
+        they dont exist yet.
+
+        If read_only is set to True the database schema won't be created!
 
         :param filename: Filename string/path to file
+        :param read_only: Whether to return a read-only database connection
         :return: connection to sqlite3 db and cursor instance
         """
+        if read_only is True:
+            # enable uri mode so we can pass mode ro for read-only access
+            conn = sqlite3.connect(f"file:{filename}?mode=ro", uri=True,
+                                   detect_types=sqlite3.PARSE_DECLTYPES)
+            c = conn.cursor()
+            return conn, c
         # PARSE_DECLTYPES -> parse types and search for converter function for
         # it instead of searching for converter func for specific column name
         conn = sqlite3.connect(filename, detect_types=sqlite3.PARSE_DECLTYPES)
