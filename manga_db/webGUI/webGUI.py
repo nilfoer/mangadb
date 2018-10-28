@@ -22,6 +22,7 @@ from .. import extractor
 
 LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
 BOOKS_PER_PAGE = 60
+PORT = 7578
 
 
 # config logging b4 this line vv
@@ -534,13 +535,14 @@ def add_ext_info(book_id):
     if not url or not book_title:
         flash(f"URL empty!")
         return redirect(url_for("show_info", book_id=book_id))
-    book, ext_info, _ = MangaDB.retrieve_book_data(url)
-    if book is None:
+    extr_data, _ = MangaDB.retrieve_book_data(url)
+    if extr_data is None:
         flash("Adding external link failed!", "warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
         return show_info(book_id=book_id)
+    book, ext_info = mdb.book_from_data(extr_data)
     if book.title != book_title:
         # just warn if titles dont match, its ultimately the users decision
         flash("Title of external link and book's title don't match!", "warning")
@@ -786,7 +788,7 @@ def remove_ext_info(book_id, ext_info_id):
 def main(debug=False):
     load_admin_credentials(app)
     # debug=True, port=5000
-    app.run(debug=debug)
+    app.run(debug=debug, port=PORT)
 
 
 if __name__ == "__main__":

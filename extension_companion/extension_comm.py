@@ -29,7 +29,7 @@ import manga_db.extractor as extr
 # DB_PATH = r"N:\_archive\test\tsu-db\manga_db.sqlite"
 DB_PATH = r"N:\coding\tsu-info\manga_db.sqlite"
 ROOTDIR = os.path.abspath(os.path.dirname(__file__))
-WEBGUI_PORT = 5000
+WEBGUI_PORT = 7578
 logging.config.dictConfig({
     'version': 1,
     'formatters': {
