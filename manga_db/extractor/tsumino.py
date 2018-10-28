@@ -42,6 +42,21 @@ class TsuminoExtractor(BaseMangaExtractor):
         else:
             return f"TsuminoExtractor('{self.url}')"
 
+    @classmethod
+    def split_title(cls, value):
+        title = re.match(cls.TITLE_RE, value)
+        if title:
+            title_eng = title.group(1)
+            title_foreign = title.group(2)
+        else:
+            if is_foreign(value):
+                title_eng = None
+                title_foreign = value
+            else:
+                title_eng = value
+                title_foreign = None
+        return title_eng, title_foreign
+
     def get_metadata(self):
         if self.metadata is None:
             if self.html is None:
@@ -83,17 +98,7 @@ class TsuminoExtractor(BaseMangaExtractor):
             elif attr == "upload_date":
                 result[attr] = datetime.datetime.strptime(value, "%Y %B %d").date()
             elif attr == "title":
-                title = re.match(self.TITLE_RE, value)
-                if title:
-                    result["title_eng"] = title.group(1)
-                    result["title_foreign"] = title.group(2)
-                else:
-                    if is_foreign(value):
-                        result["title_eng"] = None
-                        result["title_foreign"] = value
-                    else:
-                        result["title_eng"] = value
-                        result["title_foreign"] = None
+                result["title_eng"], result["title_foreign"] = self.split_title(value)
             elif attr == "tag":
                 result[attr] = value
                 if value is None:

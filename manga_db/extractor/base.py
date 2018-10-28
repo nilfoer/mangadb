@@ -22,6 +22,11 @@ class BaseMangaExtractor:
         raise NotImplementedError
 
     @classmethod
+    def split_title(cls, title):
+        # split tile into english and foreign title
+        raise NotImplementedError
+
+    @classmethod
     def book_id_from_url(cls, url):
         raise NotImplementedError
 

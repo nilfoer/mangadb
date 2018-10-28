@@ -21,7 +21,7 @@
 
   "browser_action": {
     "browser_style": true,
-    "default_icon": "ico/fourchandl.png",
+    "default_icon": "ico/mangadb.png",
     "default_title": "MangaDB Companion",
     "default_popup": "book_info_popup.html"
   },

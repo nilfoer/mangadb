@@ -20,7 +20,7 @@ from manga_db.manga_db import MangaDB
 from manga_db.manga import Book
 import manga_db.extractor as extr
 
-DB_PATH = r"N:\coding\tsu-info\manga_db.sqlite"
+DB_PATH = r"N:\_archive\test\tsu-db\manga_db.sqlite"
 ROOTDIR = os.path.abspath(os.path.dirname(__file__))
 
 # If the native application sends any output to stderr, the browser will redirect it to the browser console.
@@ -68,7 +68,7 @@ def main():
                 continue
             imported_from = extr_cls.site_id
             id_onpage = extr_cls.book_id_from_url(url)
-            title_eng, title_foreign = extr_cls.TITLE_RE.match(title).groups()
+            title_eng, title_foreign = extr_cls.split_title(title)
             b = mdb.get_book(title_eng=title_eng, title_foreign=title_foreign)
             if b is None:
                 # book not in db
