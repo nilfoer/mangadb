@@ -3,9 +3,9 @@
     color: #fff;
 }
 #toggle-dl {
-    border: #595959 solid 1px;
-    padding: 1px;
-    background-color: #ccc;
-    color: #232323;
+    padding: 2px;
+    background-color: #0a84ff;
+    color: #fff;
     font-size: smaller;
+    cursor: pointer;
 }

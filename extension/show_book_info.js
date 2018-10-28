@@ -49,12 +49,15 @@ function fillInBookInfo(req, sender, sendResponse) {
             document.getElementById("book-info-data-container").style.display = "none";
             document.getElementById("ext-info-data-container").style.display = "none";
         }
+    } else if (req.action == "toggle_dl") {
+        document.getElementById("Downloaded").innerText = req.Downloaded;
     }
 
 }
 browser.runtime.onMessage.addListener(fillInBookInfo);
 
 function toggleDl(element) {
+    // + to convert to int
     let ei_id = +this.dataset.eiId;
     let before = document.getElementById("Downloaded").innerText;
     browser.runtime.sendMessage({
@@ -63,3 +66,4 @@ function toggleDl(element) {
         before: before
     });
 }
+document.getElementById("toggle-dl").addEventListener("click", toggleDl);

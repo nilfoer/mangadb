@@ -9,6 +9,7 @@
     add_book + cancel
     edit_book
     upload_cover
+- update unchanged vals from db when loading instance?    
 - remove copy pasted html/css
 
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

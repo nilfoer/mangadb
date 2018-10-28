@@ -20,6 +20,7 @@ import logging.config
 
 from manga_db.manga_db import MangaDB
 from manga_db.manga import Book
+from manga_db.ext_info import ExternalInfo
 from manga_db.constants import CENSOR_IDS
 import manga_db.extractor as extr
 
@@ -176,8 +177,9 @@ def fetch_book_info(db_con, title_eng, title_foreign, id_onpage, imported_from):
                        ei.last_update AS LastUpdate, ei.id AS ExtInfoId
                 FROM ExternalInfo ei, Books b
                 WHERE b.id = ei.book_id
+                AND b.id = ?
                 AND ei.id_onpage = ? AND ei.imported_from = ?
-                """, (id_onpage, imported_from)).fetchall()
+                """, (b_row["BookID"], id_onpage, imported_from)).fetchall()
 
     book_info = {
             "Title": Book.build_title(title_eng=title_eng, title_foreign=title_foreign),
@@ -205,7 +207,7 @@ def fetch_book_info(db_con, title_eng, title_foreign, id_onpage, imported_from):
 
 
 def main():
-    mdb = MangaDB(os.path.dirname(DB_PATH), DB_PATH, read_only=True)
+    mdb = MangaDB(os.path.dirname(DB_PATH), DB_PATH)
     # tested: with connection-based messaging the app stays alive although it only sends
     # messages when it recieves them (tested with recording start time in variable and sending
     # that every time) whereas with connectionless messaging it always sends a new start time
@@ -235,5 +237,13 @@ def main():
             cover_url = extr_cls(url).get_cover()
             sendMessage(encodeMessage({"action": "show_book_info", "cover_url": cover_url,
                                        "book_info": book_info, "ei_info": ei_info}))
+        if receivedMessage["action"] == "toggle_dl":
+            ei_id = receivedMessage["ei_id"]
+            before = receivedMessage["before"]
+            intbool = 1 if before == "No" else 0
+            logger.debug("Toggling downloaded for ei id %d; before: %s", ei_id, before)
+            ExternalInfo.set_downloaded_id(mdb, ei_id, intbool)
+            dled = "Yes" if intbool else "No"
+            sendMessage(encodeMessage({"action": "toggle_dl", "Downloaded": dled}))
         elif receivedMessage:
             sendMessage(encodeMessage({"received_native": receivedMessage}))
