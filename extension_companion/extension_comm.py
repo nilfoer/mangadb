@@ -21,6 +21,7 @@ import logging.config
 from manga_db.manga_db import MangaDB
 from manga_db.manga import Book
 from manga_db.ext_info import ExternalInfo
+from manga_db.util import diff_update
 from manga_db.constants import CENSOR_IDS
 import manga_db.extractor as extr
 
@@ -185,7 +186,8 @@ def fetch_book_info(db_con, title_eng, title_foreign, id_onpage, imported_from):
             "Title": Book.build_title(title_eng=title_eng, title_foreign=title_foreign),
             "List": b_row["List"],
             "LastChange": b_row["LastChange"].strftime("%Y-%m-%d"),
-            "WebGUIUrl": f"http://localhost:{WEBGUI_PORT}/book/{b_row['BookID']}"
+            "WebGUIUrl": f"http://localhost:{WEBGUI_PORT}/book/{b_row['BookID']}",
+            "BookID": b_row["BookID"]
             }
     if len(ei_rows) > 1:
         multiple_ei = True
@@ -237,7 +239,7 @@ def main():
             cover_url = extr_cls(url).get_cover()
             sendMessage(encodeMessage({"action": "show_book_info", "cover_url": cover_url,
                                        "book_info": book_info, "ei_info": ei_info}))
-        if receivedMessage["action"] == "toggle_dl":
+        elif receivedMessage["action"] == "toggle_dl":
             ei_id = receivedMessage["ei_id"]
             before = receivedMessage["before"]
             intbool = 1 if before == "No" else 0
@@ -245,5 +247,15 @@ def main():
             ExternalInfo.set_downloaded_id(mdb, ei_id, intbool)
             dled = "Yes" if intbool else "No"
             sendMessage(encodeMessage({"action": "toggle_dl", "Downloaded": dled}))
+        elif receivedMessage["action"] == "set_lists":
+            book_id = receivedMessage["book_id"]
+            before = set(receivedMessage["before"].split(";"))
+            after = set(receivedMessage["after"].split(";"))
+            added, removed = diff_update(before, after)
+            if added:
+                Book.add_assoc_col_on_book_id(mdb, book_id, "list", added, before)
+            if removed:
+                Book.remove_assoc_col_on_book_id(mdb, book_id, "list", removed, before)
+            sendMessage(encodeMessage({"action": "set_lists", "List": ";".join(after)}))
         elif receivedMessage:
             sendMessage(encodeMessage({"received_native": receivedMessage}))

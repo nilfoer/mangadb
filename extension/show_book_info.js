@@ -20,14 +20,16 @@ function fillInBookInfo(req, sender, sendResponse) {
     if (req.action == "show_book_info") {
         // document.getElementById("current-url").attributes.content.value = req.url;
         console.log(req.action);
-        book_info = req.book_info;
-        ei_info = req.ei_info;
+        let book_info = req.book_info;
+        let ei_info = req.ei_info;
         // would need to check utility func to check if obj empty
         // so just check for title
         if (book_info.Title) {
             document.getElementById("cover").style.backgroundImage = "url('" + req.cover_url + "')";
             document.getElementById("Title").innerText = book_info.Title;
-            document.getElementById("List").innerText = book_info.List;
+            document.getElementById("List").value = book_info.List;
+            document.getElementById("List").dataset.before = book_info.List;
+            document.getElementById("List").dataset.book_id = book_info.BookID;
             document.getElementById("LastChange").innerText = book_info.LastChange;
             document.getElementById("goto-book-link").href = book_info.WebGUIUrl;
             if (ei_info.LastUpdate) {
@@ -51,6 +53,9 @@ function fillInBookInfo(req, sender, sendResponse) {
         }
     } else if (req.action == "toggle_dl") {
         document.getElementById("Downloaded").innerText = req.Downloaded;
+    } else if (req.action == "set_lists") {
+        document.getElementById("List").value = req.List;
+        document.getElementById("List").dataset.before = req.List;
     }
 
 }
@@ -58,7 +63,7 @@ browser.runtime.onMessage.addListener(fillInBookInfo);
 
 function toggleDl(element) {
     // + to convert to int
-    let ei_id = +this.dataset.eiId;
+    let ei_id = Number(this.dataset.eiId);
     let before = document.getElementById("Downloaded").innerText;
     browser.runtime.sendMessage({
         action: "toggle_dl",
@@ -67,3 +72,19 @@ function toggleDl(element) {
     });
 }
 document.getElementById("toggle-dl").addEventListener("click", toggleDl);
+document.getElementById("List").addEventListener("mouseover", function(event) {
+    event.currentTarget.disabled = false;
+});
+document.getElementById("List").addEventListener("focusout", function(event) {
+    event.currentTarget.disabled = true;
+    // Number(x) is same as doing +x
+    let book_id = Number(event.currentTarget.dataset.book_id);
+    let before = event.currentTarget.dataset.before;
+    let after = event.currentTarget.value;
+    browser.runtime.sendMessage({
+        action: "set_lists",
+        book_id: book_id,
+        before: before,
+        after: after
+    });
+});

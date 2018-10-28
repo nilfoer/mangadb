@@ -9,3 +9,7 @@
     font-size: smaller;
     cursor: pointer;
 }
+
+#multiple-ei-warning {
+    margin: 5px 0;
+}
