@@ -50,9 +50,7 @@ function sendResponseToActiveTab(msg) {
 
 function sendNativeMsg(req) {
     console.log("From conentjs: " + req.book_info);
-    var sending = browser.runtime.sendNativeMessage(
-        "MangaDB",
-        req.book_info);
+    var sending = port.postMessage(req.book_info);
     sending.then(onResponse, onError);
 }
 
@@ -76,6 +74,17 @@ function onResponse(response) {
 function onError(error) {
   console.log(`Error: ${error}`);
 }
+
+/*
+On startup, connect to the "MangaDB" app.
+*/
+var port = browser.runtime.connectNative("MangaDB");
+// The application stays running until the extension calls Port.disconnect() or the page that connected to it is closed.
+
+/*
+Listen for messages from the app.
+*/
+port.onMessage.addListener(onResponse);
 
 // wait for content script to send msg
 browser.runtime.onMessage.addListener(sendNativeMsg);

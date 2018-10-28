@@ -55,6 +55,10 @@ def sendMessage(encodedMessage):
 
 def main():
     mdb = MangaDB(os.path.dirname(DB_PATH), DB_PATH, read_only=True)
+    # tested: with connection-based messaging the app stays alive although it only sends
+    # messages when it recieves them (tested with recording start time in variable and sending
+    # that every time) whereas with connectionless messaging it always sends a new start time
+    # since it restarts every time
     while True:
         receivedMessage = getMessage()
         # data in stdout has to follow nativeMessaging protocol so for debugging write to stderr
