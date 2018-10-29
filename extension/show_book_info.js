@@ -32,6 +32,8 @@ function fillInBookInfo(req, sender, sendResponse) {
             document.getElementById("List").dataset.book_id = book_info.BookID;
             document.getElementById("LastChange").innerText = book_info.LastChange;
             document.getElementById("goto-book-link").href = book_info.WebGUIUrl;
+            document.getElementById("Favorite").innerText = book_info.Favorite;
+            document.getElementById("toggle-fav").dataset.book_id = book_info.BookID;
             if (ei_info.LastUpdate) {
                 document.getElementById("Uploader").innerText = ei_info.Uploader;
                 document.getElementById("UploadDate").innerText = ei_info.UploadDate;
@@ -53,6 +55,8 @@ function fillInBookInfo(req, sender, sendResponse) {
         }
     } else if (req.action == "toggle_dl") {
         document.getElementById("Downloaded").innerText = req.Downloaded;
+    } else if (req.action == "toggle_fav") {
+        document.getElementById("Favorite").innerText = req.Favorite;
     } else if (req.action == "set_lists") {
         document.getElementById("List").value = req.List;
         document.getElementById("List").dataset.before = req.List;
@@ -72,6 +76,17 @@ function toggleDl(element) {
     });
 }
 document.getElementById("toggle-dl").addEventListener("click", toggleDl);
+function toggleFav(element) {
+    // + to convert to int
+    let book_id = Number(this.dataset.book_id);
+    let before = document.getElementById("Favorite").innerText;
+    browser.runtime.sendMessage({
+        action: "toggle_fav",
+        book_id: book_id,
+        before: before
+    });
+}
+document.getElementById("toggle-fav").addEventListener("click", toggleFav);
 document.getElementById("List").addEventListener("mouseover", function(event) {
     event.currentTarget.disabled = false;
 });

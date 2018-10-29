@@ -162,7 +162,7 @@ def fetch_book_info(db_con, title_eng, title_foreign, id_onpage, imported_from):
                        FROM BookList bl, List l
                        WHERE bl.book_id = b.id
                        AND bl.list_id = l.id
-                   ) AS List
+                   ) AS List, b.favorite AS Favorite
             FROM Books b
             WHERE b.title_eng {'= :title_eng' if title_eng is not None else 'IS NULL'}
             AND b.title_foreign {'= :title_foreign' if title_foreign is not None else 'IS NULL'}
@@ -187,7 +187,8 @@ def fetch_book_info(db_con, title_eng, title_foreign, id_onpage, imported_from):
             "List": b_row["List"],
             "LastChange": b_row["LastChange"].strftime("%Y-%m-%d"),
             "WebGUIUrl": f"http://localhost:{WEBGUI_PORT}/book/{b_row['BookID']}",
-            "BookID": b_row["BookID"]
+            "BookID": b_row["BookID"],
+            "Favorite": "Yes" if b_row["Favorite"] else "No"
             }
     if len(ei_rows) > 1:
         multiple_ei = True
@@ -247,6 +248,14 @@ def main():
             ExternalInfo.set_downloaded_id(mdb, ei_id, intbool)
             dled = "Yes" if intbool else "No"
             sendMessage(encodeMessage({"action": "toggle_dl", "Downloaded": dled}))
+        elif receivedMessage["action"] == "toggle_fav":
+            book_id = receivedMessage["book_id"]
+            before = receivedMessage["before"]
+            intbool = 1 if before == "No" else 0
+            logger.debug("Toggling favorite for book id %d; before: %s", book_id, before)
+            Book.set_favorite_id(mdb, book_id, intbool)
+            faved = "Yes" if intbool else "No"
+            sendMessage(encodeMessage({"action": "toggle_fav", "Favorite": faved}))
         elif receivedMessage["action"] == "set_lists":
             book_id = receivedMessage["book_id"]
             before = set(receivedMessage["before"].split(";"))
