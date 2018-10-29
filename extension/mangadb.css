@@ -13,3 +13,10 @@
 #multiple-ei-warning {
     margin: 5px 0;
 }
+.book-data-type {
+    width: 10%;
+    margin-right: 3px;
+}
+.data-text {
+    width: 90%;
+}

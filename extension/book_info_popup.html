@@ -14,19 +14,19 @@
     cover;"><!-- An image goes here. --></div>
   <div class="text-section-header" id="Title">Book not in DB!</div>
 </header>
-  <div class="panel" id="data-wrapper">
+  <div class="panel" id="data-wrapper" style="display:none;">
     <div class="panel-section panel-section-list" id="book-info-data-container">
         <div class="panel-list-item book-data">
-            <div class="text">List: <input disabled id="List" placeholder="Type in lists separated by ';'" value=""></input>
+            <div class="text"><span class="book-data-type">List: </span><input disabled class="data-text" id="List" placeholder="Type in lists separated by ';'" value=""></input>
             </div>
         </div>
         <div class="panel-list-item book-data">
-            <div class="text">Favorite: <span id="Favorite"></span>
+            <div class="text"><span class="book-data-type">Favorite: </span><span class="data-text" id="Favorite"></span>
                 <span id="toggle-fav" class="toggle-button">Toggle</span>
             </div>
         </div>
         <div class="panel-list-item book-data">
-            <div class="text">Last Change: <span id="LastChange"></span></div>
+            <div class="text"><span class="book-data-type">Last Change: </span><span class="data-text" id="LastChange"></span></div>
         </div>
     </div>
       <div class="text" id="error" style="display:none"></div>
@@ -37,21 +37,21 @@
             Only displaying first one!</div>
         </div>
         <div class="panel-list-item ext-info-data">
-            <div class="text">Uploader: <span id="Uploader"></span></div>
+            <div class="text"><span class="book-data-type">Uploader: </span><span class="data-text" id="Uploader"></span></div>
         </div>
         <div class="panel-list-item ext-info-data">
-            <div class="text">Upload Date: <span id="UploadDate"></span></div>
+            <div class="text"><span class="book-data-type">Upload Date: </span><span class="data-text" id="UploadDate"></span></div>
         </div>
         <div class="panel-list-item ext-info-data">
-            <div class="text">Censorship: <span id="Censorship"></span></div>
+            <div class="text"><span class="book-data-type">Censorship: </span><span class="data-text" id="Censorship"></span></div>
         </div>
         <div class="panel-list-item ext-info-data">
-            <div class="text">Downloaded: <span id="Downloaded"></span>
+            <div class="text"><span class="book-data-type">Downloaded: </span><span class="data-text" id="Downloaded"></span>
                 <span id="toggle-dl" class="toggle-button" data-ei-id="">Toggle</span>
             </div>
         </div>
         <div class="panel-list-item ext-info-data">
-            <div class="text">Last Update: <span id="LastUpdate"></span></div>
+            <div class="text"><span class="book-data-type">Last Update: </span><span class="data-text" id="LastUpdate"></span></div>
         </div>
     </div>
 

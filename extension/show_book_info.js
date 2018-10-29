@@ -25,6 +25,7 @@ function fillInBookInfo(req, sender, sendResponse) {
         // would need to check utility func to check if obj empty
         // so just check for title
         if (book_info.Title) {
+            document.getElementById("data-wrapper").style.display = "block";
             document.getElementById("cover").style.backgroundImage = "url('" + req.cover_url + "')";
             document.getElementById("Title").innerText = book_info.Title;
             document.getElementById("List").value = book_info.List;

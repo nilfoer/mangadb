@@ -1,5 +1,4 @@
 - check newly added books for dl (on production db)
-- add favorite to extension, list input full width
 - add cmd for linkcol, set download in linkcol, linkcol wrong out when removing
 - fix webgui (esp. retrieve book data)
     - fix: jump to http://www.tsumino.com/Book/Info/27535/the-night-she-touched-me-fakku -> shows add anyway
