@@ -267,7 +267,7 @@ def jump_to_book_by_url():
         return render_template(
             'show_entries.html',
             books=books,
-            add_anyway=url_for('import_book', ext_url=url),
+            add_anyway=url,
             order_col_libox="id",
             asc_desc="DESC")
     else:
@@ -294,7 +294,8 @@ def update_book_ext_info(book_id, ext_info_id):
     changes, _ = old_book.diff(new_book)
     # filter changes and convert to jinja friendlier format
     changes = {key: changes[key] for key in changes if key not in {"id", "last_change",
-                                                                   "note", "title"}}
+                                                                   "note", "title",
+                                                                   "favorite", "list"}}
     converted = {"normal": {col: changes[col] for col in changes
                             if col in Book.COLUMNS},
                  "added_removed": {col: changes[col] for col in changes
@@ -314,17 +315,20 @@ def update_book_ext_info(book_id, ext_info_id):
     except KeyError:
         pass
 
-    flash("Book was updated!", "title")
+    flash("External link was updated!", "title")
 
     _, ext_info_chstr = ext_info.save()
     if ext_info_chstr:
-        flash("WARNING", "warning")
-        flash(f"Changes on external link {ext_info.site}:", "info")
+        # :re_dl_warning
+        if ext_info_chstr.startswith("Please re-download"):
+            flash("WARNING", "warning")
+        flash(f"Changes on external link on {ext_info.site}:", "info")
         for change in ext_info_chstr.splitlines():
+            if change.startswith("last_update"):
+                continue
             flash(change, "info")
 
-    # dont pass book so we get new book with updated ext_info from db
-    return show_info(book_id, book_upd_changes=converted)
+    return show_info(book_id, book_upd_changes=converted if changes else None)
 
 
 @app.route('/book/<int:book_id>/apply_update', methods=["POST"])

@@ -1,7 +1,13 @@
 {% extends "layout.html" %}
 {% block body %}
 {% if add_anyway %}
-<div class="row" style="margin: -1em 0 1em auto;"><a class="book-read-button button-stack green-color" href="{{ add_anyway }}">Add Book anyway!</a></div>
+<div class="row" style="margin: -1em 0 1em auto;">
+    <form method=post action="{{ url_for('import_book') }}">
+        {{ csrf_token_field() }}
+        <input type="hidden" name="ext_url" value="{{ add_anyway }}"/>
+        <button class="book-read-button button-stack green-color" type="submit">Add Book anyway!</button>
+    </form>
+</div>
 {% endif %}
 <div class="row search-all">
 <form action="{{ url_for('search_books') }}" method=get class="search-tags">

@@ -118,9 +118,11 @@ class ExternalInfo(DBRow):
             if not force:
                 return "title_missmatch", None
         for col in self.COLUMNS:
-            if col in ("id", "book_id", "outdated"):
+            if col in ("id", "book_id", "outdated", "downloaded"):
                 continue
-            setattr(self, col, getattr(ext_info, col))
+            new = getattr(ext_info, col)
+            if new != getattr(self, col):
+                setattr(self, col, new)
 
         self.set_updated()
         return "updated", book
@@ -218,6 +220,7 @@ class ExternalInfo(DBRow):
         redl_on_field_change = ("censor_id", "uploader", "upload_date", "pages")
         if any((True for col in self._committed_state if col in redl_on_field_change)):
             # automatic joining of strings only works inside ()
+            # if msg changes also change :re_dl_warning
             field_change_str = (f"Please re-download \"{self.url}\", since the "
                                 "change of the following fields suggest that someone has "
                                 f"uploaded a new version:\n{field_change_str}")
