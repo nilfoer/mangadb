@@ -24,7 +24,7 @@ def thread_retrieve_data_or_cover(url_queue, book_queue):
             break
         if task == RETRIEVE_BOOK_DATA:
             try:
-                url, lists = data
+                url = data
                 print(f"{current_thread().name}: Getting data for url {url}")
                 extr_data, thumb_url = MangaDB.retrieve_book_data(url)
                 # also put None in the queue so importer know the link was processed
@@ -82,7 +82,8 @@ def single_thread_import(url_lists, to_process, url_queue, book_queue):
             book = Book(mdb, **extr_data)
             ext_info = ExternalInfo(mdb, book, **extr_data)
             book.ext_infos = [ext_info]
-            book.list = url_lists[url]
+            book.list = url_lists[url]["lists"]
+            ext_info.downloaded = 1 if url_lists[url]["downloaded"] else 0
 
             bid, outdated_on_ei_id = book.save(block_update=True)
         except Exception:
@@ -109,8 +110,8 @@ def import_multiple(url_lists):
     url_queue = Queue()
     book_queue = Queue()
     print("** Filling URL Queue! **")
-    for url, lists in url_lists.items():
-        url_queue.put((RETRIEVE_BOOK_DATA, (url, lists)))
+    for url, url_data in url_lists.items():
+        url_queue.put((RETRIEVE_BOOK_DATA, url))
 
     print("** Starting threads! **")
     url_workers = []

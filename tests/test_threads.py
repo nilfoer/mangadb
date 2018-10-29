@@ -54,11 +54,11 @@ def test_import_multiple(setup_mdb_dir, monkeypatch):
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", new_get_html)
     # patch get_cover to point to thumb on disk
     monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", new_get_cover)
-    url_links = import_json(os.path.join(TESTS_DIR, "all_test_files",
+    url_links = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                          "to_import_link_collect_resume.json"))
     import_multiple(url_links)
     con_res = sqlite3.connect(mdb_file, detect_types=sqlite3.PARSE_DECLTYPES)
-    con_expected = sqlite3.connect(os.path.join(TESTS_DIR, "all_test_files",
+    con_expected = sqlite3.connect(os.path.join(TESTS_DIR, "threads_test_files",
                                                 "manga_db_to_import.sqlite"),
                                    detect_types=sqlite3.PARSE_DECLTYPES)
     # order isnt predictable since order depends on how fast html is retrieved

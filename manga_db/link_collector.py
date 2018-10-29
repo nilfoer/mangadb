@@ -22,7 +22,8 @@ class LinkCollector(cmd.Cmd):
     def __init__(self, standard_lists):
         super().__init__()
         # must be immutable
-        self._standard_lists = tuple(standard_lists)
+        self._standard_downloaded = "downloaded" in standard_lists
+        self._standard_lists = tuple((x for x in standard_lists if x != "downloaded"))
         self.links = {}
         self._recent_value = ""
 
@@ -49,10 +50,65 @@ class LinkCollector(cmd.Cmd):
                 try:
                     extractor.find(url)
                     logger.info("Found supported url: %s", url)
-                    self.links[url] = self._standard_lists
+                    self.links[url] = {"lists": self._standard_lists,
+                                       "downloaded": self._standard_downloaded}
                     self._recent_value = url
                 except extractor.NoExtractorFound:
                     logger.info("Unsupported URL!")
+
+    def do_add(self, args):
+        arg_li = args.split()
+        if not arg_li:
+            print("No arguments supplied!")
+            return
+        url, lists = arg_li[0], arg_li[1:]
+        downloaded = "downloaded" in lists
+        if downloaded:
+            lists.remove("downloaded")
+        try:
+            extractor.find(url)
+            logger.info("Added url: %s(%s, %s)", url, lists, downloaded)
+            self.links[url] = {"lists": lists, "downloaded": downloaded}
+            self._recent_value = url
+        except extractor.NoExtractorFound:
+            logger.info("Unsupported URL!")
+
+    def do_print(self, url):
+        if url == "all":
+            print("\n".join((f"{k}: {v}" for k, v in self.links.items())))
+        elif url:
+            try:
+                print(self.links[url])
+            except KeyError:
+                print("No such url: {url}")
+        else:
+            if self._recent_value:
+                try:
+                    print(self.links[self._recent_value])
+                except KeyError:
+                    print("Recent value was deleted from links!")
+            else:
+                print("No links yet!")
+
+    def do_p(self, url):
+        """Alias for print"""
+        self.do_print(url)
+
+    def do_set_standard_lists(self, args):
+        """
+        Sets standard lists that get added to book when collecting links
+        Usage: set_standard_lists [list [list ...]]
+        use 'recent' as url to change lists of most recently added url
+        """
+        lists = args.split()
+        if not lists:
+            print("No arguments supplied!")
+            return
+        self._standard_downloaded = "downloaded" in lists
+        if self._standard_downloaded:
+            lists.remove("downloaded")
+        self._standard_lists = tuple(lists)
+        logger.info("Changed standard lists to %s", lists)
 
     def do_set_lists(self, args):
         """
@@ -65,20 +121,55 @@ class LinkCollector(cmd.Cmd):
             print("No arguments supplied!")
             return
         # shortcut to change most recent book
-        url = arg_li[0] if arg_li[0] != "recent" else self._recent_value
+        url = arg_li[0] if arg_li[0] not in ("recent", "r") else self._recent_value
+        if not url:
+            print("No links yet!")
+            return
         lists = arg_li[1:]
         if url in self.links:
-            self.links[url] = tuple(lists)
+            downloaded = "downloaded" in lists
+            if downloaded:
+                lists.remove("downloaded")
+            self.links[url]["lists"] = lists
+            self.links[url]["downloaded"] = downloaded
+            logger.info("Changed lists of %s to %s", url, lists)
         else:
             print("Given url wasnt found in links!")
+
+    def do_sl(self, args):
+        """Alias for set_lists"""
+        self.do_set_lists(args)
+
+    def do_not_downloaded(self, url):
+        if not url:
+            print("URL needed!")
+            return
+        url = url if url not in ("recent", "r") else self._recent_value
+        if not url:
+            print("No links yet!")
+            return
+        try:
+            self.links[url]["downloaded"] = False
+        except KeyError:
+            print("No such url!")
+
+    def do_ndl(self, url):
+        self.do_not_downloaded(url)
 
     def do_remove(self, url):
         """
         Remove url from links: remove url
         Shortcut: remove recent - to remove last url"""
-        rem = self.links.pop(url if url != "recent" else self._recent_value, None)
+        if not url:
+            print("No arguments supplied!")
+            return
+        url = url if url not in ("recent", "r") else self._recent_value
+        if not url:
+            print("No links to remove!")
+            return
+        rem = self.links.pop(url, None)
         if rem is not None:
-            logger.info("Removed %s from link list!", rem)
+            logger.info("Removed %s: %s from link list!", url, rem)
 
     def do_import(self, args):
         logger.info("Started working on list with %d items!", len(self.links))
