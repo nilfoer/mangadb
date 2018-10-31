@@ -7,49 +7,23 @@ import os.path
 import json
 import secrets
 from flask import (
-        Flask, request, redirect, url_for,
+        current_app, request, redirect, url_for,
         render_template, flash, send_from_directory,
         jsonify, send_file, abort, session, Markup,
 )
 
-from .auth import auth_bp, load_admin_credentials
 from .json import to_serializable
+from .mdb import app
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
 from ..manga import Book
 from ..ext_info import ExternalInfo
 from .. import extractor
 
-LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
 BOOKS_PER_PAGE = 60
-PORT = 7578
 
-
-# config logging b4 this line vv
-app = Flask(__name__)  # create the application instance :)
-
-# Load default config and override config from an environment variable
-app.config.update(
-    dict(
-        # DATABASE=os.path.join(app.root_path, 'flaskr.db'),
-        # unsafe key for dev purposes otherwise use tru random bytes like:
-        # python -c "import os; print(os.urandom(24))"
-        SECRET_KEY='mangadb dev'))
-
-# register blueprint has to come after routes were added to it
-app.register_blueprint(auth_bp)
-
-# blueprint = Blueprint('thumbs', __name__, static_url_path='/thumbs', static_folder='/thumbs')
-# app.register_blueprint(blueprint)
-
-mdb = MangaDB(".", "manga_db.sqlite")
-
-# path to thumbs folder
-app.config['THUMBS_FOLDER'] = os.path.join(mdb.root_dir, "thumbs")
 # thumb extensions
 ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
-# limit upload size to 0,5MB
-app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024
 
 # create route for thumbs/static data that isnt in static, can be used in template with
 # /thumbs/path/filename or with url_for(thumb_static, filename='filename')
