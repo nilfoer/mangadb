@@ -1,4 +1,3 @@
-- check newly added books for dl (on production db)
 - test webgui: ??
     auth system
     import_book
@@ -12,6 +11,7 @@
 - update unchanged vals from db when loading instance?    
 - remove copy pasted html/css
 
+--IDEAS/NEW FEATURES-------------------------------------------------------------------------------------------------------
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object
     e.g. for ExternalInfo remove book_id Column and leave book AssociatedColumnOne
     or leave col but make book not be an associated col but relationship property or sth similar like in sqlalchemy    
@@ -20,6 +20,13 @@
                 -> either leaves assoc col alone if theyre lazy loaded
                 -> or loads them if theyre eager loaded
 - actual DBRow obj in assoc col
+- change title to many to many relationship so a book can have many diff titles e.g. for diff langs or titles with translation and magazine information etc?
+- incomplete chapters/volumes on sites other than tsumino (tsumino only uploads a complete chapter or a complete volume with only a few exceptions)
+    - col for parent book?
+    - 
+- books that are not (yet) completely translated:
+    way of tracking them and checking for translation?
+    or should user handle that himself separately from mdb?
 
        
 --CANCELED-----------------------------------------------------------------------------------------------------------------

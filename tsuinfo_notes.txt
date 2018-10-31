@@ -638,3 +638,45 @@ don't need to see the bank's response, they just want the money in their account
 
 As only state-changing operations are likely to be targets of CSRF attacks, only they need CSRF defenses.
 __________________________________________________________________________________________________________
+flask db access
+if we use an app factory we cant create the db conn in the module code otherwise a diff thread will try to use it
+and the program crashes
+
+flask tutorial suggests to save db connection in g object which is unqiue for every request
+not viable in my case since i wouldnt be able to leverage id_map of MangaDB an recreating MangaDB for every request
+would be inefficient
+->  rather save mdb instance in app_config directly in factoy func 
+    or saving in sep module as var is not as clean? cant init it in factory func since current_app doesnt
+        exist at that point yet, i could create a func that inits the module var and takes app as argument so it
+        can be called from app factory
+    or as var in module but it wont be imported or used in factory func/__init__ so it can use current_app
+        doesnt work since we import blueprints and at that point we dont have app context yet
+-> both of these fail with sqlite3.ProgrammingError due to a a connection being used by a thread that it wasnt created in        
+
+since apparently every request is run on a sep thread
+[2018-10-31 16:46:45,239] INFO on (Thread-1  ) in __init__: Creating app
+[2018-10-31 16:46:46,766] WARNING on (MainThread) in _internal:  * Debugger is active!
+[2018-10-31 16:46:46,773] INFO on (MainThread) in _internal:  * Debugger PIN: 177-547-265
+[2018-10-31 16:46:46,785] INFO on (Thread-2  ) in _internal:  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+[2018-10-31 16:46:47,964] INFO on (Thread-3  ) in __init__: Getting DB
+[2018-10-31 16:46:47,997] INFO on (Thread-3  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:46:47] "GET / HTTP/1.1" 200 -
+[2018-10-31 16:48:12,934] INFO on (Thread-5  ) in __init__: Getting DB
+[2018-10-31 16:48:12,944] INFO on (Thread-5  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:48:12] "GET / HTTP/1.1" 200 -
+[2018-10-31 16:48:16,509] INFO on (Thread-6  ) in __init__: Getting DB
+[2018-10-31 16:48:16,522] INFO on (Thread-6  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:48:16] "GET / HTTP/1.1" 200 -
+even without debug mode:
+ * Debug mode: off
+[2018-10-31 16:52:36,534] INFO on (MainThread) in __init__: Creating app
+[2018-10-31 16:52:38,006] INFO on (MainThread) in _internal:  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+[2018-10-31 16:52:43,402] INFO on (Thread-1  ) in __init__: Getting DB
+[2018-10-31 16:52:43,413] INFO on (Thread-1  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:52:43] "GET / HTTP/1.1" 200 -
+[2018-10-31 16:52:48,438] INFO on (Thread-2  ) in __init__: Getting DB
+[2018-10-31 16:52:48,450] INFO on (Thread-2  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:52:48] "GET / HTTP/1.1" 200 -
+[2018-10-31 16:52:49,773] INFO on (Thread-3  ) in __init__: Getting DB
+[2018-10-31 16:52:49,799] INFO on (Thread-3  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:52:49] "GET / HTTP/1.1" 200 -
+[2018-10-31 16:54:24,125] INFO on (Thread-5  ) in __init__: Getting DB
+[2018-10-31 16:54:24,147] INFO on (Thread-5  ) in _internal: 127.0.0.1 - - [31/Oct/2018 16:54:24] "GET / HTTP/1.1" 200 -
+
+-> would lose id_map benefits since mdb is only alive for one request if threaded
+-> to be able to use flask threaded: rewrite of MangaDB needed so that its similar to sqlalchemy in that it handles 
+    new/delete/update itself in (scoped)sessions with a connection from connection pool
