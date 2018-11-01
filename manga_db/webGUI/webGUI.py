@@ -13,7 +13,7 @@ from flask import (
 )
 
 from .auth import auth_bp, load_admin_credentials
-from .json import to_serializable
+from .json_custom import to_serializable
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
 from ..manga import Book
@@ -43,6 +43,7 @@ app.register_blueprint(auth_bp)
 # app.register_blueprint(blueprint)
 
 mdb = MangaDB(".", "manga_db.sqlite")
+app.config["MANGADB"] = mdb
 
 # path to thumbs folder
 app.config['THUMBS_FOLDER'] = os.path.join(mdb.root_dir, "thumbs")

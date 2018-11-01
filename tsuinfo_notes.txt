@@ -680,3 +680,401 @@ even without debug mode:
 -> would lose id_map benefits since mdb is only alive for one request if threaded
 -> to be able to use flask threaded: rewrite of MangaDB needed so that its similar to sqlalchemy in that it handles 
     new/delete/update itself in (scoped)sessions with a connection from connection pool
+    
+sqlalchemy uses scoped_session for threaded use
+flask-sqlalchemy uses wrapper SQLAlchemy around sqlalchemy with which you can access Query Model session
+    -> uses scoped_session
+flask-sqlalchemy uses werkzeug.local.Local.__identfunc__ for sqlalchemy's scoped_session scopefunc by default
+    -> is greenlet.get_ident or thread.get_ident
+flask-sqlalchemy:
+def create_scoped_session(self, options=None):
+        """Create a :class:`~sqlalchemy.orm.scoping.scoped_session`
+        on the factory from :meth:`create_session`.
+
+        An extra key ``'scopefunc'`` can be set on the ``options`` dict to
+        specify a custom scope function.  If it's not provided, Flask's app
+        context stack identity is used. This will ensure that sessions are
+        created and removed with the request/response cycle, and should be fine
+        in most cases.
+
+        :param options: dict of keyword arguments passed to session class  in
+            ``create_session``
+        """
+
+        if options is None:
+            options = {}
+
+        scopefunc = options.pop('scopefunc', _app_ctx_stack.__ident_func__)
+        options.setdefault('query_cls', self.Query)
+        return orm.scoped_session(
+            self.create_session(options), scopefunc=scopefunc
+        )    
+flask: app_ctx_stack
+_app_ctx_stack = LocalStack()
+LocalStack imported from werkzeug.local:
+def release_local(local):
+    """Releases the contents of the local for the current context.
+    This makes it possible to use locals without a manager.
+
+    Example::
+
+        >>> loc = Local()
+        >>> loc.foo = 42
+        >>> release_local(loc)
+        >>> hasattr(loc, 'foo')
+        False
+
+    With this function one can release :class:`Local` objects as well
+    as :class:`LocalStack` objects.  However it is not possible to
+    release data held by proxies that way, one always has to retain
+    a reference to the underlying local object in order to be able
+    to release it.
+
+    .. versionadded:: 0.6.1
+    """
+    local.__release_local__()
+
+
+class Local(object):
+    __slots__ = ('__storage__', '__ident_func__')
+
+    def __init__(self):
+        object.__setattr__(self, '__storage__', {})
+        object.__setattr__(self, '__ident_func__', get_ident)
+
+    def __iter__(self):
+        return iter(self.__storage__.items())
+
+    def __call__(self, proxy):
+        """Create a proxy for a name."""
+        return LocalProxy(self, proxy)
+
+    def __release_local__(self):
+        self.__storage__.pop(self.__ident_func__(), None)
+
+    def __getattr__(self, name):
+        try:
+            return self.__storage__[self.__ident_func__()][name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name, value):
+        ident = self.__ident_func__()
+        storage = self.__storage__
+        try:
+            storage[ident][name] = value
+        except KeyError:
+            storage[ident] = {name: value}
+
+    def __delattr__(self, name):
+        try:
+            del self.__storage__[self.__ident_func__()][name]
+        except KeyError:
+            raise AttributeError(name)
+
+
+class LocalStack(object):
+
+    """This class works similar to a :class:`Local` but keeps a stack
+    of objects instead.  This is best explained with an example::
+
+        >>> ls = LocalStack()
+        >>> ls.push(42)
+        >>> ls.top
+        42
+        >>> ls.push(23)
+        >>> ls.top
+        23
+        >>> ls.pop()
+        23
+        >>> ls.top
+        42
+
+    They can be force released by using a :class:`LocalManager` or with
+    the :func:`release_local` function but the correct way is to pop the
+    item from the stack after using.  When the stack is empty it will
+    no longer be bound to the current context (and as such released).
+
+    By calling the stack without arguments it returns a proxy that resolves to
+    the topmost item on the stack.
+
+    .. versionadded:: 0.6.1
+    """
+
+    def __init__(self):
+        self._local = Local()
+
+    def __release_local__(self):
+        self._local.__release_local__()
+
+    def _get__ident_func__(self):
+        return self._local.__ident_func__
+
+    def _set__ident_func__(self, value):
+        object.__setattr__(self._local, '__ident_func__', value)
+    __ident_func__ = property(_get__ident_func__, _set__ident_func__)
+    del _get__ident_func__, _set__ident_func__
+
+    def __call__(self):
+        def _lookup():
+            rv = self.top
+            if rv is None:
+                raise RuntimeError('object unbound')
+            return rv
+        return LocalProxy(_lookup)
+
+    def push(self, obj):
+        """Pushes a new item to the stack"""
+        rv = getattr(self._local, 'stack', None)
+        if rv is None:
+            self._local.stack = rv = []
+        rv.append(obj)
+        return rv
+
+    def pop(self):
+        """Removes the topmost item from the stack, will return the
+        old value or `None` if the stack was already empty.
+        """
+        stack = getattr(self._local, 'stack', None)
+        if stack is None:
+            return None
+        elif len(stack) == 1:
+            release_local(self._local)
+            return stack[-1]
+        else:
+            return stack.pop()
+
+    @property
+    def top(self):
+        """The topmost item on the stack.  If the stack is empty,
+        `None` is returned.
+        """
+        try:
+            return self._local.stack[-1]
+        except (AttributeError, IndexError):
+            return None
+            
+sqlalchemy.orm.scoping.scoped_session:
+class scoped_session(object):
+    """Provides scoped management of :class:`.Session` objects.
+
+    See :ref:`unitofwork_contextual` for a tutorial.
+
+    """
+
+    session_factory = None
+    """The `session_factory` provided to `__init__` is stored in this
+    attribute and may be accessed at a later time.  This can be useful when
+    a new non-scoped :class:`.Session` or :class:`.Connection` to the
+    database is needed."""
+
+    def __init__(self, session_factory, scopefunc=None):
+        """Construct a new :class:`.scoped_session`.
+
+        :param session_factory: a factory to create new :class:`.Session`
+         instances. This is usually, but not necessarily, an instance
+         of :class:`.sessionmaker`.
+        :param scopefunc: optional function which defines
+         the current scope.   If not passed, the :class:`.scoped_session`
+         object assumes "thread-local" scope, and will use
+         a Python ``threading.local()`` in order to maintain the current
+         :class:`.Session`.  If passed, the function should return
+         a hashable token; this token will be used as the key in a
+         dictionary in order to store and retrieve the current
+         :class:`.Session`.
+
+        """
+        self.session_factory = session_factory
+
+        if scopefunc:
+            self.registry = ScopedRegistry(session_factory, scopefunc)
+        else:
+            self.registry = ThreadLocalRegistry(session_factory)
+
+    def __call__(self, **kw):
+        r"""Return the current :class:`.Session`, creating it
+        using the :attr:`.scoped_session.session_factory` if not present.
+
+        :param \**kw: Keyword arguments will be passed to the
+         :attr:`.scoped_session.session_factory` callable, if an existing
+         :class:`.Session` is not present.  If the :class:`.Session` is present
+         and keyword arguments have been passed,
+         :exc:`~sqlalchemy.exc.InvalidRequestError` is raised.
+
+        """
+        if kw:
+            scope = kw.pop('scope', False)
+            if scope is not None:
+                if self.registry.has():
+                    raise sa_exc.InvalidRequestError(
+                        "Scoped session is already present; "
+                        "no new arguments may be specified.")
+                else:
+                    sess = self.session_factory(**kw)
+                    self.registry.set(sess)
+                    return sess
+            else:
+                return self.session_factory(**kw)
+        else:
+            return self.registry()
+
+    def remove(self):
+        """Dispose of the current :class:`.Session`, if present.
+
+        This will first call :meth:`.Session.close` method
+        on the current :class:`.Session`, which releases any existing
+        transactional/connection resources still being held; transactions
+        specifically are rolled back.  The :class:`.Session` is then
+        discarded.   Upon next usage within the same scope,
+        the :class:`.scoped_session` will produce a new
+        :class:`.Session` object.
+
+        """
+
+        if self.registry.has():
+            self.registry().close()
+        self.registry.clear()
+
+    def configure(self, **kwargs):
+        """reconfigure the :class:`.sessionmaker` used by this
+        :class:`.scoped_session`.
+
+        See :meth:`.sessionmaker.configure`.
+
+        """
+
+        if self.registry.has():
+            warn('At least one scoped session is already present. '
+                 ' configure() can not affect sessions that have '
+                 'already been created.')
+
+        self.session_factory.configure(**kwargs)
+
+    def query_property(self, query_cls=None):
+        """return a class property which produces a :class:`.Query` object
+        against the class and the current :class:`.Session` when called.
+
+        e.g.::
+
+            Session = scoped_session(sessionmaker())
+
+            class MyClass(object):
+                query = Session.query_property()
+
+            # after mappers are defined
+            result = MyClass.query.filter(MyClass.name=='foo').all()
+
+        Produces instances of the session's configured query class by
+        default.  To override and use a custom implementation, provide
+        a ``query_cls`` callable.  The callable will be invoked with
+        the class's mapper as a positional argument and a session
+        keyword argument.
+
+        There is no limit to the number of query properties placed on
+        a class.
+
+        """
+        class query(object):
+            def __get__(s, instance, owner):
+                try:
+                    mapper = class_mapper(owner)
+                    if mapper:
+                        if query_cls:
+                            # custom query class
+                            return query_cls(mapper, session=self.registry())
+                        else:
+                            # session's configured query class
+                            return self.registry().query(mapper)
+                except orm_exc.UnmappedClassError:
+                    return None
+        return query()
+        
+if scopefunc sqlalchemy uses ScopedRegistry else ThreadLocalRegistry
+class ScopedRegistry(object):
+    """A Registry that can store one or multiple instances of a single
+    class on the basis of a "scope" function.
+
+    The object implements ``__call__`` as the "getter", so by
+    calling ``myregistry()`` the contained object is returned
+    for the current scope.
+
+    :param createfunc:
+      a callable that returns a new object to be placed in the registry
+
+    :param scopefunc:
+      a callable that will return a key to store/retrieve an object.
+    """
+
+    def __init__(self, createfunc, scopefunc):
+        """Construct a new :class:`.ScopedRegistry`.
+
+        :param createfunc:  A creation function that will generate
+          a new value for the current scope, if none is present.
+
+        :param scopefunc:  A function that returns a hashable
+          token representing the current scope (such as, current
+          thread identifier).
+
+        """
+        self.createfunc = createfunc
+        self.scopefunc = scopefunc
+        self.registry = {}
+
+    def __call__(self):
+        key = self.scopefunc()
+        try:
+            return self.registry[key]
+        except KeyError:
+            return self.registry.setdefault(key, self.createfunc())
+
+    def has(self):
+        """Return True if an object is present in the current scope."""
+
+        return self.scopefunc() in self.registry
+
+    def set(self, obj):
+        """Set the value for the current scope."""
+
+        self.registry[self.scopefunc()] = obj
+
+    def clear(self):
+        """Clear the current scope, if any."""
+
+        try:
+            del self.registry[self.scopefunc()]
+        except KeyError:
+            pass
+
+
+class ThreadLocalRegistry(ScopedRegistry):
+    """A :class:`.ScopedRegistry` that uses a ``threading.local()``
+    variable for storage.
+
+    """
+
+    def __init__(self, createfunc):
+        self.createfunc = createfunc
+        self.registry = threading.local()
+
+    def __call__(self):
+        try:
+            return self.registry.value
+        except AttributeError:
+            val = self.registry.value = self.createfunc()
+            return val
+
+    def has(self):
+        return hasattr(self.registry, "value")
+
+    def set(self, obj):
+        self.registry.value = obj
+
+    def clear(self):
+        try:
+            del self.registry.value
+        except AttributeError:
+            pass  
+
+sqlalchemy scoped_session returns (or creates if it doesnt exist) session for current scope (thread by default)            
+            
+__________________________________________________________________________________________________________            

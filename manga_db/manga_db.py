@@ -45,7 +45,6 @@ class MangaDB:
 
     def __init__(self, root_dir, db_path, read_only=False, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path, read_only)
-        self.db_con.row_factory = sqlite3.Row
         self.root_dir = os.path.abspath(os.path.normpath(root_dir))
         # TODO if we have mutliple users in e.g. webgui we need to have separate IdentityMaps
         self.id_map = IndentityMap()
@@ -632,5 +631,8 @@ class MangaDB:
 
         # commit changes
         conn.commit()
+
+        # use Row as row_factory for easier access
+        conn.row_factory = sqlite3.Row
 
         return conn, c
