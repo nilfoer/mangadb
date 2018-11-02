@@ -20,7 +20,6 @@ from ..ext_info import ExternalInfo
 from .. import extractor
 
 BOOKS_PER_PAGE = 60
-PORT = 7578
 
 # thumb extensions
 ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
