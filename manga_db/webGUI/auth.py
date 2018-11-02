@@ -6,8 +6,7 @@ from flask import (
         )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
-ADMIN_CREDENTIALS_PATH = os.path.join(MODULE_PATH, "admin.txt")
+ADMIN_CREDENTIALS_FN = "admin.txt"
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -28,7 +27,8 @@ def register():
 
         if error is None:
             pw_hash = generate_password_hash(password)
-            with open(ADMIN_CREDENTIALS_PATH, "w", encoding="UTF-8") as f:
+            with open(os.path.join(current_app.instance_path, ADMIN_CREDENTIALS_FN),
+                      "w", encoding="UTF-8") as f:
                 f.write(f"{username}\n{pw_hash}")
             # current_app is proxy to app handling current activity
             # used due to importing app leading to circ ref problems
@@ -42,8 +42,9 @@ def register():
 
 
 def load_admin_credentials(app):
-    if os.path.isfile(ADMIN_CREDENTIALS_PATH):
-        with open(ADMIN_CREDENTIALS_PATH, "r", encoding="UTF-8") as f:
+    admin_creds_path = os.path.join(app.instance_path, ADMIN_CREDENTIALS_FN)
+    if os.path.isfile(admin_creds_path):
+        with open(admin_creds_path, "r", encoding="UTF-8") as f:
             username, pw_hash = f.read().splitlines()
         app.config["USERNAME"] = username
         app.config["PASSWORD"] = pw_hash

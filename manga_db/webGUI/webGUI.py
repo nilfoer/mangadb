@@ -4,6 +4,7 @@ Description: Creates webGUI for manga_db using flask
 """
 
 import os.path
+import threading
 import json
 import secrets
 from flask import (
@@ -26,31 +27,50 @@ PORT = 7578
 
 
 # config logging b4 this line vv
+# instance_path='/path/to/instance/folder'
 app = Flask(__name__)  # create the application instance :)
 
 # Load default config and override config from an environment variable
+# print(app.root_path): N:\coding\tsu-info\manga_db\webGUI
 app.config.update(
     dict(
-        # DATABASE=os.path.join(app.root_path, 'flaskr.db'),
+        DATABASE_PATH=os.path.join(app.instance_path, 'manga_db.sqlite'),
+        # path to thumbs folder
+        THUMBS_FOLDER=os.path.join(app.instance_path, "thumbs"),
+        # limit upload size to 0,5MB
+        MAX_CONTENT_LENGTH=0.5 * 1024 * 1024,
         # unsafe key for dev purposes otherwise use tru random bytes like:
         # python -c "import os; print(os.urandom(24))"
         SECRET_KEY='mangadb dev'))
 
+# thumb extensions
+ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
+
 # register blueprint has to come after routes were added to it
 app.register_blueprint(auth_bp)
 
-# blueprint = Blueprint('thumbs', __name__, static_url_path='/thumbs', static_folder='/thumbs')
-# app.register_blueprint(blueprint)
 
-mdb = MangaDB(".", "manga_db.sqlite")
-app.config["MANGADB"] = mdb
+# Thread-local data is data whose values are thread specific. To manage thread-local data, just
+# create an instance of local (or a subclass) and store attributes on it
+# t_local = threading.local()
+# we get AttributeError: '_thread._local' object has no attribute 'mdb' if we didnt assign attr yet
+# and it needs to be assigned for every thread separately -> better to subclass threading.local
+class app_thread_data(threading.local):
+    def __init__(self):
+        super().__init__()
+        self.mdb_init = False
 
-# path to thumbs folder
-app.config['THUMBS_FOLDER'] = os.path.join(mdb.root_dir, "thumbs")
-# thumb extensions
-ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
-# limit upload size to 0,5MB
-app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024
+
+t_local = app_thread_data()
+
+
+def get_mdb():
+    if not t_local.mdb_init:
+        # cant store in app.config since thread specific and app config isnt
+        t_local.mdb = MangaDB(app.instance_path, app.config["DATABASE_PATH"])
+        t_local.mdb_init = True
+    return t_local.mdb
+
 
 # create route for thumbs/static data that isnt in static, can be used in template with
 # /thumbs/path/filename or with url_for(thumb_static, filename='filename')
@@ -142,8 +162,8 @@ def show_entries():
     order_by = f"Books.{order_by_col} {asc_desc}"
     after = request.args.get("after", None, type=int)
     before = request.args.get("before", None, type=int)
-    books = mdb.get_x_books(BOOKS_PER_PAGE+1, after=after, before=before,
-                            order_by=order_by)
+    books = get_mdb().get_x_books(BOOKS_PER_PAGE+1, after=after, before=before,
+                                  order_by=order_by)
     first_id, last_id, more = first_last_more(books, after, before)
 
     return render_template(
@@ -158,6 +178,7 @@ def show_entries():
 
 @app.route('/book/<int:book_id>')
 def show_info(book_id, book=None, **kwargs):
+    mdb = get_mdb()
     # enable passing book obj over optional param while keeping url route option
     # with required param
     if book is None:
@@ -202,6 +223,7 @@ def show_info(book_id, book=None, **kwargs):
 def import_book(url=None):
     if url is None:
         url = request.form['ext_url']
+    mdb = get_mdb()
     extr_data, thumb_url = mdb.retrieve_book_data(url)
     if extr_data is None:
         flash("Failed getting book!", "warning")
@@ -245,7 +267,7 @@ def jump_to_book_by_url():
     imported_from = extr_cls.site_id
     # ids can get re-used by external sites so theyre not guaranteed to be unique
     # or even link to the correct extinfo/book
-    books = list(mdb.get_books({"id_onpage": id_onpage, "imported_from": imported_from}))
+    books = list(get_mdb().get_books({"id_onpage": id_onpage, "imported_from": imported_from}))
 
     if not books:
         # passing var to func works directly when using optional param
@@ -277,6 +299,7 @@ def jump_to_book_by_url():
 
 @app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update')
 def update_book_ext_info(book_id, ext_info_id):
+    mdb = get_mdb()
     old_book = mdb.get_book(book_id)
     # could also pass in url using post or get
     ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
@@ -334,6 +357,7 @@ def update_book_ext_info(book_id, ext_info_id):
 
 @app.route('/book/<int:book_id>/apply_update', methods=["POST"])
 def apply_upd_changes(book_id):
+    mdb = get_mdb()
     book = mdb.get_book(book_id)
     update_dic = {}
     for col, val in request.form.items():
@@ -361,7 +385,7 @@ def apply_upd_changes(book_id):
 
 @app.route('/book/<int:book_id>/get_info_txt')
 def get_info_txt(book_id):
-    book = mdb.get_book(book_id)
+    book = get_mdb().get_book(book_id)
     exp_str = book.to_export_string()
     import io
     # or use tempfile.SpooledTemporaryFile
@@ -443,8 +467,8 @@ def search_books():
 
     order_by = f"Books.{order_by_col} {asc_desc}"
     # get 1 entry more than BOOKS_PER_PAGE so we know if we need btn in that direction
-    books = mdb.search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE+1,
-                       after=after, before=before)
+    books = get_mdb().search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE+1,
+                             after=after, before=before)
     first_id, last_id, more = first_last_more(books, after, before)
 
     return render_template(
@@ -478,13 +502,13 @@ def list_action_ajax(book_id, action):
         # there then something got left out of the request and the entire
         # request is invalid.
         # print("test",request.form["adjak"],"test")
-        Book.add_assoc_col_on_book_id(mdb, book_id, "list", [list_name], before)
+        Book.add_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
         # pass url back to script since we cant use url_for
         return jsonify({"added": list_name,
                         "search_tag_url": url_for('search_books',
                                                   searchstring=f'tag:"{list_name}"')})
     elif action == "remove":
-        Book.remove_assoc_col_on_book_id(mdb, book_id, "list", [list_name], before)
+        Book.remove_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
         # pass url back to script since we cant use url_for
         return jsonify({"removed": list_name})
     else:
@@ -494,21 +518,21 @@ def list_action_ajax(book_id, action):
 
 @app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
-    Book.set_favorite_id(mdb, book_id, fav_intbool)
+    Book.set_favorite_id(get_mdb(), book_id, fav_intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
 @app.route("/book/<book_id>/rate/<float:rating>")
 def rate_book(book_id, rating):
-    Book.rate_book_id(mdb, book_id, rating)
+    Book.rate_book_id(get_mdb(), book_id, rating)
     return redirect(
         url_for("show_info", book_id=book_id))
 
 
 @app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
 def set_downloaded(book_id, ext_info_id, intbool):
-    ExternalInfo.set_downloaded_id(mdb, ext_info_id, intbool)
+    ExternalInfo.set_downloaded_id(get_mdb(), ext_info_id, intbool)
     return redirect(
         url_for("show_info", book_id=book_id))
 
@@ -518,9 +542,9 @@ def show_outdated_links():
     id_onpage = request.args.get("id_onpage", None, type=int)
     imported_from = request.args.get("imported_from", None, type=int)
     if id_onpage and imported_from:
-        books = mdb.get_outdated(id_onpage, imported_from)
+        books = get_mdb().get_outdated(id_onpage, imported_from)
     else:
-        books = mdb.get_outdated()
+        books = get_mdb().get_outdated()
 
     flash("Showing books with outdated links!", "title")
     flash("Newest first!", "info")
@@ -547,7 +571,7 @@ def add_ext_info(book_id):
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
         return show_info(book_id=book_id)
-    book, ext_info = mdb.book_from_data(extr_data)
+    book, ext_info = get_mdb().book_from_data(extr_data)
     if book.title != book_title:
         # just warn if titles dont match, its ultimately the users decision
         flash("Title of external link and book's title don't match!", "warning")
@@ -564,6 +588,7 @@ def add_ext_info(book_id):
 
 @app.route("/book/add")
 def show_add_book(book=None, cover_temp=None, extr_data=None):
+    mdb = get_mdb()
     if book is None:
         # @Hack
         data = {"list": [], "tag": [], "category": [], "parody": [],
@@ -585,6 +610,7 @@ def show_add_book(book=None, cover_temp=None, extr_data=None):
 
 @app.route("/book/add/submit", methods=["POST"])
 def add_book():
+    mdb = get_mdb()
     data = {}
     for col in Book.COLUMNS:
         val = request.form.get(col, None)
@@ -654,6 +680,7 @@ def cancel_add_book():
 
 @app.route("/book/edit/<int:book_id>")
 def show_edit_book(book_id, book=None):
+    mdb = get_mdb()
     if book is None:
         book = mdb.get_book(book_id)
     if book is None:
@@ -675,7 +702,7 @@ def show_edit_book(book_id, book=None):
 
 @app.route("/book/edit/<int:book_id>/submit", methods=["POST"])
 def edit_book(book_id):
-    book = mdb.get_book(book_id)
+    book = get_mdb().get_book(book_id)
 
     update_dic = {}
     # fine here since i just get the col names in COLUMNS and ASSOCIATED_COLUMNS
@@ -773,7 +800,7 @@ def upload_cover(book_id):
 
 @app.route('/book/<int:book_id>/remove')
 def remove_book(book_id):
-    book = mdb.get_book(book_id)
+    book = get_mdb().get_book(book_id)
     book.remove()
     flash(f"Book '{book.title}' was removed from MangaDB!")
     return redirect(url_for('show_entries'))
@@ -781,7 +808,7 @@ def remove_book(book_id):
 
 @app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/remove')
 def remove_ext_info(book_id, ext_info_id):
-    book = mdb.get_book(book_id)
+    book = get_mdb().get_book(book_id)
     url = book.remove_ext_info(ext_info_id)
     if url is None:
         flash(f"External link with id {ext_info_id} wasnt found on book!")
@@ -793,7 +820,9 @@ def remove_ext_info(book_id, ext_info_id):
 def main(debug=False):
     load_admin_credentials(app)
     # debug=True, port=5000
-    app.run(debug=debug, port=PORT)
+    # use threaded=False so we can leverage MangaDB's id_map
+    # also makes sense since we only want to support one user (at least with write access)
+    app.run(debug=False, port=PORT, threaded=False)
 
 
 if __name__ == "__main__":

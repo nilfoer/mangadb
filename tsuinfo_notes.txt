@@ -1078,3 +1078,31 @@ class ThreadLocalRegistry(ScopedRegistry):
 sqlalchemy scoped_session returns (or creates if it doesnt exist) session for current scope (thread by default)            
             
 __________________________________________________________________________________________________________            
+
+to be able to use debugger mode in flask without really supporting threading yet:
+use threading.local to store thread-local data
+subclass it since you can only access items once theyre assigned and we need to check if we have loaded MangaDB on
+that thread yet
+class app_thread_data(threading.local):
+    def __init__(self):
+        super().__init__()
+        self.mdb_init = False
+t_local = app_thread_data()
+
+def get_mdb():
+    if not t_local.mdb_init:
+        # cant store in app.config since thread specific and app config isnt
+        t_local.mdb = MangaDB(app.instance_path, app.config["DATABASE_PATH"])
+         t_local.mdb_init = True
+    return t_local.mdb
+
+this achieves that we support debug mode where it also creates a diff thread but we contraty to using g
+to store our mdb instance we dont re-create it every request but only once when the thread first calls get_mdb()
+and since we use threaded=False we dont spawn a new thread for every req
+
+doesnt work the way i want it to with threaded=True since a NEW thread gets spawned for every req MangaDB is still
+re-created for every req even if we dont use g to store the instance
+and i want to leverage id_map to reduce database access which makes sense since we only support and only want to
+support one (concurrent?) user (at least with write access)
+
+__________________________________________________________________________________________________________

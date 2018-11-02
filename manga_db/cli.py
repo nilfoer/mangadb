@@ -22,7 +22,8 @@ def main():
                                        help='sub-command help', dest="subcmd")
 
     webgui = subparsers.add_parser("webgui", aliases=["web"])
-    webgui.set_defaults(func=start_webgui)
+    webgui.add_argument("-d", "--debug", action="store_true", help="Start webgui in debug mode!")
+    webgui.set_defaults(func=_cl_webgui)
 
     collector = subparsers.add_parser("link_collector", aliases=["collect"])
     collector.add_argument("-sl", "--standard-list", help="Standard list that gets added to all "
@@ -103,6 +104,13 @@ def _cl_export(args, mdb):
     export_csv_from_sql(args.path, mdb.db_con)
     logger.info(f"Exported database at {os.path.abspath(args.db_path)} to "
                 f"{os.path.abspath(args.path)}!")
+
+
+def _cl_webgui(args):
+    if args.debug:
+        start_webgui(True)
+    else:
+        start_webgui(False)
 
 
 def cli_yes_no(question_str):
