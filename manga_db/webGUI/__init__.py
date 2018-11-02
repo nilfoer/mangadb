@@ -1,5 +1,4 @@
 import os
-import logging
 import secrets
 
 from flask import (
@@ -59,31 +58,6 @@ def init_csrf_token_checking(app):
 
 
 def create_app(test_config=None, **kwargs):
-    # When you want to configure logging for your project, you should do it as soon as
-    # possible when the program starts. If app.logger is accessed before logging is configured,
-    # it will add a default handler. If possible, configure logging before creating the
-    # application object.
-    logging.config.dictConfig({
-        'version': 1,
-        'formatters': {
-            'default': {
-                'format': '[%(asctime)s] - %(levelname)s - %(module)s: %(message)s',
-            },
-            'thread': {
-                'format': ('[%(asctime)s][%(levelname)s][%(threadName)s] %(module)s:'
-                           '%(message)s'),
-            }
-        },
-        'handlers': {'wsgi': {
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://flask.logging.wsgi_errors_stream',
-            'formatter': 'default'
-        }},
-        'root': {
-            'level': 'INFO',
-            'handlers': ['wsgi']
-        }
-    })
     # create and configure the app
     # configuration files are relative to the instance folder. The instance folder is located
     # outside the flaskr package and can hold local data that shouldn’t be committed to version
