@@ -41,15 +41,6 @@ def register():
     return render_template('auth/register.html')
 
 
-def load_admin_credentials(app):
-    admin_creds_path = os.path.join(app.instance_path, ADMIN_CREDENTIALS_FN)
-    if os.path.isfile(admin_creds_path):
-        with open(admin_creds_path, "r", encoding="UTF-8") as f:
-            username, pw_hash = f.read().splitlines()
-        app.config["USERNAME"] = username
-        app.config["PASSWORD"] = pw_hash
-
-
 @auth_bp.route('/login', methods=('GET', 'POST'))
 def login():
     if request.method == 'POST':
@@ -68,7 +59,7 @@ def login():
             session.clear()
             # only one user atm so we only care that hes logged in
             session['authenticated'] = True
-            return redirect(url_for('show_entries'))
+            return redirect(url_for('main.show_entries'))
 
         flash(error)
 
@@ -104,5 +95,38 @@ def redirect_auth_users():
         return
     # redirect authenticated users away from auth pages
     elif "authenticated" in session:
-        return redirect(url_for('show_entries'))
+        return redirect(url_for('main.show_entries'))
     return
+
+
+def init_app(app):
+    admin_creds_path = os.path.join(app.instance_path, ADMIN_CREDENTIALS_FN)
+    if os.path.isfile(admin_creds_path):
+        with open(admin_creds_path, "r", encoding="UTF-8") as f:
+            username, pw_hash = f.read().splitlines()
+        app.config["USERNAME"] = username
+        app.config["PASSWORD"] = pw_hash
+
+    # check login on all pages but those that are marked is_public (by public_route decorator)
+    # src: https://stackoverflow.com/a/52572337
+    # Kristof Gilicze
+    @app.before_request
+    def check_route_access():
+        if request.endpoint is None:  # can be None so check it first
+            return
+        if any([
+                request.endpoint.startswith('static'),
+                request.endpoint.startswith("thumb_static"),
+                # auth/logout endpoint is auth.logout
+                request.endpoint.startswith("auth."),  # allow access to auth pages by default
+                "authenticated" in session,  # user is logged in
+                # allow access to is_public marked functions
+                getattr(app.view_functions[request.endpoint], 'is_public', False)]):
+            return  # Access granted
+        else:
+            return redirect(url_for('auth.login'))
+
+
+def public_route(decorated_function):
+    decorated_function.is_public = True
+    return decorated_function

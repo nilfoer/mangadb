@@ -2,7 +2,7 @@
 {% block body %}
 {% if add_anyway %}
 <div class="row" style="margin: -1em 0 1em auto;">
-    <form method=post action="{{ url_for('import_book') }}">
+    <form method=post action="{{ url_for('main.import_book') }}">
         {{ csrf_token_field() }}
         <input type="hidden" name="ext_url" value="{{ add_anyway }}"/>
         <button class="book-read-button button-stack green-color" type="submit">Add Book anyway!</button>
@@ -10,7 +10,7 @@
 </div>
 {% endif %}
 <div class="row search-all">
-<form action="{{ url_for('search_books') }}" method=get class="search-tags">
+<form action="{{ url_for('main.search_books') }}" method=get class="search-tags">
 	<div class="search-text col-md-6 col-sm-12">
 	<div class="button-container" id="simple-container">
 		{# use divs to split up width of container and then align one to the left and one to the right so they always remain on the same line and shrink and grow with screen size -> container( div90%left div10%right ..) #}
@@ -76,10 +76,10 @@
 	    <div class="ribbon blue"><span><i class="fa fa-thumbs-up"></i> FAVE</span></div>
 	    {% endif %}
 
-    <a href={{ url_for('show_info', book_id=book.id) }}>
+    <a href={{ url_for('main.show_info', book_id=book.id) }}>
 	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
     <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
-    url_for('thumb_static', filename=book.id) }} class="lazyload">
+    url_for('main.thumb_static', filename=book.id) }} class="lazyload">
     <div class="overlay">
         <div class="overlay-data">
             <div class="overlay-title">
@@ -105,7 +105,7 @@
             <span style="font-size: small;">(avg external rating)</span>
 	    {% endif %}
         </div>
-	<a href={{ url_for('show_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">
+	<a href={{ url_for('main.show_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">
                         VIEW INFO
         </a>
     </div>
@@ -134,20 +134,20 @@
 {% if last_id %}
 {% if search_field %}
 	{% if more.next %}
-    <a href="{{ url_for('search_books', after=last_id, searchstring=search_field,
+    <a href="{{ url_for('main.search_books', after=last_id, searchstring=search_field,
 	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
 	{% endif %}
 	{% if more.prev %}
-    <a href="{{ url_for('search_books', before=first_id, searchstring=search_field,
+    <a href="{{ url_for('main.search_books', before=first_id, searchstring=search_field,
 	order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div
     id="page-prev-inner">‹</div></div></a>
 	{% endif %}
 {% else %}
 	{% if more.next %}
-    <a href="{{ url_for('show_entries', after=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
+    <a href="{{ url_for('main.show_entries', after=last_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-next"><div id="page-next-inner">›</div></div></a>
 	{% endif %}
 	{% if more.prev %}
-    <a href="{{ url_for('show_entries', before=first_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></div></a>
+    <a href="{{ url_for('main.show_entries', before=first_id, order_by_col=order_col_libox, asc_desc=asc_desc) }}"><div id="page-prev"><div id="page-prev-inner">‹</div></div></a>
 	{% endif %}
 {% endif %}
 {% endif %}

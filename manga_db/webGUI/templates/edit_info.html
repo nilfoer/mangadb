@@ -4,14 +4,14 @@
 <div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
 {% if book.id is not none %}
 	<img alt="{{ book.title }}" class="book-page-image
-	img-responsive" src={{ url_for('thumb_static',
+	img-responsive" src={{ url_for('main.thumb_static',
 	filename=book.id) }}>
 {% else %}
 	<img alt="{{ book.title }}" class="book-page-image img-responsive"
 		src={{ url_for('static', filename='no-image.png') if not cover_temp_name else
-        url_for('thumb_static', filename=cover_temp_name) }}>
+        url_for('main.thumb_static', filename=cover_temp_name) }}>
 {% endif %}
-<form id=upload-cover action="{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
+<form id=upload-cover action="{{ url_for('main.upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
       <input id=cover-file type=file name=file style="background-color:#333;" required />
       <input type=submit value="Upload Cover" style="margin:0.5em 0;background-color:#333;" />
       <br/>Note: Otimal width is 400px and optimal aspect ratio is 5:7
@@ -41,7 +41,7 @@ $(document).ready(function() {
 
         $.ajax({
                // whole mistake was forgetting " around url
-               url: "{{ url_for('upload_cover', book_id=book.id if book.id else 0) }}",
+               url: "{{ url_for('main.upload_cover', book_id=book.id if book.id else 0) }}",
                type: 'POST',
                data: form_data,
                // Tell jQuery not to process data or worry about content-type
@@ -95,9 +95,9 @@ $(document).ready(function() {
 <script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
 {% if book.id is not none %}
-<form id=edit-book-form action={{ url_for('edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
+<form id=edit-book-form action={{ url_for('main.edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
 {% else %}
-<form id=add-book-form action={{ url_for('add_book') }} method=post style="min-width:100%;width:100%;">
+<form id=add-book-form action={{ url_for('main.add_book') }} method=post style="min-width:100%;width:100%;">
 {% if cover_temp_name %}
 <input type='hidden' id='cover_temp_name' name='cover_temp_name' value="{{ cover_temp_name }}"/>
 {% endif %}
@@ -298,18 +298,18 @@ $(document).ready(function() {
         });
     });
     </script>
-<a id="cancel-add-book" href={{ url_for('show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+<a id="cancel-add-book" href={{ url_for('main.show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
 {% if not book.id %}
     <script type="text/javascript">
     $(document).ready(function() {
         $("#cancel-add-book").click(function(event) {
             event.preventDefault();
-            let req_url = "{{ url_for('cancel_add_book') }}";
+            let req_url = "{{ url_for('main.cancel_add_book') }}";
             let redirect_func = function() {
                                     // location.href = "..." would work like a link -> saved
                                     // in history etc.
                                     // location.replace() just replaces the current doc
-                                    window.location.href = "{{ url_for('show_entries') }}";
+                                    window.location.href = "{{ url_for('main.show_entries') }}";
                                 }
             let cover_temp_name = $('#cover_temp_name');
 

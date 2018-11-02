@@ -4,16 +4,14 @@ Description: Creates webGUI for manga_db using flask
 """
 
 import os.path
-import threading
 import json
-import secrets
 from flask import (
-        Flask, request, redirect, url_for,
+        current_app, request, redirect, url_for, Blueprint,
         render_template, flash, send_from_directory,
-        jsonify, send_file, abort, session, Markup,
+        jsonify, send_file, session
 )
 
-from .auth import auth_bp, load_admin_credentials
+from .mdb import get_mdb
 from .json_custom import to_serializable
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
@@ -21,141 +19,25 @@ from ..manga import Book
 from ..ext_info import ExternalInfo
 from .. import extractor
 
-LOCAL_DOWNLOAD = "N:\\_archive\\test\\tsu\\to-read\\"
 BOOKS_PER_PAGE = 60
 PORT = 7578
-
-
-# config logging b4 this line vv
-# instance_path='/path/to/instance/folder'
-app = Flask(__name__)  # create the application instance :)
-
-# Load default config and override config from an environment variable
-# print(app.root_path): N:\coding\tsu-info\manga_db\webGUI
-app.config.update(
-    dict(
-        DATABASE_PATH=os.path.join(app.instance_path, 'manga_db.sqlite'),
-        # path to thumbs folder
-        THUMBS_FOLDER=os.path.join(app.instance_path, "thumbs"),
-        # limit upload size to 0,5MB
-        MAX_CONTENT_LENGTH=0.5 * 1024 * 1024,
-        # unsafe key for dev purposes otherwise use tru random bytes like:
-        # python -c "import os; print(os.urandom(24))"
-        SECRET_KEY='mangadb dev'))
 
 # thumb extensions
 ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
 
-# register blueprint has to come after routes were added to it
-app.register_blueprint(auth_bp)
-
-
-# Thread-local data is data whose values are thread specific. To manage thread-local data, just
-# create an instance of local (or a subclass) and store attributes on it
-# t_local = threading.local()
-# we get AttributeError: '_thread._local' object has no attribute 'mdb' if we didnt assign attr yet
-# and it needs to be assigned for every thread separately -> better to subclass threading.local
-class app_thread_data(threading.local):
-    def __init__(self):
-        super().__init__()
-        self.mdb_init = False
-
-
-t_local = app_thread_data()
-
-
-def get_mdb():
-    if not t_local.mdb_init:
-        # cant store in app.config since thread specific and app config isnt
-        t_local.mdb = MangaDB(app.instance_path, app.config["DATABASE_PATH"])
-        t_local.mdb_init = True
-    return t_local.mdb
+# no url prefix
+main_bp = Blueprint("main", __name__)
 
 
 # create route for thumbs/static data that isnt in static, can be used in template with
-# /thumbs/path/filename or with url_for(thumb_static, filename='filename')
+# /thumbs/path/filename or with url_for(main.thumb_static, filename='filename')
 # Custom static data
-@app.route('/thumbs/<path:filename>')
+@main_bp.route('/thumbs/<path:filename>')
 def thumb_static(filename):
-    return send_from_directory(app.config['THUMBS_FOLDER'], filename)
+    return send_from_directory(current_app.config['THUMBS_FOLDER'], filename)
 
 
-@app.before_request
-def validate_csrf_token():
-    # decorator @app.before_request to execute this b4 every req
-    # TODO add lifetime
-    if request.method == "POST":
-        # pop from session so its only lasts one req
-        token = session.pop("_csrf_token", None)
-        if not token:
-            app.logger.error("Session is missing CSRF token!")
-            abort(403)
-
-        # is_xhr -> ajax request
-        if request.is_xhr:
-            # configured jquery ajax to send token as X-CSRFToken header
-            if token != request.headers.get("X-CSRFToken", None):
-                app.logger.error("AJAX request CSRF token is invalid!")
-                abort(403)
-        elif token != request.form.get("_csrf_token", None):
-            app.logger.error("Request CSRF token is invalid!")
-            abort(403)
-
-
-@app.after_request
-def new_csrf_token(response):
-    # since we dont refresh the page when using ajax we have to send
-    # js the new csfr token
-    if request.is_xhr:
-        response.headers["X-CSRFToken"] = generate_csrf_token()
-    return response
-
-
-# partly taken from http://flask.pocoo.org/snippets/3/
-def generate_csrf_token():
-    if '_csrf_token' not in session:
-        # As of 2015, it is believed that 32 bytes (256 bits) of randomness is sufficient for the
-        # typical use-case expected for the secrets module
-        session['_csrf_token'] = secrets.token_urlsafe(32)
-    return session['_csrf_token']
-
-
-def generate_csrf_token_field():
-    token = generate_csrf_token()
-    return Markup(f"<input type='hidden' name='_csrf_token' value='{token}' />")
-
-
-# register func to gen token field so we can us it in template
-app.jinja_env.globals['csrf_token_field'] = generate_csrf_token_field
-app.jinja_env.globals['csrf_token'] = generate_csrf_token
-
-
-# check login on all pages but those that are marked is_public (by public_route decorator)
-# src: https://stackoverflow.com/a/52572337
-# Kristof Gilicze
-@app.before_request
-def check_route_access():
-    if request.endpoint is None:  # can be None so check it first
-        return
-    if any([
-            request.endpoint.startswith('static'),
-            request.endpoint.startswith("thumb_static"),
-            # auth/logout endpoint is auth.logout
-            request.endpoint.startswith("auth."),  # allow access to auth pages by default
-            "authenticated" in session,  # user is logged in
-            # allow access to is_public marked functions
-            getattr(app.view_functions[request.endpoint], 'is_public', False)]):
-        return  # Access granted
-    else:
-        return redirect(url_for('auth.login'))
-
-
-def public_route(decorated_function):
-    decorated_function.is_public = True
-    return decorated_function
-
-
-@app.route('/', methods=["GET"])
+@main_bp.route('/', methods=["GET"])
 def show_entries():
     order_by_col = request.args.get('order_by_col', "id", type=str)
     asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
@@ -176,7 +58,7 @@ def show_entries():
         asc_desc=asc_desc)
 
 
-@app.route('/book/<int:book_id>')
+@main_bp.route('/book/<int:book_id>')
 def show_info(book_id, book=None, **kwargs):
     mdb = get_mdb()
     # enable passing book obj over optional param while keeping url route option
@@ -219,7 +101,7 @@ def show_info(book_id, book=None, **kwargs):
         outdated=outdated)
 
 
-@app.route('/import', methods=["POST"])
+@main_bp.route('/import', methods=["POST"])
 def import_book(url=None):
     if url is None:
         url = request.form['ext_url']
@@ -230,7 +112,7 @@ def import_book(url=None):
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
-        return redirect(url_for("show_entries"))
+        return redirect(url_for("main.show_entries"))
     book = Book(mdb, **extr_data)
     # convert data to json so we can rebuilt ext_info when we add it to DB
     # as we have to take all data from edit_info page or store a json serialized ExternalInfo
@@ -250,7 +132,7 @@ def import_book(url=None):
         # dl cover as temp uuid name and display add book page
         import uuid
         filename = uuid.uuid4().hex
-        cover_path = os.path.join(app.config["THUMBS_FOLDER"], filename)
+        cover_path = os.path.join(current_app.config["THUMBS_FOLDER"], filename)
         cover_dled = mdb.download_cover(thumb_url, cover_path)
         if not cover_dled:
             flash("Thumb couldnt be downloaded!")
@@ -258,7 +140,7 @@ def import_book(url=None):
                              extr_data=extr_data_json)
 
 
-@app.route('/jump', methods=["POST"])
+@main_bp.route('/jump', methods=["POST"])
 def jump_to_book_by_url():
     url = request.form['ext_url']
 
@@ -286,7 +168,7 @@ def jump_to_book_by_url():
 
         # if we want get params to have hyphens in them like ext-url and still wanna
         # be able to buil url with url_for we can pass in the params by unpacking
-        # a dict: url_for('import_book', **{"ext-url": url}),
+        # a dict: url_for('main.import_book', **{"ext-url": url}),
         return render_template(
             'show_entries.html',
             books=books,
@@ -297,7 +179,7 @@ def jump_to_book_by_url():
         return show_info(book_id=None, book=books[0])
 
 
-@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update')
+@main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update')
 def update_book_ext_info(book_id, ext_info_id):
     mdb = get_mdb()
     old_book = mdb.get_book(book_id)
@@ -355,7 +237,7 @@ def update_book_ext_info(book_id, ext_info_id):
     return show_info(book_id, book_upd_changes=converted if changes else None)
 
 
-@app.route('/book/<int:book_id>/apply_update', methods=["POST"])
+@main_bp.route('/book/<int:book_id>/apply_update', methods=["POST"])
 def apply_upd_changes(book_id):
     mdb = get_mdb()
     book = mdb.get_book(book_id)
@@ -383,7 +265,7 @@ def apply_upd_changes(book_id):
     return show_info(book_id=book_id, book=book)
 
 
-@app.route('/book/<int:book_id>/get_info_txt')
+@main_bp.route('/book/<int:book_id>/get_info_txt')
 def get_info_txt(book_id):
     book = get_mdb().get_book(book_id)
     exp_str = book.to_export_string()
@@ -456,7 +338,7 @@ def first_last_more(books, after=None, before=None):
     return first_id, last_id, more
 
 
-@app.route("/search", methods=["GET"])
+@main_bp.route("/search", methods=["GET"])
 def search_books():
     searchstr = request.args['searchstring']
     # prepare defaults so we dont always have to send them when using get
@@ -486,7 +368,7 @@ def search_books():
 # without reloading the page or going to edit
 # WARNING vulnerable to cross-site requests
 # TODO add token
-@app.route("/book/<int:book_id>/list/<action>", methods=["POST"])
+@main_bp.route("/book/<int:book_id>/list/<action>", methods=["POST"])
 def list_action_ajax(book_id, action):
     list_name = request.form.get("name", None, type=str)
     # jquery will add brackets to key of ajax data of type array
@@ -505,7 +387,7 @@ def list_action_ajax(book_id, action):
         Book.add_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
         # pass url back to script since we cant use url_for
         return jsonify({"added": list_name,
-                        "search_tag_url": url_for('search_books',
+                        "search_tag_url": url_for('main.search_books',
                                                   searchstring=f'tag:"{list_name}"')})
     elif action == "remove":
         Book.remove_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
@@ -513,31 +395,31 @@ def list_action_ajax(book_id, action):
         return jsonify({"removed": list_name})
     else:
         flash(f"Supplied action '{action}' is not a valid list action!", "warning")
-        return redirect(url_for("show_info", book_id=book_id))
+        return redirect(url_for("main.show_info", book_id=book_id))
 
 
-@app.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
+@main_bp.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
 def set_favorite(book_id, fav_intbool):
     Book.set_favorite_id(get_mdb(), book_id, fav_intbool)
     return redirect(
-        url_for("show_info", book_id=book_id))
+        url_for("main.show_info", book_id=book_id))
 
 
-@app.route("/book/<book_id>/rate/<float:rating>")
+@main_bp.route("/book/<book_id>/rate/<float:rating>")
 def rate_book(book_id, rating):
     Book.rate_book_id(get_mdb(), book_id, rating)
     return redirect(
-        url_for("show_info", book_id=book_id))
+        url_for("main.show_info", book_id=book_id))
 
 
-@app.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
+@main_bp.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
 def set_downloaded(book_id, ext_info_id, intbool):
     ExternalInfo.set_downloaded_id(get_mdb(), ext_info_id, intbool)
     return redirect(
-        url_for("show_info", book_id=book_id))
+        url_for("main.show_info", book_id=book_id))
 
 
-@app.route("/outdated", methods=["GET"])
+@main_bp.route("/outdated", methods=["GET"])
 def show_outdated_links():
     id_onpage = request.args.get("id_onpage", None, type=int)
     imported_from = request.args.get("imported_from", None, type=int)
@@ -556,14 +438,14 @@ def show_outdated_links():
         asc_desc="DESC")
 
 
-@app.route("/book/<int:book_id>/add_ext_info", methods=["POST"])
+@main_bp.route("/book/<int:book_id>/add_ext_info", methods=["POST"])
 def add_ext_info(book_id):
     url = request.form.get("url", None, type=str)
     # need title to ensure that external link matches book
     book_title = request.form.get("book_title", None, type=str)
     if not url or not book_title:
         flash(f"URL empty!")
-        return redirect(url_for("show_info", book_id=book_id))
+        return redirect(url_for("main.show_info", book_id=book_id))
     extr_data, _ = MangaDB.retrieve_book_data(url)
     if extr_data is None:
         flash("Adding external link failed!", "warning")
@@ -586,7 +468,7 @@ def add_ext_info(book_id):
     return show_info(book_id=book_id, show_outdated=ext_info.id if outdated else None)
 
 
-@app.route("/book/add")
+@main_bp.route("/book/add")
 def show_add_book(book=None, cover_temp=None, extr_data=None):
     mdb = get_mdb()
     if book is None:
@@ -608,7 +490,7 @@ def show_add_book(book=None, cover_temp=None, extr_data=None):
         extr_data=extr_data)
 
 
-@app.route("/book/add/submit", methods=["POST"])
+@main_bp.route("/book/add/submit", methods=["POST"])
 def add_book():
     mdb = get_mdb()
     data = {}
@@ -649,12 +531,12 @@ def add_book():
     # rename book cover if one was uploaded with temp name
     temp_name = request.form.get("cover_temp_name", None)
     if temp_name is not None:
-        os.rename(os.path.join(app.config["THUMBS_FOLDER"], temp_name),
-                  os.path.join(app.config["THUMBS_FOLDER"], str(bid)))
+        os.rename(os.path.join(current_app.config["THUMBS_FOLDER"], temp_name),
+                  os.path.join(current_app.config["THUMBS_FOLDER"], str(bid)))
     return show_info(book_id=bid, book=book, show_outdated=outdated_on_ei_id)
 
 
-@app.route("/book/add/cancel", methods=["POST"])
+@main_bp.route("/book/add/cancel", methods=["POST"])
 def cancel_add_book():
     # instead of using js to read out cover_temp_name and using ajax to send POST request
     # to this funcs url i could insert a form with only one field a hidden input with
@@ -673,12 +555,12 @@ def cancel_add_book():
     # del temp book cover file if we dont add book
     temp_name = request.data
     if temp_name:
-        os.remove(os.path.join(app.config["THUMBS_FOLDER"], temp_name.decode("UTF-8")))
+        os.remove(os.path.join(current_app.config["THUMBS_FOLDER"], temp_name.decode("UTF-8")))
     # js takes care of the redirection
-    return url_for("show_entries")
+    return url_for("main.show_entries")
 
 
-@app.route("/book/edit/<int:book_id>")
+@main_bp.route("/book/edit/<int:book_id>")
 def show_edit_book(book_id, book=None):
     mdb = get_mdb()
     if book is None:
@@ -700,7 +582,7 @@ def show_edit_book(book_id, book=None):
         available_options=available_options)
 
 
-@app.route("/book/edit/<int:book_id>/submit", methods=["POST"])
+@main_bp.route("/book/edit/<int:book_id>/submit", methods=["POST"])
 def edit_book(book_id):
     book = get_mdb().get_book(book_id)
 
@@ -728,7 +610,7 @@ def edit_book(book_id):
                 app.logger.warning("Couldnt convert value '%s' to float for column '%s'",
                                    val, col)
                 flash(f"{col} needs to be a floating point number!", "info")
-                return redirect(url_for("show_edit_book", book_id=book_id))
+                return redirect(url_for("main.show_edit_book", book_id=book_id))
         if not isinstance(val, str):
             update_dic[col] = val
         else:
@@ -746,7 +628,7 @@ def edit_book(book_id):
 
     # @Speed could also pass book to show_info directly, but by getting book from db
     # again we can see if changes applied correctly?
-    return redirect(url_for("show_info", book_id=book_id))
+    return redirect(url_for("main.show_info", book_id=book_id))
 
 
 # code for file uploading taken from:
@@ -758,7 +640,7 @@ def allowed_thumb_ext(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_THUMB_EXTENSIONS
 
 
-@app.route('/book/<int:book_id>/upload_cover', methods=['POST'])
+@main_bp.route('/book/<int:book_id>/upload_cover', methods=['POST'])
 def upload_cover(book_id):
     # check if the post request has the file part
     if 'file' not in request.files:
@@ -780,7 +662,7 @@ def upload_cover(book_id):
             # del old cover if there is one
             old_temp = request.form.get("old_cover_temp_name", None)
             if old_temp:
-                os.remove(os.path.join(app.config['THUMBS_FOLDER'], old_temp))
+                os.remove(os.path.join(current_app.config['THUMBS_FOLDER'], old_temp))
         else:
             filename = str(book_id)
         from PIL import Image
@@ -790,23 +672,23 @@ def upload_cover(book_id):
         # convert to thumbnail (in-place) tuple is max size, keeps apsect ratio
         img.thumbnail((400, 600))
         # when saving without extension we need to pass format kwarg
-        img.save(os.path.join(app.config['THUMBS_FOLDER'], filename), format=img.format)
+        img.save(os.path.join(current_app.config['THUMBS_FOLDER'], filename), format=img.format)
         img.close()
         file_data.close()
-        return jsonify({'cover_path': url_for('thumb_static', filename=filename)})
+        return jsonify({'cover_path': url_for('main.thumb_static', filename=filename)})
     else:
         return jsonify({"error": "Wrong extension for thumb!"})
 
 
-@app.route('/book/<int:book_id>/remove')
+@main_bp.route('/book/<int:book_id>/remove')
 def remove_book(book_id):
     book = get_mdb().get_book(book_id)
     book.remove()
     flash(f"Book '{book.title}' was removed from MangaDB!")
-    return redirect(url_for('show_entries'))
+    return redirect(url_for('main.show_entries'))
 
 
-@app.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/remove')
+@main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/remove')
 def remove_ext_info(book_id, ext_info_id):
     book = get_mdb().get_book(book_id)
     url = book.remove_ext_info(ext_info_id)
@@ -815,15 +697,3 @@ def remove_ext_info(book_id, ext_info_id):
     else:
         flash(f"External link with url '{url}' was removed from Book!")
     return show_info(book_id=book_id, book=book)
-
-
-def main(debug=False):
-    load_admin_credentials(app)
-    # debug=True, port=5000
-    # use threaded=False so we can leverage MangaDB's id_map
-    # also makes sense since we only want to support one user (at least with write access)
-    app.run(debug=False, port=PORT, threaded=False)
-
-
-if __name__ == "__main__":
-    main()

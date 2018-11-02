@@ -48,7 +48,7 @@
     {% else %}
     <span class="nav-login-out"><a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i></a></span>
     {% endif %}
-    <a id="add-book-btn" class="book-read-button button-stack red-color" href="{{ url_for('show_add_book') }}">
+    <a id="add-book-btn" class="book-read-button button-stack red-color" href="{{ url_for('main.show_add_book') }}">
         <i class="fas fa-plus"></i>
     </a>
     </h1>
@@ -72,7 +72,7 @@
 </script>
 
 <div class="jump-book-container">
-    <form action="{{ url_for('jump_to_book_by_url') }}" method=post class="search-tags">
+    <form action="{{ url_for('main.jump_to_book_by_url') }}" method=post class="search-tags">
     {{ csrf_token_field() }}
 	<div class="container-align-left" id="jump-url-field-container">
 	<input value="" type=text name="ext_url" class="data-search" id="jumpURL">

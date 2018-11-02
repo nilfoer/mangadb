@@ -3,7 +3,7 @@ import argparse
 import os.path
 import logging
 
-from .webGUI.webGUI import main as start_webgui
+from .webGUI import create_app
 from .manga_db import MangaDB
 from .db.export import export_csv_from_sql
 from .link_collector import LinkCollector
@@ -22,7 +22,6 @@ def main():
                                        help='sub-command help', dest="subcmd")
 
     webgui = subparsers.add_parser("webgui", aliases=["web"])
-    webgui.add_argument("-d", "--debug", action="store_true", help="Start webgui in debug mode!")
     webgui.set_defaults(func=_cl_webgui)
 
     collector = subparsers.add_parser("link_collector", aliases=["collect"])
@@ -106,11 +105,13 @@ def _cl_export(args, mdb):
                 f"{os.path.abspath(args.path)}!")
 
 
-def _cl_webgui(args):
-    if args.debug:
-        start_webgui(True)
-    else:
-        start_webgui(False)
+def _cl_webgui():
+    # use terminal environment vars to set debug etc.
+    # windows: set FLASK_ENV=development -> enables debug or set FLASK_DEBUG=1
+    app = create_app()
+    # use threaded=False so we can leverage MangaDB's id_map
+    # also makes sense since we only want to support one user (at least with write access)
+    app.run(threaded=False, port=7578)
 
 
 def cli_yes_no(question_str):
