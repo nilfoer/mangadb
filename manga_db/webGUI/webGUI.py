@@ -365,8 +365,6 @@ def search_books():
 
 # function that accepts ajax request so we can add lists on show_info
 # without reloading the page or going to edit
-# WARNING vulnerable to cross-site requests
-# TODO add token
 @main_bp.route("/book/<int:book_id>/list/<action>", methods=["POST"])
 def list_action_ajax(book_id, action):
     list_name = request.form.get("name", None, type=str)

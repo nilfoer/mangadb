@@ -53,3 +53,4 @@ manga_db/webGUI/admin.txt
 .*/
 venv/
 instance/
+tests/tmp_*/

@@ -1,10 +1,13 @@
 import os
 import shutil
+import json
 import pytest
 
-from flask import url_for, session, request
+from flask import url_for
+from werkzeug.security import generate_password_hash, check_password_hash
 
-from manga_db.webGUI.webGUI import app, mdb
+from manga_db.webGUI import create_app
+from manga_db.webGUI.mdb import get_mdb
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -37,10 +40,10 @@ def app_setup():
     shutil.copy(mdb_file, tmpdir)
 
     # setup flask app for testing
-    app.config['TESTING'] = True
-    app.config['SERVER_NAME'] = "test.test"
-    # change mdb connection since we set it up to just use manga_db.sqlite in cwd
-    mdb.db_con, _ = mdb._load_or_create_sql_db(os.path.join(tmpdir, "manga_db.sqlite"))
+    app = create_app(
+            test_config={"TESTING": True, "DEBUG": False, "SERVER_NAME": "test.test"},
+            instance_path=tmpdir
+            )
     client = app.test_client()
 
     return tmpdir, app, client
@@ -53,3 +56,138 @@ def test_login_required(app_setup):
     assert response.status_code == 302
     with app.app_context():
         assert response.location == url_for('auth.login', _external=True)
+
+
+def login(app, client, username, password):
+    # since were working outside of request context we need to use:
+    with client.session_transaction() as sess:
+        sess["_csrf_token"] = "token123"
+    with app.app_context():
+        return client.post(url_for("auth.login"), data=dict(
+            username=username,
+            password=password,
+            _csrf_token="token123"
+        ), follow_redirects=True)
+
+
+def test_login(app_setup):
+    tmpdir, app, client = app_setup
+    assert "USERNAME" not in app.config
+    assert "PASSWORD" not in app.config
+    resp = login(app, client, "adjakl", "aksak")
+    assert b'No registered user!' in resp.data
+
+    app.config["USERNAME"] = "test"
+    app.config["PASSWORD"] = generate_password_hash("testpw")
+    resp = login(app, client, "test", "testpw")
+    assert b'id="foundBooks"' in resp.data
+
+    with app.app_context():
+        resp = client.get(url_for("auth.logout"), follow_redirects=True)
+    assert b"Login" in resp.data
+
+    resp = login(app, client, "test", "afdaklla")
+    assert b'Incorrect username or password' in resp.data
+    resp = login(app, client, "adjlkaa", "testpw")
+    assert b'Incorrect username or password' in resp.data
+
+
+def register(app, client, username, password):
+    # since were working outside of request context we need to use:
+    with client.session_transaction() as sess:
+        sess["_csrf_token"] = "token123"
+    with app.app_context():
+        return client.post(url_for("auth.register"), data=dict(
+            username=username,
+            password=password,
+            _csrf_token="token123"
+        ), follow_redirects=True)
+
+
+def test_register(app_setup):
+    tmpdir, app, client = app_setup
+    assert "USERNAME" not in app.config
+    assert "PASSWORD" not in app.config
+    resp = register(app, client, "test", "")
+    assert b"Password is required" in resp.data
+    resp = register(app, client, "", "testpw")
+    assert b"Username is required" in resp.data
+
+    pw = "testpwpwp"
+    resp = register(app, client, "testu", pw)
+    assert b"Login" in resp.data
+    assert app.config["USERNAME"] == "testu"
+    # cant check hash directly since it changes every time even for the same pw
+    # due to salting
+    assert check_password_hash(app.config["PASSWORD"], pw)
+    with open(os.path.join(tmpdir, "admin.txt"), "r", encoding="UTF-8") as f:
+        lines = f.read().splitlines()
+    assert len(lines) == 2
+    assert lines[0] == "testu"
+    assert app.config["PASSWORD"] == lines[1]
+
+    resp = register(app, client, "aadkal", "adljaask")
+    assert b"Only one user allowed" in resp.data
+
+
+def test_csrf_token(app_setup):
+    tmpdir, app, client = app_setup
+    # since were working outside of request context we need to use:
+    with client.session_transaction() as sess:
+        sess["_csrf_token"] = "token123"
+    with app.app_context():
+        resp = client.post(url_for("auth.login"), data=dict(
+                    username="test",
+                    password="testpw",
+                    _csrf_token="token123"
+                ), follow_redirects=True)
+        assert resp.status_code == 200
+
+        # need to manually set csrf token since were not using generate_csrf_token functions
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+
+        resp = client.post(url_for("auth.login"), data=dict(
+                    username="test",
+                    password="testpw",
+                    _csrf_token="tokeninvalid"
+                ), follow_redirects=True)
+        assert resp.status_code == 403
+
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        # ajax
+        resp = client.post(
+                url_for("auth.login"),
+                data=dict(
+                    username="test",
+                    password="testpw",
+                ),
+                headers={
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': 'invalidtoken'
+                }, follow_redirects=True)
+        assert resp.status_code == 403
+
+        with client.session_transaction() as sess:
+            # asser new token was generated
+            # since it does this automatically for ajax requests
+            assert sess["_csrf_token"] != "token123"
+            new_token = sess["_csrf_token"]
+
+        resp = client.post(
+                url_for("auth.login"),
+                data=dict(
+                    username="test",
+                    password="testpw",
+                ),
+                headers={
+                    # ajax woudl normally use: 'Content-Type': 'application/json',
+                    # but login doesnt support that
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': new_token
+                }, follow_redirects=True)
+        assert resp.status_code == 200
+
+        with client.session_transaction() as sess:
+            assert resp.headers["X-CSRFToken"] == sess["_csrf_token"]

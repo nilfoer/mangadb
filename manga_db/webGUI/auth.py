@@ -50,10 +50,9 @@ def login():
 
         if "USERNAME" not in current_app.config:
             error = "No registered user!"
-        elif username != current_app.config["USERNAME"]:
-            error = 'Incorrect username.'
-        elif not check_password_hash(current_app.config['PASSWORD'], password):
-            error = 'Incorrect password.'
+        elif username != current_app.config["USERNAME"] or (
+                not check_password_hash(current_app.config['PASSWORD'], password)):
+            error = 'Incorrect username or password.'
 
         if error is None:
             session.clear()
