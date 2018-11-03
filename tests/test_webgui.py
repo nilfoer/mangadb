@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from manga_db.webGUI import create_app
 from manga_db.webGUI.mdb import get_mdb
+from utils import all_book_info
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -367,3 +368,107 @@ def test_show_info(app_setup):
         assert cells[0].text.strip() == "Dolls Ch. 8 / ドールズ 第8話"
         assert cells[1].text.strip() == "Not rated"
         assert cells[2].text.strip() == "31"
+
+
+def test_apply_upd_changes(app_setup):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                url_for("main.apply_upd_changes", book_id=7),
+                data={
+                    "_csrf_token": "token123",
+                    "status": "Completed",
+                    "language": "Klingon",
+                    "pages": 27,
+                    "tag": "Test;Test Tag;;;Masturbation;Fingering",
+                    "list": "Added List;ListAdded;;;"
+                    },
+                follow_redirects=False)
+        assert resp.status_code == 200
+
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+        db_con.row_factory = sqlite3.Row
+        tags = db_con.execute("""SELECT id, group_concat(name, ';')
+                             FROM (
+                                     SELECT b.id, l.name
+                                     FROM Books b, Tag l, BookTag bl
+                                     WHERE bl.book_id = b.id
+                                     AND bl.tag_id = l.id
+                                     AND b.id = 7
+                                     ORDER BY l.name
+                                  )
+                             GROUP BY id
+                             """).fetchone()
+        assert tags[1] == "Gender Bender;Possession;Solo Action;Test;Test Tag"
+
+        lists = db_con.execute("""SELECT id, group_concat(name, ';')
+                             FROM (
+                                     SELECT b.id, l.name
+                                     FROM Books b, List l, BookList bl
+                                     WHERE bl.book_id = b.id
+                                     AND bl.list_id = l.id
+                                     AND b.id = 7
+                                     ORDER BY l.name
+                                  )
+                             GROUP BY id
+                             """).fetchone()
+        assert lists[1] == "Added List;ListAdded"
+        book_row = db_con.execute("SELECT * FROM Books WHERE id = 7").fetchone()
+        assert book_row["status_id"] == 3
+        assert book_row["language_id"] == 2
+        assert book_row["pages"] == 27
+
+
+def test_edit_book(app_setup):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        data = {
+                "_csrf_token": "token123",
+                "title_eng": "Test Title !$I=§",
+                "title_foreign": "とれて♥甘痴",
+                "language_id": 1,
+                "my_rating": 4.5,
+                "status_id": 2,
+                "pages": 27,
+                "category": ["Doujinshi", "Manga", "Newcat"],
+                "collection": ["Testcol"],
+                "groups": ["Testgrp1", "Testgrp2"],
+                "artist": ["Tanabe Kyou"],
+                "parody": [],
+                "character": ["Testchar1", "Test char2"],
+                "note": "Testnote 123\n235423",
+                "tag": ["Anal", "Nakadashi", "Blowjob", "X-ray", "Ahegao", "Huge Penis",
+                        "Incest", "Loli", "Maledom", "Niece", "Slut", "Stockings"],
+                "list": ["to-read", "test"]
+                }
+        resp = client.post(
+                url_for("main.edit_book", book_id=9),
+                data=data,
+                follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.location == url_for("main.show_info", book_id=9)
+
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+        db_con.row_factory = sqlite3.Row
+        brow = all_book_info(db_con, book_id=9)
+        for col in ("title_eng", "title_foreign", "my_rating", "status_id", "pages", "note"):
+            assert brow[col] == data[col]
+        assert sorted(brow["tags"].split(";")) == sorted(data["tag"])
+        assert sorted(brow["artists"].split(";")) == sorted(data["artist"])
+        assert sorted(brow["categories"].split(";")) == sorted(data["category"])
+        assert sorted(brow["characters"].split(";")) == sorted(data["character"])
+        assert sorted(brow["collections"].split(";")) == sorted(data["collection"])
+        assert sorted(brow["groups"].split(";")) == sorted(data["groups"])
+        assert sorted(brow["lists"].split(";")) == sorted(data["list"])
+        assert brow["parodies"] is None
+

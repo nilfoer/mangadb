@@ -244,6 +244,8 @@ def apply_upd_changes(book_id):
     for col, val in request.form.items():
         if col == "_csrf_token":
             continue
+        elif col == "pages":
+            update_dic[col] = int(val)
         elif col == "status":
             update_dic["status_id"] = STATUS_IDS[val]
         elif col == "language":
