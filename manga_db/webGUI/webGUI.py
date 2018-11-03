@@ -83,8 +83,8 @@ def show_info(book_id, book=None, **kwargs):
         try:
             ei = [ei for ei in book.ext_infos if ei.id == show_outdated][0]
         except IndexError:
-            app.logger.error("Cant show outdated id %d not found in books ext_infos",
-                             show_outdated)
+            current_app.logger.error("Cant show outdated id %d not found in books ext_infos",
+                                     show_outdated)
         else:
             outdated = ei.get_outdated_links_same_pageid()
 
@@ -604,8 +604,8 @@ def edit_book(book_id):
             try:
                 val = float(val)
             except ValueError:
-                app.logger.warning("Couldnt convert value '%s' to float for column '%s'",
-                                   val, col)
+                current_app.logger.warning("Couldnt convert value '%s' to float for column '%s'",
+                                           val, col)
                 flash(f"{col} needs to be a floating point number!", "info")
                 return redirect(url_for("main.show_edit_book", book_id=book_id))
         if not isinstance(val, str):

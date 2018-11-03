@@ -1,6 +1,7 @@
 import os
 import shutil
 import json
+import bs4
 import sqlite3
 import pytest
 
@@ -272,3 +273,97 @@ def test_list_action_ajax(app_setup):
         assert resp.is_json
         assert resp.json == jsonify({"error": ("Supplied action 'invalid_action' is not a "
                                                "valid list action!")}).json
+
+
+def test_show_info(app_setup):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+
+    with app.app_context():
+        resp = client.get(url_for("main.show_info", book_id=5), follow_redirects=True)
+        assert b"Top Princess Bottom Princess" in resp.data
+        assert "攻め姫受け姫".encode("utf-8") in resp.data
+        r_html = resp.data.decode("utf-8")
+        soup = bs4.BeautifulSoup(r_html, "html.parser")
+        assert soup.select_one("#Pages").text.strip() == "19"
+        assert soup.select_one("#Status").text.strip() == "Unknown"
+
+        lang = soup.select("#Language > a")
+        assert len(lang) == 1
+        assert lang[0].text.strip() == "English"
+
+        cat = soup.select("#Category > a")
+        assert len(cat) == 1
+        assert cat[0].text.strip() == "Doujinshi"
+
+        grp = soup.select("#Group > a")
+        assert len(grp) == 1
+        assert grp[0].text.strip() == "SeaFox"
+
+        artist = soup.select("#Artist > a")
+        assert len(artist) == 1
+        assert artist[0].text.strip() == "Kirisaki Byakko"
+
+        chars = [a.text.strip() for a in soup.select("#Character > a")]
+        assert len(chars) == 3
+        assert "Mario" in chars
+        assert "Princess Peach" in chars
+        assert "Super Crown Bowser | Bowsette" in chars
+
+        parody = soup.select("#Parody > a")
+        assert len(parody) == 1
+        assert parody[0].text.strip() == "Super Mario Bros. / スーパーマリオブラザーズ"
+
+        tags_expected = set("Femdom;Large Breasts;Nakadashi;Collar;Dragon Girl;Fangs;"
+                            "Futa on Female;Futanari;Gender Bender;Hat;Leotard;Monster Girl;"
+                            "Royalty".split(";"))
+        tags = [a.text.strip() for a in soup.select("#Tag > a")]
+        tags_nr = len(tags)
+        tags = set(tags)
+        assert len(tags) == tags_nr
+        assert tags.symmetric_difference(tags_expected) == set()
+
+        assert soup.select_one("#LastChange").text.strip() == "2018-10-24"
+        assert not soup.select_one("#Note")
+        assert soup.select_one("#btnFavoriteHandler").text.strip() == "Add to Favorites"
+        assert soup.select_one("#btnDownloadEntry").text.strip() == "Download"
+
+        # extinfo
+        assert "Tsumino.com" in soup.select_one(".ext-info-title > a").text
+        assert soup.select_one("#Uploader > a ").text.strip() == "Scarlet Spy"
+        assert soup.select_one("#Uploaded").text.strip() == "2018-10-17"
+        assert soup.select_one("#Rating").text.strip() == "4.23 (101 users / 1020 favs)"
+        assert soup.select_one("#Censorship").text.strip() == "Censored"
+
+        # check collections correct
+        # set favorite and dled
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+        with db_con:
+            db_con.execute("UPDATE Books SET favorite = 1, my_rating = 3.5 WHERE id = 3")
+            db_con.execute("UPDATE ExternalInfo SET downloaded = 1 WHERE book_id = 3")
+
+        resp = client.get(url_for("main.show_info", book_id=3), follow_redirects=True)
+        assert (b"Dolls -Yoshino Izumi Hen- | Dolls -Yoshino "
+                b"Izumi&#39;s Story- Ch. 2") in resp.data
+        r_html = resp.data.decode("utf-8")
+        soup = bs4.BeautifulSoup(r_html, "html.parser")
+        assert soup.select_one("#btnFavoriteHandler").text.strip() == "Favorited"
+        assert soup.select_one("#btnDownloadEntry").text.strip() == "Downloaded"
+        assert soup.select_one("#Collection > a ").text.strip() == "Dolls"
+        assert b"Collection: Dolls" in resp.data
+
+        col_rows = soup.select("a.trow")
+        cells = col_rows[0].select(".tcell")
+        # book that is displayed correctly marked
+        assert "book-collection-is-me" in col_rows[0]["class"]
+        assert cells[0].text.strip() == ("Dolls -Yoshino Izumi Hen- | Dolls -Yoshino Izumi's"
+                                         " Story- Ch. 2 / ドールズ -芳乃泉編- Ch. 2")
+        assert cells[1].text.strip() == "3.5"
+        assert cells[2].text.strip() == "25"
+
+        cells = col_rows[1].select(".tcell")
+        assert "book-collection-is-me" not in col_rows[1]["class"]
+        assert cells[0].text.strip() == "Dolls Ch. 8 / ドールズ 第8話"
+        assert cells[1].text.strip() == "Not rated"
+        assert cells[2].text.strip() == "31"
