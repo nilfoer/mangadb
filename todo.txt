@@ -2,7 +2,6 @@
     import_book
     update_book_ext_info
     apply_upd_changes
-    list_action_ajax
     add_ext_info
     add_book + cancel
     edit_book

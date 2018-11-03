@@ -388,11 +388,11 @@ def list_action_ajax(book_id, action):
                                                   searchstring=f'tag:"{list_name}"')})
     elif action == "remove":
         Book.remove_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
-        # pass url back to script since we cant use url_for
         return jsonify({"removed": list_name})
     else:
-        flash(f"Supplied action '{action}' is not a valid list action!", "warning")
-        return redirect(url_for("main.show_info", book_id=book_id))
+        return jsonify({
+            "error": f"Supplied action '{action}' is not a valid list action!"
+            })
 
 
 @main_bp.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
