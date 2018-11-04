@@ -13,6 +13,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from manga_db.webGUI import create_app
 from manga_db.webGUI.mdb import get_mdb
+from manga_db.ext_info import ExternalInfo
 from utils import all_book_info, gen_hash_from_file
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -696,3 +697,74 @@ def test_import_book(app_setup, monkeypatch):
         assert ei_rows[0][12] == 1
         # no cover written
         assert not os.path.isfile(os.path.join(tmpdir, "thumbs", "11"))
+
+
+def test_add_book(app_setup):
+    extr_json = """{"title_eng": "Mirai Tantei Nankin Jiken", "title_foreign":
+    "\\u672a\\u6765\\u63a2\\u5075\\u8edf\\u7981\\u4e8b\\u4ef6", "uploader": "Scarlet Spy",
+    "upload_date": "2018-10-13", "pages": 31, "rating": 4.46, "ratings": 175, "favorites": 1703,
+    "my_rating": null, "category": ["Doujinshi"], "collection": ["Testcol"],
+    "groups": ["Kakuzato-ichi"], "artist": ["Kakuzatou"], "parody": ["Testpar1", "Testpar2"],
+    "character": ["Char1", "Char 2"], "tag": ["BBW", "Big Ass", "Blowjob", "Elder Sister",
+    "Femdom", "Handjob", "Happy Sex", "Hotpants", "Huge Breasts", "Impregnation", "Incest",
+    "Inseki", "Large Breasts", "Nakadashi", "Onahole", "Plump", "Smug", "Stockings",
+    "Straight Shota", "Tall Girl"], "censor_id": 2, "url":
+    "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken", "id_onpage": 43492,
+    "language": "English", "status_id": 1, "imported_from": 1}"""
+    extr_data = json.loads(extr_json)
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+
+    tmpcov_path = os.path.join(tmpdir, "thumbs", "tempcover")
+    data = {k: v for k, v in extr_data.items() if k not in ExternalInfo.COLUMNS and
+            v is not None}
+    data.update({
+        "extr_data_json": extr_json,
+        "cover_temp_name": "tempcover",
+        "_csrf_token": "token123",
+        "language_id": 1,
+        "my_rating": 3.4,
+        "note": "test",
+        "list": ["to-read", "test"]
+        })
+    with open(tmpcov_path, "w") as f:
+        f.write("Testcover temp file")
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.add_book"),
+                    data=data,
+                    follow_redirects=True)
+        assert b"Mirai Tantei Nankin Jiken" in resp.data
+        assert not os.path.isfile(tmpcov_path)
+        assert os.path.isfile(os.path.join(tmpdir, "thumbs", "18"))
+
+        row_expected = ('Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, 3.4, "test",
+                        datetime.date.today(), 0, 'Kakuzatou', 'Doujinshi', "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test", "Testpar1;Testpar2", 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken', 43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175, 1703, 0, datetime.date.today(), 0)
+
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+        row = all_book_info(db_con, 18, include_id=False)
+        # assoc col values arent ordered, if one of the above fails and its assoc col
+        # also compare them sorted
+        assert tuple((c for c in row if not (type(c) == str and "Femdom" in c))) == row_expected
+        tags_expected = sorted('Femdom;Handjob;Large Breasts;Nakadashi;Straight Shota;Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;Elder Sister;Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug'.split(";"))
+        assert sorted(row[9].split(";")) == tags_expected
+
+    # cancel add book
+    tmpcov_path = os.path.join(tmpdir, "thumbs", "tempcover")
+    with open(tmpcov_path, "w") as f:
+        f.write("Testcover temp file to delete")
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        client.post(
+                url_for("main.cancel_add_book"),
+                data="tempcover",
+                headers={
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': "token123"
+                    },
+                follow_redirects=True)
+    assert not os.path.isfile(tmpcov_path)
