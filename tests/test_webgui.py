@@ -681,7 +681,7 @@ def test_import_book(app_setup, monkeypatch):
         assert f"Added external link at &#39;{url}" in r_html
         # show outdated msg
         assert "External links from same site and with matching IDs found" in r_html
-        assert f"{url}" in r_html
+        assert f"( {url} )" in r_html
 
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
                                  detect_types=sqlite3.PARSE_DECLTYPES)
@@ -768,3 +768,168 @@ def test_add_book(app_setup):
                     },
                 follow_redirects=True)
     assert not os.path.isfile(tmpcov_path)
+
+
+def test_add_ext_info(app_setup, monkeypatch):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+    tests_files_dir = os.path.join(TESTS_DIR, "webgui_test_files")
+    url = ("http://www.tsumino.com/Book/Info/43516/martina-onee-chan-no-seikatsu-big-sis-"
+           "martina-s-sex-life")
+    fn = "tsumino_43516_martina-onee-chan-no-seikatsu.html"
+    with open(os.path.join(tests_files_dir, fn), "r", encoding="UTF-8") as f:
+        html = f.read()
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
+    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: "x")
+    book_title = ("Martina TITLE MISSMATCH Onee-chan no Seikatsu | Big Sis Martina's Sex Life / "
+                  "マルティナお姉ちゃんの性活")
+
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.add_ext_info", book_id=6),
+                    data={"_csrf_token": "token123"},
+                    follow_redirects=True)
+        assert b"URL empty!" in resp.data
+
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.add_ext_info", book_id=6),
+                    data={"url": url, "book_title": book_title, "_csrf_token": "token123"},
+                    follow_redirects=True)
+        assert b"Adding external link failed!" in resp.data
+        assert f"URL was: {url}".encode("utf-8") in resp.data
+
+        # have to change get_html to retrieve file from disk instead
+        monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html",
+                            lambda x: html)
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.add_ext_info", book_id=6),
+                    data={"url": url, "book_title": book_title, "_csrf_token": "token123"},
+                    follow_redirects=True)
+        # title missmatch warning
+        assert b"Title of external link and book&#39;s title don&#39;t match!" in resp.data
+        # outdated warning
+        assert b"External links from same site and with matching IDs found!" in resp.data
+        assert f"( {url} )".encode("utf-8") in resp.data
+        assert b"External link was added as id 19" in resp.data
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+        ei_rows = db_con.execute("""SELECT url, id_onpage, imported_from, upload_date,
+                                           uploader, censor_id, rating, ratings, favorites,
+                                           downloaded, last_update, outdated
+                                    FROM ExternalInfo WHERE book_id = 6""").fetchall()
+        assert len(ei_rows) == 2
+        assert ei_rows[0][:-2] == ei_rows[1][:-2]
+        assert ei_rows[1][-2] == datetime.date.today()
+        # old ei outdated
+        assert ei_rows[0][-1] == 1
+
+
+def test_update_book_ext_info(app_setup, monkeypatch):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+    tests_files_dir = os.path.join(TESTS_DIR, "webgui_test_files")
+    fn = "tsumino_43516_martina-onee-chan-no-seikatsu_updated.html"
+    with open(os.path.join(tests_files_dir, fn), "r", encoding="UTF-8") as f:
+        html = f.read()
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
+    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: "x")
+
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.update_book_ext_info", book_id=6, ext_info_id=6),
+                    data={"_csrf_token": "token123"},
+                    follow_redirects=True)
+        assert b"Updating failed!" in resp.data
+        assert (b"Either there was something wrong with the url or the extraction failed"
+                in resp.data)
+
+        # have to change get_html to retrieve file from disk instead
+        monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html",
+                            lambda x: html)
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.update_book_ext_info", book_id=6, ext_info_id=6),
+                    data={"_csrf_token": "token123"},
+                    follow_redirects=True)
+        # canceled updated due to wrong title
+        assert b"Update failed!" in resp.data
+        assert b"Title of book at URL didn&#39;t match title" in resp.data
+
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+        # set to downloaded so it gets reset when we get re-dl warning
+        with db_con:
+            db_con.execute("UPDATE ExternalInfo SET downloaded = 1 WHERE id = 6")
+        ei_row_before = db_con.execute("""SELECT url, id_onpage, imported_from,
+                                          outdated, downloaded
+                                        FROM ExternalInfo WHERE book_id = 6""").fetchone()
+        assert ei_row_before[4] == 1
+        # change wrong title back
+        html = html.replace("TITLE MISSMATCH ", "")
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.update_book_ext_info", book_id=6, ext_info_id=6),
+                    data={"_csrf_token": "token123"},
+                    follow_redirects=True)
+        assert b"External link was updated!" in resp.data
+
+        # test that update changes are shown correctly
+        assert b"Differences from Book at external link" in resp.data
+        r_html = resp.data.decode("utf-8")
+
+        expected = (
+                # "uploader": "censor_id": "upload_date": "rating": "ratings": "favorites":
+                "Scarlet Spy2", 3, datetime.date(2018, 10, 20), 4.4, 100, 1150,
+                # last_update
+                datetime.date.today()
+                )
+        # book_changed = {
+        #         "pages": 29,
+        #         "artist": ["Added Artist", "Korotsuke"],
+        #         # tag removed: Exhibitionism, Ponytail
+        #         # tag added also Decensored which will be filtered and
+        #         # updates ext info censorhsip
+        #         "tag": ["Ahegao", "Happy Sex", "Impregnation", "Large Breasts", "Decensored",
+        #                 "Nakadashi", "School Uniform", "Sweating", "Added Tag"],
+        #         "collection": ["Big Sis Martina's"]
+        #         }
+        assert "pages: 29" in r_html
+        added_removed = (
+                ({"Decensored", "Added Tag"}, {"Exhibitionism", "Ponytail"}),
+                "Added Artist;;;",
+                "Big Sis Martina&#39;s;;;"
+                )
+        soup = bs4.BeautifulSoup(r_html, "html.parser")
+        for ar in added_removed:
+            # if there are multiple values they can change order
+            if type(ar) == tuple:
+                input_tag = soup.select_one("input[name=\"tag\"]").attrs["value"]
+                added, removed = input_tag.split(";;;")
+                added = set(added.split(";"))
+                removed = set(removed.split(";"))
+                assert ar[0] == added and ar[1] == removed
+            else:
+                assert ar in r_html
+        # re-dl warning displayed
+        assert "WARNING" in r_html
+        assert "Please re-download" in r_html
+        ei_rows = db_con.execute("""SELECT url, id_onpage, imported_from, outdated,
+                                           downloaded, uploader, censor_id, upload_date,
+                                           rating, ratings, favorites, last_update
+                                    FROM ExternalInfo WHERE book_id = 6""").fetchall()
+        r = ei_rows[0]
+        assert len(ei_rows) == 1
+        assert ei_row_before[:-1] == r[:4]
+        # downloaded reset
+        assert r[4] == 0
+        assert r[5:] == expected

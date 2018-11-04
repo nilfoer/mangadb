@@ -182,7 +182,7 @@ def jump_to_book_by_url():
         return show_info(book_id=None, book=books[0])
 
 
-@main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update')
+@main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=("POST",))
 def update_book_ext_info(book_id, ext_info_id):
     mdb = get_mdb()
     old_book = mdb.get_book(book_id)
@@ -218,6 +218,7 @@ def update_book_ext_info(book_id, ext_info_id):
     except KeyError:
         pass
     try:
+        # TODO leave normal lang col without id since this adds a lang if its not present
         language_id = converted["normal"]["language_id"]
         converted["normal"]["language"] = mdb.language_map[language_id]
         del converted["normal"]["language"]
@@ -456,15 +457,17 @@ def add_ext_info(book_id):
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
         return show_info(book_id=book_id)
-    book, ext_info = get_mdb().book_from_data(extr_data)
+    mdb = get_mdb()
+    book, ext_info = mdb.book_from_data(extr_data)
     if book.title != book_title:
         # just warn if titles dont match, its ultimately the users decision
         flash("Title of external link and book's title don't match!", "warning")
         flash(f"URL: {url}", "info")
 
-    # @Hack @Cleanup assigning book id to book we dont want to save in order
-    # to be able to save ext_info
-    book.id = book_id
+    # @Temporary getting book to be able to save ext_info and adding ext_info manually to ext_infos
+    b = mdb.get_book(book_id)
+    ext_info.book = b
+    b.ext_infos.append(ext_info)
     ei_id, outdated = ext_info.save()
 
     flash(f"External link was added as id {ei_id}")

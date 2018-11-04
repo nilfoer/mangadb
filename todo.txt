@@ -1,6 +1,3 @@
-- test webgui: ??
-    update_book_ext_info
-    add_ext_info
 - change functions in webgui to redirect instead of returning the func to redirect to if the url should change    
 - update unchanged vals from db when loading instance?    
     or at least make sure that e.g. when we save external info with book_id but without adding it to book

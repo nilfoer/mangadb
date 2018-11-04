@@ -488,10 +488,14 @@ BACK TO INDEX
 		Download
 		</a>
 		{% endif %}
-		<a href="{{ url_for('main.update_book_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}" class="book-read-button button-stack pink-color">
+        <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
+        ext_info_id=ext_info.id) }}" method=post>
+		<button type="submit" class="book-read-button button-stack pink-color">
 		<i class="fas fa-sync-alt"></i>
 		Update
-		</a>
+		</button>
+        {{ csrf_token_field() }}
+        </form>
 
         <a href="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}"
             onclick="return confirm('Are you sure you want to remove this external link from this Book?');" class="book-read-button button-stack red-color">
