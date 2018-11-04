@@ -4,7 +4,9 @@ import json
 import bs4
 import sqlite3
 import pytest
+from io import BytesIO
 
+from PIL import Image
 from flask import url_for, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -472,3 +474,99 @@ def test_edit_book(app_setup):
         assert sorted(brow["lists"].split(";")) == sorted(data["list"])
         assert brow["parodies"] is None
 
+
+def upload_file(app, client, bid, tfile):
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        # content_type='multipart/form-data' to the post method it -> expects all values
+        # in data to either be files or strings
+        resp = client.post(
+                    url_for("main.upload_cover", book_id=bid),
+                    data={"file": tfile},
+                    headers={
+                        'Content-Type': 'multipart/form-data',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': "token123"
+                        },
+                    content_type='multipart/form-data')
+        return resp
+
+
+def test_upload_cover(app_setup):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.upload_cover", book_id=10),
+                    data={},
+                    headers={
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': "token123"
+                        })
+        assert resp.json == jsonify({"error": "No file data received!"}).json
+
+        # cant simulate user not selecting file as in file being of size 0 or filename
+        # being false -> without filename file ends up in form data and not in req.files
+        # tfile = (BytesIO(b't'), "")
+        # resp = upload_file(app, client, tfile)
+        # assert resp.json == jsonify({"error": "No file selected!"}).json
+
+        # needs to be working img since we do processing with pil
+        # create image with pil (over max thumb size in color red)
+        img = Image.new('RGB', (500, 930), color='red')
+        # save pil image in BytesIO obj
+        img_bio = BytesIO()
+        img.save(img_bio, format='PNG')
+        # reset pointer
+        img_bio.seek(0)
+        tfile = (img_bio, "test.png")
+        resp = upload_file(app, client, 10, tfile)
+        assert resp.json == jsonify({"cover_path": "/thumbs/10"}).json
+        cover_img = Image.open(os.path.join(tmpdir, "thumbs", "10"))
+        assert cover_img.size <= (400, 600)
+        cover_img.close()
+
+        # upload for book without id
+        img = Image.new('RGB', (300, 530), color='red')
+        # save pil image in BytesIO obj
+        img_bio = BytesIO()
+        img.save(img_bio, format='PNG')
+        # reset pointer
+        img_bio.seek(0)
+        tfile = (img_bio, "test.png")
+        resp = upload_file(app, client, 0, tfile)
+        r_dic = resp.get_json()
+        cover_img = Image.open(os.path.join(tmpdir, "thumbs",
+                                            r_dic["cover_path"].rsplit("/", 1)[-1]))
+        assert cover_img.size <= (400, 600)
+        cover_img.close()
+
+        img = Image.new('RGB', (300, 530), color='red')
+        # save pil image in BytesIO obj
+        img_bio = BytesIO()
+        img.save(img_bio, format='PNG')
+        # reset pointer
+        img_bio.seek(0)
+        tfile = (img_bio, "test.png")
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.upload_cover", book_id=0),
+                    data={"file": tfile,
+                          "old_cover_temp_name": r_dic["cover_path"].rsplit("/", 1)[-1]},
+                    headers={
+                        'Content-Type': 'multipart/form-data',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': "token123"
+                        },
+                    content_type='multipart/form-data')
+        r_dic2 = resp.get_json()
+        assert os.path.isfile(os.path.join(tmpdir, "thumbs",
+                                           r_dic2["cover_path"].rsplit("/", 1)[-1]))
+        # other temp img was deleted
+        assert not os.path.exists(os.path.join(tmpdir, "thumbs",
+                                               r_dic["cover_path"].rsplit("/", 1)[-1]))

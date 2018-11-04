@@ -643,7 +643,7 @@ def allowed_thumb_ext(filename):
 def upload_cover(book_id):
     # check if the post request has the file part
     if 'file' not in request.files:
-        return jsonify({"error": "No file data recieved!"})
+        return jsonify({"error": "No file data received!"})
     file_data = request.files['file']
     # if user does not select file, browser also
     # submit an empty part without filename
