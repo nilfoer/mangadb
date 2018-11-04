@@ -121,10 +121,14 @@ def import_book(url=None):
     bid = mdb.get_book_id(book.title_eng, book.title_foreign)
     if bid is not None:
         # book was alrdy in DB
-        # -> add extinfo instead of importing whole book
-        book.id = bid
-        ext_info = ExternalInfo(mdb, book, **extr_data)
+        # -> add extinfo instead of importing whole book => NO since if its in id_map
+        # book.ext_infos wont match state in DB
+        book_in_db = mdb.get_book(bid)
+        ext_info = ExternalInfo(mdb, book_in_db, **extr_data)
         eid, outdated = ext_info.save()
+        # @Temporary add ei to book.ext_infos
+        book_in_db.ext_infos.append(ext_info)
+
         flash(f"Added external link at '{ext_info.url}' to book!")
         return show_info(book_id=bid, show_outdated=eid if outdated else None)
     else:

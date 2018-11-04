@@ -1,6 +1,7 @@
 import os
 import shutil
 import json
+import datetime
 import bs4
 import sqlite3
 import pytest
@@ -12,7 +13,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from manga_db.webGUI import create_app
 from manga_db.webGUI.mdb import get_mdb
-from utils import all_book_info
+from utils import all_book_info, gen_hash_from_file
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -570,3 +571,128 @@ def test_upload_cover(app_setup):
         # other temp img was deleted
         assert not os.path.exists(os.path.join(tmpdir, "thumbs",
                                                r_dic["cover_path"].rsplit("/", 1)[-1]))
+
+
+def test_import_book(app_setup, monkeypatch):
+    tmpdir, app, client = app_setup
+    setup_authenticated_sess(app, client)
+    tests_files_dir = os.path.join(TESTS_DIR, "webgui_test_files")
+
+    url = "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken"
+    fn = "tsumino_43492_mirai-tantei-nankin-jiken"
+    with open(os.path.join(tests_files_dir, fn + ".html"), "r", encoding="UTF-8") as f:
+        html = f.read()
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
+    cover_url = os.path.join(tests_files_dir, fn).replace("\\", r"/")
+    cover_url = f"file:///{cover_url}"
+    # patch get_cover to point to thumb on disk
+    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: cover_url)
+
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.import_book"),
+                    data={"ext_url": url, "_csrf_token": "token123"},
+                    follow_redirects=True)
+        assert b"Failed getting book" in resp.data
+
+    # have to change get_html to retrieve file from disk instead
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: html)
+    kwargs_show_add = {}
+    # import book shows show_add_book with a temp fn for dled cover and extr data json embedded
+    # patch show add book to give us the argmuents
+
+    def store_kwargs(**kwargs):
+        kwargs_show_add.update(kwargs)
+        return ""
+    monkeypatch.setattr("manga_db.webGUI.webGUI.show_add_book", store_kwargs)
+    with app.app_context():
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.import_book"),
+                    data={"ext_url": url, "_csrf_token": "token123"},
+                    follow_redirects=True)
+
+        # cover temp written correctly
+        assert (gen_hash_from_file(os.path.join(tmpdir, "thumbs", kwargs_show_add["cover_temp"]),
+                                   "sha512") ==
+                "6c77019c5a84f00486b35a496b4221eb30dfb8a5d37d006c298d01562291ca0138e2ef72e"
+                "27f076be80593fb1ff27f09a5a557c55c8a98e80f88d91ceff8b533")
+
+        row_expected = (
+            'Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, None, None,
+            datetime.date.today(), 0, ('Femdom;Handjob;Large Breasts;Nakadashi;Straight Shota;'
+            'Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;Elder Sister;'
+            'Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug'), 'Kakuzatou', 'Doujinshi',
+            None, None, 'Kakuzato-ichi', None, None, ('http://www.tsumino.com/Book/Info/43492/'
+            'mirai-tantei-nankin-jiken'), 43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy',
+            2, 4.46, 175, 1703, 0, datetime.date.today(), 0
+            )
+        # compare book
+        b = kwargs_show_add["book"]
+        assert b.title_eng == row_expected[0]
+        assert b.title_foreign == row_expected[1]
+        # lang id gets set on add book page
+        assert b.language_id is None
+        assert b.pages == row_expected[3]
+        assert b.status_id == row_expected[4]
+        assert b.my_rating == row_expected[5]
+        assert b.note == row_expected[6]
+        assert b.last_change == row_expected[7]
+        assert b.favorite is None
+        assert sorted(b.tag) == sorted(row_expected[9].split(";"))
+        assert b.artist == [row_expected[10]]
+        assert b.category == [row_expected[11]]
+        assert b.character == []
+        assert b.collection == []
+        assert b.groups == [row_expected[14]]
+        assert b.list == []
+        assert b.parody == []
+
+        # check ext info from json since its rebuilt from that
+        ei = json.loads(kwargs_show_add["extr_data"])
+        assert ei["url"] == row_expected[17]
+        assert ei["id_onpage"] == row_expected[18]
+        assert ei["imported_from"] == row_expected[19]
+        assert ei["upload_date"] == str(row_expected[20])
+        assert ei["uploader"] == row_expected[21]
+        assert ei["censor_id"] == row_expected[22]
+        assert ei["rating"] == row_expected[23]
+        assert ei["ratings"] == row_expected[24]
+        assert ei["favorites"] == row_expected[25]
+
+        # book alrdy in DB -> add extinfo
+        url = "http://www.tsumino.com/Book/Info/43460/sono-shiroki-utsuwa-ni-odei-o-sosogu"
+        fn = "tsumino_43460_sono-shiroki-utsuwa.html"
+        with open(os.path.join(tests_files_dir, fn), "r", encoding="UTF-8") as f:
+            html = f.read()
+        monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: cover_url)
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        # import same book again
+        resp = client.post(
+                    url_for("main.import_book"),
+                    data={"ext_url": url, "_csrf_token": "token123"},
+                    follow_redirects=True)
+        r_html = resp.data.decode("utf-8")
+        assert f"Added external link at &#39;{url}" in r_html
+        # show outdated msg
+        assert "External links from same site and with matching IDs found" in r_html
+        assert f"{url}" in r_html
+
+        db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
+                                 detect_types=sqlite3.PARSE_DECLTYPES)
+
+        ei_rows = db_con.execute("SELECT book_id, url, id_onpage, imported_from, upload_date, "
+                                 "uploader, censor_id, rating, ratings, favorites, downloaded, "
+                                 "last_update, outdated "
+                                 "FROM ExternalInfo WHERE book_id = 11").fetchall()
+        assert len(ei_rows) == 2
+        assert ei_rows[0][:-2] == ei_rows[1][:-2]
+        assert ei_rows[1][11] == datetime.date.today()
+        # old ei outdated
+        assert ei_rows[0][12] == 1
+        # no cover written
+        assert not os.path.isfile(os.path.join(tmpdir, "thumbs", "11"))

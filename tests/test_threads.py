@@ -1,29 +1,11 @@
 import os
 import pytest
 import sqlite3
-import hashlib
 
-from utils import setup_mdb_dir, import_json
+from utils import setup_mdb_dir, import_json, gen_hash_from_file
 from manga_db.threads import import_multiple
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
-
-
-def gen_hash_from_file(fname, hash_algo_str, _hex=True):
-    # construct a hash object by calling the appropriate constructor function
-    hash_obj = hashlib.new(hash_algo_str)
-    # open file in read-only byte-mode
-    with open(fname, "rb") as f:
-        # only read in chunks of size 4096 bytes
-        for chunk in iter(lambda: f.read(4096), b""):
-            # update it with the data by calling update() on the object
-            # as many times as you need to iteratively update the hash
-            hash_obj.update(chunk)
-    # get digest out of the object by calling digest() (or hexdigest() for hex-encoded string)
-    if _hex:
-        return hash_obj.hexdigest()
-    else:
-        return hash_obj.digest()
 
 
 url_furl_map = import_json(os.path.join(TESTS_DIR, "threads_test_files",

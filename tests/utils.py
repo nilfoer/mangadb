@@ -3,6 +3,7 @@ import os
 import shutil
 import json
 import pickle
+import hashlib
 
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -240,3 +241,20 @@ def all_book_info(db_con, book_id=None, include_id=True):
 def build_testsdir_furl(rel_path):
     conv_slashes = TESTS_DIR.replace("\\", "/")
     return f"file:///{conv_slashes}/{rel_path}"
+
+
+def gen_hash_from_file(fname, hash_algo_str, _hex=True):
+    # construct a hash object by calling the appropriate constructor function
+    hash_obj = hashlib.new(hash_algo_str)
+    # open file in read-only byte-mode
+    with open(fname, "rb") as f:
+        # only read in chunks of size 4096 bytes
+        for chunk in iter(lambda: f.read(4096), b""):
+            # update it with the data by calling update() on the object
+            # as many times as you need to iteratively update the hash
+            hash_obj.update(chunk)
+    # get digest out of the object by calling digest() (or hexdigest() for hex-encoded string)
+    if _hex:
+        return hash_obj.hexdigest()
+    else:
+        return hash_obj.digest()
