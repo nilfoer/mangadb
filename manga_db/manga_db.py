@@ -147,7 +147,7 @@ class MangaDB:
         extr_data, thumb_url = self.retrieve_book_data(url)
         if extr_data is None:
             logger.warning("Importing book failed!")
-            return None, None
+            return None, None, None
         book, ext_info = self.book_from_data(extr_data)
         book.list = lists
 
@@ -408,6 +408,7 @@ class MangaDB:
             # enable uri mode so we can pass mode ro for read-only access
             conn = sqlite3.connect(f"file:{filename}?mode=ro", uri=True,
                                    detect_types=sqlite3.PARSE_DECLTYPES)
+            conn.row_factory = sqlite3.Row
             c = conn.cursor()
             return conn, c
         # PARSE_DECLTYPES -> parse types and search for converter function for

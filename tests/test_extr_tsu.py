@@ -1,4 +1,6 @@
 import datetime
+import logging
+import pytest
 
 from manga_db.extractor.tsumino import TsuminoExtractor
 
@@ -32,13 +34,27 @@ manual = {
         }
 
 
-def test_extr_tsu():
-    t = TsuminoExtractor("http://www.tsumino.com/Book/Info/43357/negimatic-paradise-05-05-")
+def test_extr_tsu(monkeypatch, caplog):
+    url = "http://www.tsumino.com/Book/Info/43357/negimatic-paradise-05-05-"
+    t = TsuminoExtractor(url)
     t.html = TsuminoExtractor.get_html(build_testsdir_furl("extr_tsu_files/tsumino_43357_negimatic-paradise-05-05.html"))
     res = t.get_metadata()
 
     assert res == manual
     assert t.get_cover() == "http://www.tsumino.com/Image/Thumb/43357"
+
+    # test no data receieved
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
+    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover",
+                        lambda x: None)
+    caplog.clear()
+    t = TsuminoExtractor(url)
+    assert t.get_metadata() is None
+    assert caplog.record_tuples == [
+            ("manga_db.extractor.tsumino", logging.WARNING,
+             # url without last dash
+             f"Extraction failed! HTML was empty for url '{url[:-1]}'"),
+            ]
 
 
 def test_extr_tsu_bookidfromurl():

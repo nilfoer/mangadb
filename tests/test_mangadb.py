@@ -42,15 +42,28 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     fn = "tsumino_43492_mirai-tantei-nankin-jiken"
     with open(os.path.join(tests_files_dir, fn + ".html"), "r", encoding="UTF-8") as f:
         html = f.read()
-    # have to change get_html to retrieve file from disk instead
-    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: html)
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
     cover_url = os.path.join(tests_files_dir, fn).replace("\\", r"/")
     cover_url = f"file:///{cover_url}"
     # patch get_cover to point to thumb on disk
-    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: cover_url)
+    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover",
+                        lambda x: cover_url)
 
+    # test no data receieved first
+    caplog.clear()
+    assert mdb.import_book(url, ["to-read", "to-download"]) == (None, None, None)
+    assert caplog.record_tuples == [
+            ("manga_db.extractor.tsumino", logging.WARNING,
+             f"Extraction failed! HTML was empty for url '{url}'"),
+            ("manga_db.manga_db", logging.WARNING,
+             f"No book data recieved! URL was '{url}'!"),
+            ("manga_db.manga_db", logging.WARNING,
+             f"Importing book failed!"),
+            ]
+
+    # have to change get_html to retrieve file from disk instead
+    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: html)
     bid, book, outdated_on_ei_id = mdb.import_book(url, ["to-read", "to-download"])
-
     assert bid == 18
     assert len(book.ext_infos) == 1
     assert book.ext_infos[0].id == 19
