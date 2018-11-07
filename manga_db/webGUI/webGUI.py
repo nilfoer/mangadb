@@ -38,8 +38,8 @@ def thumb_static(filename):
 
 @main_bp.route('/', methods=["GET"])
 def show_entries():
-    order_by_col = request.args.get('order_by_col', "id", type=str)
-    asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
+    order_by_col = request.args.get('sort_col', "id", type=str)
+    asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
     order_by = f"Books.{order_by_col} {asc_desc}"
     after = request.args.get("after", None, type=int)
     before = request.args.get("before", None, type=int)
@@ -53,7 +53,7 @@ def show_entries():
         more=more,
         first_id=first_id,
         last_id=last_id,
-        order_col_libox=order_by_col,
+        order_col=order_by_col,
         asc_desc=asc_desc)
 
 
@@ -346,10 +346,10 @@ def first_last_more(books, after=None, before=None):
 
 @main_bp.route("/search", methods=["GET"])
 def search_books():
-    searchstr = request.args['searchstring']
+    searchstr = request.args['q']
     # prepare defaults so we dont always have to send them when using get
-    order_by_col = request.args.get('order_by_col', "id", type=int)
-    asc_desc = "ASC" if request.args.get('asc_desc', "DESC", type=str) == "ASC" else "DESC"
+    order_by_col = request.args.get('sort_col', "id", type=int)
+    asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
     after = request.args.get("after", None, type=int)
     before = request.args.get("before", None, type=int)
 
@@ -366,7 +366,7 @@ def search_books():
         first_id=first_id,
         last_id=last_id,
         search_field=searchstr,
-        order_col_libox=order_by_col,
+        order_col=order_by_col,
         asc_desc=asc_desc)
 
 
@@ -392,7 +392,7 @@ def list_action_ajax(book_id, action):
         # pass url back to script since we cant use url_for
         return jsonify({"added": list_name,
                         "search_tag_url": url_for('main.search_books',
-                                                  searchstring=f'tag:"{list_name}"')})
+                                                  q=f'tag:"{list_name}"')})
     elif action == "remove":
         Book.remove_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
         return jsonify({"removed": list_name})

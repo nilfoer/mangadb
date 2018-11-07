@@ -4,13 +4,13 @@
 {% else %}
 <title>MangaDB</title>
 {% endif %}
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='fontawesome-all.css') }}">
-{# <link rel=stylesheet type=text/css href="{{ url_for('static', filename='bootstrap.min.css') }}"> #}
-{# instead of manually coping over stuff from tsuminos html and css im just using their stylesheet now #}
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='tsucss.css') }}">
+<link rel=stylesheet type=text/css href="{{ url_for('static', filename='fontawesome-all.min.css') }}">
+<link rel=stylesheet type=text/css href="{{ url_for('static', filename='bootstrap.min.css') }}">
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 {# src https://appelsiini.net/projects/lazyload or https://github.com/tuupola/jquery_lazyload/tree/2.x #}
+<script src="{{ url_for('static', filename='lazyload.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script type="text/javascript">
     // configure jquery ajax requests to send csrf_token as X-CSRF-Token header on POST request
@@ -39,19 +39,45 @@
         }
     });
 </script>
-<script src="{{ url_for('static', filename='lazyload.js') }}"></script>
-{# <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script> #}
+<nav class="navbar navbar-expand mdb-nav dgrey-color">
+    <a class="mdb-navbar-brand" href="#">MangaDB</a>
+
+    <form action="{{ url_for('main.search_books') }}" method=get class="search-form">
+        <i class="fa fa-search" id="search-icon"></i>
+        <input type="text" class="searchbar" name ="q" placeholder="Search" value"{{ search_field }}"/>
+        <input type="hidden" value="{{ order }}" name="order" />
+        <input type="hidden" value="{{ sort_col }}" name="order" />
+    </form>
+    <ul class="navbar-nav mr-auto" id="search-options">
+        <li class="nav-item" style="position:relative"> {# relative so dropdown is at correct loc #}
+        <a class="nav-link" href="#" role="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fas fa-sort"></i></a>
+        
+        <div class="dropdown-menu" aria-labelledby="sortDropdown">
+            <a class="dropdown-item {{ 'active' if order_col == 'id' else '' }}" data-value="id" href="#">Id</a>
+            <a class="dropdown-item {{ 'active' if order_col == 'title_eng' else '' }}" data-value="title_eng" href="#">English Title</a>
+            <a class="dropdown-item {{ 'active' if order_col == 'title_foreign' else '' }}" data-value="title_foreign" href="#">Foreign Title</a>
+            <a class="dropdown-item {{ 'active' if order_col == 'pages' else '' }}" data-value="pages" href="#">Pages</a>
+            <a class="dropdown-item {{ 'active' if order_col == 'my_rating' else '' }}" data-value="my_rating" href="#">My Rating</a>
+            <a class="dropdown-item {{ 'active' if order_col == 'last_change' else '' }}" data-value="last_change" href="#">Last Change</a>
+      </div>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link" href="#" id="orderLnk" data-value="{{ order }}"><i class="fas fa-sort-amount-{{ 'down' if order == 'DESC' else 'up' }}"></i></a>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link" href="#" id="refreshSearch"><i class="fas fa-sync-alt"></i></a>
+      </li>
+    </ul>
+    <div class="mdb-nav-right">
+        <a id="add-book-btn" href="{{ url_for('main.show_add_book') }}"><i class="fas fa-plus"></i></span>
+        {% if "authenticated" in session %}
+        <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i></a>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i></a>
+        {% endif %}
+    </div>
+</nav>
 <div class=page>
-	<h1><a href="/" id="title-anchor">MangaDB</a>
-    {% if "authenticated" in session %}
-    <span class="nav-login-out"><a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i></a></span>
-    {% else %}
-    <span class="nav-login-out"><a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i></a></span>
-    {% endif %}
-    <a id="add-book-btn" class="book-read-button button-stack red-color" href="{{ url_for('main.show_add_book') }}">
-        <i class="fas fa-plus"></i>
-    </a>
-    </h1>
 	{% with messages = get_flashed_messages(with_categories=true) %}
 		{% if messages %}
 		    <div class="flash dark-color">
@@ -70,17 +96,3 @@
         $(this).attr("src", "{{ url_for('static', filename='no-image.png') }}");
     });
 </script>
-
-<div class="jump-book-container">
-    <form action="{{ url_for('main.jump_to_book_by_url') }}" method=post class="search-tags">
-    {{ csrf_token_field() }}
-	<div class="container-align-left" id="jump-url-field-container">
-	<input value="" type=text name="ext_url" class="data-search" id="jumpURL">
-	</div>
-	<div class="container-align-right" id="jump-url-btn-container">
-	<button type="submit" id="jump-book-btn" class="book-read-button button-stack red-color">
-		<i class="fas fa-share button-icon"> </i> <span id="hide-on-screen-width">Jump</span>
-	</button>
-	</div>
-    </form>
-</div>
