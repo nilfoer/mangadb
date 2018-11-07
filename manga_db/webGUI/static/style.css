@@ -369,18 +369,54 @@ ul.flash-messages a.underline {
     text-align: right;
 }
 
+/* to make all book-grid-items the same size i could either specify a fixed size(min/width/height)
+ * in px or % for the items -> no resizing not rly responsive or i could use bootstraps cols and add
+ * col-md-2 col-sm-4 col-xs-6 no-padding to book-grid-item's div classes
+ * or i could use grid and alter the nr of cols it hast based on viewport size
+ * with grid-template-columns: auto auto .. nr_of_cols*auto (auto for auto size) */
 #searchResult {
-    display: flex;
-    flex-flow: row wrap;
-    align-content: flex-start; /* align flex-lines */
-    align-items: stretch; /* so flex boxes get stretched to fill height and book items are all the same height flex-start; */ /* align items vertically */
-    justify-content: flex-start; /* align items; flex-start so when a row isnt full items have same dist */
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    justify-items: stretch; /* Aligns grid items along the inline (row) axis */
+    align-items: stretch; /* Aligns grid items along the block (column) axis */
+    justify-content: center; /* align the whole grid inside the container */
+    align-content: start; /* vertically align the whole grid inside the container */
+}
+.no-padding {
+    padding: 0;
 }
 .book-grid-item {
     margin: .2rem;
-    flex-grow: 1;
-    flex-basis: 175px; /* initial main size of a flex item */
-    max-width: 300px;
+}
+@media only screen and (min-width: 600px) {
+    #searchResult {
+        grid-template-columns: repeat(2, auto);
+    }
+}
+@media only screen and (min-width: 950px) {
+    #searchResult {
+        grid-template-columns: repeat(3, auto);
+    }
+}
+@media only screen and (min-width: 1200px) {
+    #searchResult {
+        grid-template-columns: repeat(4, auto);
+    }
+}
+@media only screen and (min-width: 1500px) {
+    #searchResult {
+        grid-template-columns: repeat(5, auto);
+    }
+}
+@media only screen and (min-width: 1750px) {
+    #searchResult {
+        grid-template-columns: repeat(6, auto);
+    }
+}
+@media only screen and (min-width: 2000px) {
+    #searchResult {
+        grid-template-columns: repeat(7, auto);
+    }
 }
 .book-grid-item:hover .overlay {
     display: block;
@@ -442,10 +478,10 @@ ul.flash-messages a.underline {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: .5rem;
+    bottom: .75rem;
     padding: .5rem;
-    margin-left: .2rem;
-    margin-right: .2rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
     font-size: 18px;
     color: #fff!important;
     border: 2px solid #fff;
@@ -538,129 +574,8 @@ ul.flash-messages a.underline {
 .book-grid-item:hover .ribbon.fav {
     display: none;
 }
-.ribbon.dl {
-  position: absolute;
-  right: -5px; top: -5px;
-  z-index: 1;
-  overflow: hidden;
-  width: 150px; height: 150px;
-  text-align: right;
-}
 
-/* 
-    display: inline-block;*/
-/* copied from tsumino css
-.book-grid-item-container {
-    width: 100%;
-    padding-top: 145%;
-    position: relative;
-}
-.book-grid-item { margin-right: 8px;
-margin-bottom: 6px;
-position: absolute;
-top: 0;
-left: 0;
-right: 0;
-bottom: 0; }
-.book-grid-item-container .book-grid-item img {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-}
-.book-grid-item-container .book-grid-item .overlay {
-    width: 100%;
-    position: absolute;
-    text-align: center;
-    font-weight: bold;
-    font-family: 'Open Sans',sans-serif;
-    color: #fff;
-    height: 100%;
-    background: rgba(0,0,0,.5);
-    opacity: 0;
-    font-size: 24px;
-}
-*/
-.book-grid-item-container:hover .book-grid-item{border:3px solid #22a7f0}
-/* on tsumino without >a, since only view info (displayed on hover) is anchor to book */
-.book-grid-item-container:hover .book-grid-item>a>.overlay{opacity:1;cursor:pointer}
-.book-grid-item-container:hover .book-grid-item>a>.title{opacity:0}
-/* copied over from tsumino css
-.book-grid-item-container .book-grid-item .overlay .overlay-data {
-
-    width: 100%;
-    position: absolute;
-    margin-top: 10px;
-
-}
-.book-grid-item-container .book-grid-item .overlay .overlay-data .overlay-title {
-
-    text-align: center;
-    top: 10px;
-
-}
-.book-grid-item-container .book-grid-item .overlay .overlay-data .overlay-sub {
-
-    text-align: center;
-    top: 5px;
-    font-size: 12px;
-
-}
-.book-grid-item-container .book-grid-item .overlay .overlay-data .overlay-rate > span {
-
-    color: #22a7f0;
-
-}
-.book-grid-item-container .book-grid-item .title {
-    width: 100%;
-    position: absolute;
-    text-align: center;
-    font-weight: bold;
-    font-family: 'Open Sans',sans-serif;
-    color: #fff;
-    font-size: 12px;
-    background: rgba(0,0,0,.75);
-    bottom: 0;
-    height: 30px;
-    line-height: 30px;
-    border-top: 3px solid #22a7f0;
-} */
-/* copied over from tsuminos css
-.book-page-container {
-    padding-top: 0;
-    padding-bottom: 20px;
-    float: none;
-    margin: 0 auto;
-    width: 100%;
-    max-width: 1024px;
-}
-.book-page-cover {
-    width: 30%;
-    margin: 0 auto;
-}
-.book-page-image {
-    width: 100%;
-}
-.img-responsive, .thumbnail > img, .thumbnail a > img, .carousel-inner > .item > img, .carousel-inner > .item > a > img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-}
-@media only screen and (min-width: 970px)
-.book-info-wrap {
-    width: 69%;
-}
-.book-info-wrap {
-    float: right;
-    width: 100%;
-}
-@media only screen and (min-width: 768px)
-.col-sm-12 {
-    width: 100%;
-}
-@media only screen and (min-width: 768px)
-.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12 {
-    float: left;
-}
+/*
 .alt-bg {
     background-color: #1a1a1a;
 }
@@ -715,12 +630,6 @@ bottom: 0; }
     padding: 15px;
     cursor: pointer;
     text-decoration: none !important;
-}
-.dark-color {
-    background-color: #1f1f1f !important;
-}
-.red-color {
-    background-color: #c00 !important;
 }
 */
 .entries img    { width: 100% }
