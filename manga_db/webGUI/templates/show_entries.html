@@ -9,23 +9,17 @@
     </form>
 </div>
 {% endif %}
-<div style="margin: 10px auto;"></div>
-
 <div class="row">
 <div class="col-md-12">
-<div id="foundBooks">
-<div id="foundBooksWrapper">
-<div id="foundBooksInner">
+<div id="searchResult">
 {% if books %}
     {% for book in books %}
-    <div class="col-md-2 col-sm-4 col-xs-6 col-no-padding">
-    <div class="book-grid-item-container">
-    <div class="book-grid-item">
+    <div class="book-grid-item {{ 'read' if 'to-read' not in book.list else ''}}">
+    <div class="book-grid-item-inner">
 	    {% if book.favorite %}
-	    <div class="ribbon blue"><span><i class="fa fa-thumbs-up"></i> FAVE</span></div>
+	    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
 	    {% endif %}
 
-    <a href={{ url_for('main.show_info', book_id=book.id) }}>
 	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
     <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
     url_for('main.thumb_static', filename=book.id) }} class="lazyload">
@@ -34,11 +28,11 @@
             <div class="overlay-title">
                 {{ book.title }}
             </div>
-            <div class="overlay-sub">
+            <div class="overlay-pages">
                 {{ book.pages }} pages
             </div>
 	    {% if book.my_rating %}
-            <div class="overlay-rate">
+            <div class="overlay-rate blue-color">
                 {# To cast to a string in an expression, you use x|string() instead of str(x) #}
                 {% for _ in range( book.my_rating|round|int() ) %}
                 {# &#9733; would also works but looks better with Fontawesome #}
@@ -54,16 +48,14 @@
             <span style="font-size: small;">(avg external rating)</span>
 	    {% endif %}
         </div>
-	<a href={{ url_for('main.show_info', book_id=book.id) }}  class="set-backToIndex overlay-button status-none">
-                        VIEW INFO
+	<a href={{ url_for('main.show_info', book_id=book.id) }}  class="overlay-button">
+                        SHOW
         </a>
     </div>
-    <div class="title status-none">
-    <span class="title-text">{{ book.title_eng }}</span>
+    <div class="book-grid-item-title border-read">
+    <span class="title">{{ book.title_eng }}</span>
     </div>
-    </a>
 
-    </div>
     </div>
     </div>
     
@@ -72,8 +64,6 @@
 {% else %}
 <em>Unbelievable.  No entries here so far</em>
 {% endif %}
-</div> {# foundBooksInner #}
-</div>
 </div>
 </div>
 </div>

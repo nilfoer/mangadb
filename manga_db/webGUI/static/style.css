@@ -17,9 +17,12 @@ h1, h2          { font-family: 'Open Sans',sans-serif; margin: 0; }
 h1              { border-bottom: 2px solid #eee; margin-bottom: 1em;}
 h2              { font-size: 1.2em; }
 h3              { color: #22a7f0; }
-.pink-color{background-color: #a233a5 !important} /* #a72aaa */
-.blue-color { background-color: #22a7f0!important; }
+.purple-color{background-color: #a233a5 !important} /* #a72aaa */
+.pink-color{background-color: #ff468e !important}
+.blue-color { background-color: #44a6f2!important; }
 .dgrey-color { background-color: #2d2d2d!important; }
+.red-color { background-color: #f34c4c!important; }
+.green-color { background-color: #31c131!important; }
 .mdb-navbar-brand {
     font-size: 1.75rem;
     font-weight: bold;
@@ -36,7 +39,7 @@ h3              { color: #22a7f0; }
     flex-grow: 1;
     justify-content: flex-end;
 }
-.page           { margin: 2em auto; width: 75%;
+.page           { margin: 1rem auto 2rem auto; width: 75%;
                   padding: 0.8em}
 #page-next {
     position: fixed;
@@ -250,7 +253,7 @@ ul.flash-messages a.underline {
 .searchbar {
     background-color: #191919;
     border: none;
-    width: 95%;
+    width: 100%;
     padding-left: 30px;
     color: #fff;
 }
@@ -349,28 +352,6 @@ ul.flash-messages a.underline {
 #add-book-btn {
     margin-right: 1.5rem;
 }
-#jump-book-btn {
-    background-color: #c00;
-    min-width: 75px;
-    float: right;
-    /* top right bot left */
-    margin: 0 0 0 0;
-    padding: 9px;
-    /*text-align: right;*/
-    line-height: 13px;
-}
-.jump-book-container {
-    top: 0;
-    right: 13%;
-    position: absolute;
-    z-index: 999;
-    background-color: #333 !important;
-    margin-top: 0;
-    padding: 6px;
-    width: 15%;
-    min-width: 350px;
-    /*border: 1px solid rgba(255,255,255,.2);*/
-}
 #title-anchor {
     text-decoration:none;
 }
@@ -378,38 +359,6 @@ ul.flash-messages a.underline {
     text-decoration:none;
     cursor: pointer;
     color: #fff !important;
-}
-#jumpURL {
-    width: 100%;
-}
-#jump-url-field-container {
-    width: 76%;
-}
-#jump-url-btn-container {
-}
-
-@media only screen and (max-width: 485px) {
-    .jump-book-container {
-        width: 150px;
-        min-width: 150px;
-    }
-    #jump-book-btn {
-        min-width: 25px;
-    }  
-    #hide-on-screen-width {
-        /* hide(or rather remove) text when theres not enough space left */
-        display: none;
-    }
-    #jump-url-field-container {
-        width: 73%;
-    }
-    #jump-url-btn-container {
-        width: 27%;
-    }
-    #simple-container-sorting {
-        float: left;
-        text-align: left;
-    }
 }
 .container-align-left {
     float: left;
@@ -419,58 +368,183 @@ ul.flash-messages a.underline {
     float: right;
     text-align: right;
 }
-/* grid with ul and li
-ul {
-  display: flex;
-  flex-wrap: wrap;
-  list-style-type: none;
-  padding-left: 0;
-  margin: 0 auto;
-  text-align: center;
-}
 
-ul li {
-  flex: 0 0 calc(50% - 10px);
-  margin: 5px;
-  padding: 5px 0;
-  text-align: center;
-  box-sizing: border-box;
-  /*border: 1px dashed red;
-  background-color: yellow;
-  width: 200px;
-} */
-/* old container stuff by me now using tsumino css
-.container  { width: 100%; margin: 1em 5px 0 5px }
-.container-fluid {
-    padding-right: 15px;
-    padding-left: 15px;
-    margin-right: auto;
-    margin-left: auto;
+#searchResult {
+    display: flex;
+    flex-flow: row wrap;
+    align-content: flex-start; /* align flex-lines */
+    align-items: stretch; /* so flex boxes get stretched to fill height and book items are all the same height flex-start; */ /* align items vertically */
+    justify-content: flex-start; /* align items; flex-start so when a row isnt full items have same dist */
 }
-.col      { width: 16.66666667%; text-align: left; position:relative; float:left; }
-*/
-
-/* switch to 33.3% width under 1100px screen width, to 50% under 770px, didnt work without
-    putting lower check inside higher one*/
-/* old container stuff by me now using tsumino css
-@media only screen
-  and (max-device-width: 1100px),
-  only screen and (max-width: 1100px) {
-    .col      { width: 33.3333%; text-align: left; position:relative; float:left; }
-    .container { position: relative; min-height: 1px; padding-right: 15px; padding-left: 15px; }
-    @media only screen
-  and (max-device-width: 770px),
-  only screen and (max-width: 770px) {
-    .col      { width: 50%; text-align: left; position:relative; float:left; }
+.book-grid-item {
+    margin: .2rem;
+    flex-grow: 1;
+    flex-basis: 175px; /* initial main size of a flex item */
+    max-width: 300px;
 }
+.book-grid-item:hover .overlay {
+    display: block;
 }
-*/
-
 .book-grid-item a {
     color: #fff;
 }
 .book-grid-item a:hover, .book-grid-item a:focus {
     color: #fff;
+}
+.book-grid-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+}
+.book-grid-item:hover .book-grid-item-inner {
+    border-color: #44a6f2!important;
+}
+.book-grid-item.read:hover .book-grid-item-inner {
+    border-color: #31c131!important;
+}
+.book-grid-item-inner {
+    position: relative; /* so we can place title on bottom of div */
+    border: 2px solid transparent; /* transparent border so items dont get moved when we show it; didnt work with box-sizing: border-box; since we dont have a specified height*/
+    /* fill full w+h so img can as well */
+    width: 100%;
+    height: 100%;
+}
+.book-grid-item .overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 22px;
+    font-weight: bold;
+    font-family: 'Open Sans',sans-serif;
+    text-align: center;
+    color: #fff;
+    background: rgba(0,0,0,.5);
+}
+.book-grid-item .overlay-data {
+    margin-top: .5rem;
+}
+.book-grid-item .overlay-data .overlay-title {
+    margin-bottom: .2rem;
+}
+.book-grid-item .overlay-data .overlay-pages {
+    font-size: 14px;
+}
+.book-grid-item .overlay-data .overlay-rate {
+    color: #44a6f2;
+}
+.book-grid-item.read .overlay-data .overlay-rate {
+    color: #31c131!important;
+}
+.book-grid-item .overlay-button {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: .5rem;
+    padding: .5rem;
+    margin-left: .2rem;
+    margin-right: .2rem;
+    font-size: 18px;
+    color: #fff!important;
+    border: 2px solid #fff;
+}
+.book-grid-item .overlay-button:hover {
+    background-color: #44a6f2;
+}
+.book-grid-item.read .overlay-button:hover {
+    background-color: #31c131!important;
+}
+.book-grid-item-title {
+    position: absolute;
+    bottom: 0;
+    text-align: center;
+    font-weight: bold;
+    font-family: 'Open Sans', sans-serif;
+    color: #fff;
+    font-size: 12px;
+    width: 100%;
+    height: 30px;
+    line-height: 30px;
+    background: rgba(0,0,0,.75);
+}
+.book-grid-item:hover .book-grid-item-title {
+    display: none;
+}
+.book-grid-item-title .title {
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: block;
+}
+.book-grid-item .book-grid-item-title {
+    border-top: 2px solid #44a6f2;
+}
+.book-grid-item.read .book-grid-item-title {
+    border-color: #31c131!important;
+}
+.purple-fcolor{ color: #a233a5 !important; }
+.pink-fcolor{ color: #ff468e !important; }
+.dgrey-fcolor { color: #2d2d2d!important; }
+.blue-fcolor { color: #44a6f2!important; }
+.red-fcolor { color: #f34c4c!important; }
+.green-fcolor { color: #31c131!important; }
+/* src: https://www.cssportal.com/css-ribbon-generator/ */
+.ribbon.fav {
+  position: absolute;
+  right: -5px; top: -5px;
+  z-index: 1;
+  overflow: hidden;
+  width: 75px; height: 75px;
+  text-align: right;
+}
+.ribbon.fav span {
+  font-size: 10px;
+  font-weight: bold;
+  color: #FFF;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 20px;
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
+  width: 100px;
+  display: block;
+  background: #79A70A;
+  background: linear-gradient(#FF468E 0%, #BA3368 100%);
+  box-shadow: 0 3px 10px -5px rgba(0, 0, 0, 1);
+  position: absolute;
+  top: 19px; right: -21px;
+}
+.ribbon.fav span::before {
+  content: "";
+  position: absolute; left: 0px; top: 100%;
+  z-index: -1;
+  border-left: 3px solid #BA3368;
+  border-right: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid #BA3368;
+}
+.ribbon.fav span::after {
+  content: "";
+  position: absolute; right: 0px; top: 100%;
+  z-index: -1;
+  border-left: 3px solid transparent;
+  border-right: 3px solid #BA3368;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid #BA3368;
+}
+.book-grid-item:hover .ribbon.fav {
+    display: none;
+}
+.ribbon.dl {
+  position: absolute;
+  right: -5px; top: -5px;
+  z-index: 1;
+  overflow: hidden;
+  width: 150px; height: 150px;
+  text-align: right;
 }
 
 /* 
@@ -559,30 +633,9 @@ bottom: 0; }
     width: 100%;
     max-width: 1024px;
 }
-.row-no-margin {
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-}
-.row {
-    margin-right: -15px;
-    margin-left: -15px;
-}
 .book-page-cover {
     width: 30%;
     margin: 0 auto;
-}
-.col-no-padding {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-}
-.col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12 {
-    float: left;
-}
-.col-xs-1, .col-sm-1, .col-md-1, .col-lg-1, .col-xs-2, .col-sm-2, .col-md-2, .col-lg-2, .col-xs-3, .col-sm-3, .col-md-3, .col-lg-3, .col-xs-4, .col-sm-4, .col-md-4, .col-lg-4, .col-xs-5, .col-sm-5, .col-md-5, .col-lg-5, .col-xs-6, .col-sm-6, .col-md-6, .col-lg-6, .col-xs-7, .col-sm-7, .col-md-7, .col-lg-7, .col-xs-8, .col-sm-8, .col-md-8, .col-lg-8, .col-xs-9, .col-sm-9, .col-md-9, .col-lg-9, .col-xs-10, .col-sm-10, .col-md-10, .col-lg-10, .col-xs-11, .col-sm-11, .col-md-11, .col-lg-11, .col-xs-12, .col-sm-12, .col-md-12, .col-lg-12 {
-    position: relative;
-    min-height: 1px;
-    padding-right: 15px;
-    padding-left: 15px;
 }
 .book-page-image {
     width: 100%;
