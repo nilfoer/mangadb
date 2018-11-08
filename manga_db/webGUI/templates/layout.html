@@ -40,13 +40,13 @@
     });
 </script>
 <nav class="navbar navbar-expand mdb-nav dark-color">
-    <a class="mdb-navbar-brand" href="#">MangaDB</a>
+    <a class="mdb-navbar-brand" href="/">MangaDB</a>
 
     <form action="{{ url_for('main.search_books') }}" method=get class="search-form">
         <i class="fa fa-search" id="search-icon"></i>
-        <input type="text" class="searchbar" name ="q" placeholder="Search" value"{{ search_field }}"/>
-        <input type="hidden" value="{{ order }}" name="order" />
-        <input type="hidden" value="{{ sort_col }}" name="sort_col" />
+        <input type="text" id="searchBar" class="searchbar" name ="q" placeholder="Search" value="{{ search_field }}"/>
+        <input type="hidden" value="{{ order_col if order_col else 'id' }}" name="order" />
+        <input type="hidden" value="{{ asc_desc if asc_desc else 'DESC' }}" name="sort_col" />
     </form>
     <ul class="navbar-nav mr-auto" id="search-options">
         <li class="nav-item" style="position:relative"> {# relative so dropdown is at correct loc #}

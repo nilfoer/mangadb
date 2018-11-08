@@ -73,7 +73,7 @@ def show_info(book_id, book=None, **kwargs):
     if book.collection:
         collections = []
         for collection in book.collection:
-            books_in_collection = mdb.get_collection_info(collection)
+            books_in_collection = mdb.get_books_in_collection(collection)
             collections.append((collection, books_in_collection))
 
     book_upd_changes = kwargs.pop("book_upd_changes", None)
@@ -348,7 +348,7 @@ def first_last_more(books, after=None, before=None):
 def search_books():
     searchstr = request.args['q']
     # prepare defaults so we dont always have to send them when using get
-    order_by_col = request.args.get('sort_col', "id", type=int)
+    order_by_col = request.args.get('sort_col', "id", type=str)
     asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
     after = request.args.get("after", None, type=int)
     before = request.args.get("before", None, type=int)

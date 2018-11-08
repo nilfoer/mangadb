@@ -305,6 +305,21 @@ class MangaDB:
         rows = c.fetchall()
         return rows if rows else None
 
+    def get_books_in_collection(self, collection_name):
+        c = self.db_con.execute(f"""
+                SELECT b.*
+                FROM Books b, Collection c, BookCollection bc
+                WHERE bc.collection_id = c.id
+                AND c.name = ?
+                AND b.id = bc.book_id
+                ORDER BY b.id ASC""", (collection_name,))
+        rows = c.fetchall()
+        if rows:
+            books = [load_instance(self, Book, row) for row in rows]
+            return books
+        else:
+            return None
+
     def get_ext_info(self, _id):
         c = self.db_con.execute("SELECT * FROM ExternalInfo WHERE id = ?", (_id,))
         row = c.fetchone()

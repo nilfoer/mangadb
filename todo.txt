@@ -22,6 +22,9 @@
 - books that are not (yet) completely translated:
     way of tracking them and checking for translation?
     or should user handle that himself separately from mdb?
+- webgui: store last search settings in session or HTML5 sessionStorage
+        preferably the latter (but have to use js) since session cookie can easily be read (using base64decode) its
+        only tamper-proof not encrypted
 
        
 --CANCELED-----------------------------------------------------------------------------------------------------------------

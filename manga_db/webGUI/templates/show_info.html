@@ -390,16 +390,15 @@
 	{{ book.last_change }}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info"></div>
-<div class="book-data" id="">
+</div> {# book info container #}
+<div class="book-buttons">
 {% if book.favorite %}
-<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFavoriteHandler" class="button button-stack"><i class="fa fa-heart"></i> Favorited</a>
+<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFav" class="button button-stack pink-color button-leftmost"><i class="fa fa-heart"></i> Favorite</a>
 {% else %}
-<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
+<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFav" class="button button-stack button-leftmost"><i class="fa fa-plus"></i> Add to Favorites</a>
 {% endif %}
 
-<a href="{{ url_for('main.get_info_txt', book_id=book.id) }}" class="button button-stack pink-color">
+<a href="{{ url_for('main.get_info_txt', book_id=book.id) }}" class="button button-stack blue-color">
 <i class="fas fa-file-alt"></i>
 info.txt
 </a>
@@ -411,37 +410,39 @@ info.txt
 Remove Book
 </a>
 
-<a href="/" id="backToIndex" class="button button-stack">
-<i class="fa fa-home"> </i>
-BACK TO INDEX
-</a>
+<a href="/" id="backToIndex" class="button button-stack"><i class="fa fa-home"></i> Index</a>
 </div>
-</div>
-</div> {# book info container #}
 </div> {# book-info-wrap #}
+</div>
+
 </div> {# row end #}
-<div style="margin: 1em 0;"></div>
+<div style="margin: 2rem 0;"></div>
+{% if book.ext_infos %}
+<div class="row no-margin kw-headline">
+    <div class="col no-padding">
+        <span>EXTERNAL</span>
+    <hr>
+    </div>
+</div>
+{% endif %}
 {% for ext_info in book.ext_infos %}
 {# loop.index is 1-based -> use loop.index0 for 0-based #}
 {% if (loop.index0 % 2) == 0 %}
-<div class="row no-margin">
+<div class="ext-info-row row no-margin">
 {% endif %}
-<div id="ext-info">
+<div class="ext-info-container col-sm-6 col-md-6 col-lg-6">
 <div class="row no-margin">
-	<div>
+	<div class="col no-padding">
 	<div class="ext-info-title" style="display:inline-block;"><a href="{{ ext_info.url }}">External
     Link on {{ ext_info.site|capitalize() }}{{ ' (outdated)' if ext_info.outdated else '' }}</a></div>
-	<div style="float:right;position:relative;top:5px;">Last Update: {{ ext_info.last_update }}</div>
 <hr>
 	</div>
 </div>
-<div class="col-md-6 ext-info-container" style="border-spacing: 3px;">
+<div class="ext-info-inner" style="border-spacing: 3px;">
 	<div class="ext-info-line">
 	<div class="ext-info">Uploader</div>
 	<div class="ext-info-data" id="Uploader">
-		<a class="tag" href="#">
-			{{ ext_info.uploader }}
-		</a>
+        {{ ext_info.uploader }}
 	</div>
 	</div>
 	<div class="ext-info-line">
@@ -464,10 +465,16 @@ BACK TO INDEX
 		{{ ext_info.censorship }}
 	</div>
 	</div>
+	<div class="ext-info-line">
+	<div class="ext-info">Last Update</div>
+	<div class="ext-info-data" id="LastUpdate">
+		{{ ext_info.last_update }}
+	</div>
+	</div>
 </div> {# ext-info-container #}
-	<div class="ext-info-data" id="">
+	<div class="ext-info-btn-container row no-margin">
 		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline" class="button button-stack">
-		<i class="fa fa-arrow-circle-right"> </i>
+        <i class="fas fa-book-reader"> </i>
 		Read Online
 		</a>
 
@@ -482,14 +489,14 @@ BACK TO INDEX
 		{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
 		{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
 		{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
-		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="button button-stack red-color" onclick="window.location.href='{{ url_for("main.set_downloaded", book_id=book.id, ext_info_id=ext_info.id, intbool=1) }}'">
-		<i class="fa fa-arrow-circle-right"> </i>
+		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="button button-stack blue-color" onclick="window.location.href='{{ url_for("main.set_downloaded", book_id=book.id, ext_info_id=ext_info.id, intbool=1) }}'">
+        <i class="fas fa-download"> </i>
 		Download
 		</a>
 		{% endif %}
         <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
         ext_info_id=ext_info.id) }}" method=post>
-		<button type="submit" class="button button-stack pink-color">
+		<button type="submit" class="button button-stack purple-color">
 		<i class="fas fa-sync-alt"></i>
 		Update
 		</button>
@@ -505,61 +512,100 @@ BACK TO INDEX
 
 </div>
 </div>
-{% if (loop.index0 % 2) == 0 %}
+{# loop.index0 -> 0-indexed; loop.index 1-indexed #}
+{% if (loop.index % 2) == 0 %}
 </div> {# row end #}
+{% elif (loop.index == book.ext_infos|length) %}
+{# last item close row if it wasnt b4 #}
+</div>
 {% endif %}
 {% endfor %}
 <div style="margin: 1em 0;"></div>
 <div class="row no-margin">
-	<form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post class="search-tags" style="width:100%;">
+	<form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post id="ext-info-add" >
         {{ csrf_token_field() }}
 		<input type=hidden name=book_title value="{{ book.title }}">
-		<label style="float: left;width: 100%;font-weight: normal;">
-			<div style="float: left;margin-right: 5px;" class="ext-info-title">Add External Link: </div>
-			<input type="text" name="url" class="data-search" style="width: 75%;">
-			<button id="add-ext-info-btn" class="button red-color" type="submit">Add</button>
-		</label>
-		
+            <i class="fas fa-plus" id="add-ext-info-icon"></i>
+            {# due to icon above input field gets shifted by icon size unless we modify pos to absolute or sth but then flex wouldnt work #}
+			<input type="text" name="url" id="add-ext-info-inp" class="text-input" style="width: 75%;">
+			<button id="add-ext-info-btn" class="button" type="submit">Add</button>
 	</form>
 </div>
 {% if collections %}
-<div style="margin: 1em 0;"></div>
-{% for coll_name, info_rows in collections %}
-	<div class="row">
-	<div class="col-md-12">
-	<div>
-	<div style="display: inline-block;" class="book-title">Collection: {{ coll_name }}</div>
-	<div style="display: inline-block;">
-	View entries from the collection this entry belongs to (not ordered chronologically)
-	</div>
-	<hr>
-	</div>
-	<div class="col-md-12">
-	<div class="book-collection-table">
-	<div class="trow">
-	{# <span class="theader">#</span> #}
-	<span class="theader">Name</span>
-	<span class="theader">Rating</span>
-	<span class="theader">Pages</span>
-	{# <span class="theader collection-position hidden">Position</span> #}
-	</div>
-
-	{% for row in info_rows %}
-	<a href="{{ url_for('main.show_info', book_id=row.id) }}" class="trow {{ 'book-collection-is-me' if row.id == book.id else '' }}">
-	{# <span class="tcell">1</span> #}
-	<span class="tcell" width="100%">{{ build_title(row.title_eng, row.title_foreign) }}</span>
-	{# cant use None in jinja have to use none (in-built function) #}
-	<span class="tcell">{{ row.my_rating if row.my_rating is not none else 'Not rated' }} <span><i class="fa fa-star" aria-hidden="true"></i></span></span>
-	<span class="tcell">{{ row.pages }}</span>
-	{# <span class="tcell collection-position hidden">0</span> #}
-	</a>
+<div id="bookCollections">
+{% for collection_name, c_books in collections %}
+    <div class="row no-margin kw-headline" style="margin-top: 2rem;">
+        <div class="col no-padding">
+            <span>COLLECTION: </span>{{ collection_name }}
+            <hr>
+        </div>
+    </div>
+    {% for c_book in c_books %}
+	<div class="row" style="margin-bottom:.5rem;">
+	<div class="book-collection-container col {{ 'current-book' if c_book.id == book.id else '' }}">
+    {# use bootstraps rows to implement our responsive table since they already use display: flex #}
+    <div class="row no-margin">
+        <div class="collection-thumb">
+            <a href="{{ url_for('main.show_info', book_id=c_book.id) }}">
+            <img alt="{{ c_book.title }}" class="img-responsive" src={{ url_for('main.thumb_static',
+            filename=c_book.id) }}>
+            </a>
+        </div>
+        <div class="collection-info">
+            <div class="row no-margin">
+                <a href="{{ url_for('main.show_info', book_id=c_book.id) }}" class="book-title">{{ c_book.title }}</a>
+            </div>
+            <div class="c_book-info-container">
+            <div class="c_book-line">
+            <div class="c_book-info">Pages</div>
+            <div class="c_book-data">
+                {{ c_book.pages }}
+            </div>
+            </div>
+            <div class="c_book-line">
+            <div class="c_book-info">Language</div>
+            <div class="c_book-data">
+                <a class="tag" href="{{ url_for('main.search_books', q='language:\"' + c_book.language + '\"') }}">
+                {{ c_book.language }}
+                </a>
+            </div>
+            </div>
+            <div class="c_book-line">
+            <div class="c_book-info">Status</div>
+            <div class="c_book-data">
+                {{ c_book.status }}
+            </div>
+            </div>
+            <div class="c_book-line">
+            <div class="c_book-info">My Rating</div>
+            <div class="c_book-data">
+                {% if c_book.my_rating %}
+                    {% for _ in range( c_book.my_rating|round|int() ) %}
+                    <span class="fa fa-star"></span>
+                    {% endfor %}
+                {% else %}
+                    Not rated!
+                {% endif %}
+            </div>
+            </div>
+            <div class="c_book-line">
+            <div class="c_book-info">List</div>
+            <div class="c_book-data">
+                {% for li in c_book.list %}
+                            <a class="tag" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
+                        {{ li }}
+                    </a>
+                {% endfor %}
+            </div>
+            </div>
+        </div> {# c_book-info-container #}
+        </div> {# coll info div #}
+        </div> {# row #}
+    </div> {# book coll container #}
+    </div> {# row #}
 	{% endfor %}
-
-	</div>
-	</div> {# coll table div end #}
-	</div>
-	</div> {# row end #}
-	<div class="row no-margin" style="margin-bottom: 1em;"></div>
+	<div class="row no-margin" style="margin-bottom: 1rem;"></div>
 {% endfor %}
+</div> {# bookCollections #}
 {% endif %}
 {% endblock %}
