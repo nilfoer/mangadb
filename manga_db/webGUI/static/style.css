@@ -376,7 +376,7 @@ ul.flash-messages a.underline {
  * with grid-template-columns: auto auto .. nr_of_cols*auto (auto for auto size) */
 #searchResult {
     display: grid;
-    grid-template-columns: repeat(4, auto);
+    grid-template-columns: auto;
     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
     align-items: stretch; /* Aligns grid items along the block (column) axis */
     justify-content: center; /* align the whole grid inside the container */
@@ -387,6 +387,13 @@ ul.flash-messages a.underline {
 }
 .book-grid-item {
     margin: .2rem;
+     /* setting min-width needed otherwise we get weird loading behaviour with
+      * css grid since all divs are collapsed and only a few pixels big and
+      * thus are all(60 books) visible in the middle of the screen and expand
+      * while loading and at the end size is re-calculated which makes grid
+      * "twitch" around, with a min-width this is avoided since the divs are
+      * spread out from the start and closer to their loaded pos/size */
+    min-width: 200px;
 }
 @media only screen and (min-width: 600px) {
     #searchResult {
