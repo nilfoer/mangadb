@@ -43,17 +43,17 @@
                 else '' }}">{{ col }}: 
 				{% if change[0] %}
 					{% for added in change[0] %}
-					<a class="book-tag green-color">{{ added }}</a>
+					<a class="tag green-color">{{ added }}</a>
 					{% endfor %}
 				{% endif %}
 				{% if change[1] %}
 					{% for removed in change[1] %}
-					<a class="book-tag red-color">{{ removed }}</a>
+					<a class="tag red-color">{{ removed }}</a>
 					{% endfor %}
 				{% endif %}
 			</label></li>
 		{% endfor %}
-		<li><button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-check"></i><span style="margin-left: 5px;">Apply changes</span></button></li>
+		<li><button type="submit" id="updateBtn" class="button green-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-check"></i><span style="margin-left: 5px;">Apply changes</span></button></li>
 		</ul>
 	</form>
 	</div>
@@ -61,18 +61,17 @@
 {% endif %}
 {% endblock %}
 {% block book_info %}
-<div class="row row-no-margin">
-<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
-	<img alt="{{ book.title }}" class="book-page-image
+<div class="row no-margin">
+<div class="book-cover-container col-md-2 col-sm-12 no-padding">
+	<img alt="{{ book.title }}" class="book-cover
 	img-responsive" src={{ url_for('main.thumb_static',
 	filename=book.id) }}>
 </div>
-<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
-<div class="row row-no-margin">
+<div class="col-md-8 col-sm-12 no-padding book-info-wrap">
+<div class="row no-margin">
 	<div class="book-title">{{ book.title }}</div>
-	<hr>
 </div>
-<div class="book-info-container" style="border-spacing: 3px;">
+<div class="book-info-container">
 <div class="book-line">
 <div class="book-info">Title</div>
 <div class="book-data" id="Title">
@@ -108,7 +107,7 @@
 <div class="book-line">
 <div class="book-info">Language</div>
 <div class="book-data" id="Language">
-	<a class="book-tag" href="{{ url_for('main.search_books', searchstring='language:\"' + book.language + '\"') }}">
+	<a class="tag" href="{{ url_for('main.search_books', searchstring='language:\"' + book.language + '\"') }}">
 	{{ book.language }}
 	</a>
 </div>
@@ -117,7 +116,7 @@
 <div class="book-info">Category</div>
 <div class="book-data" id="Category">
 {% for cat in book.category %}
-<a class="book-tag" href="#">
+<a class="tag" href="#">
 	{{ cat }}
 </a>
 {% endfor %}
@@ -128,7 +127,7 @@
 <div class="book-info">Collection</div>
 <div class="book-data" id="Collection">
 {% for collection in book.collection %}
-	<a class="book-tag" href="{{ url_for('main.search_books', searchstring='collection:\"' + collection + '\"') }}">
+	<a class="tag" href="{{ url_for('main.search_books', searchstring='collection:\"' + collection + '\"') }}">
 	{{ collection }}
 	</a>
 {% endfor %}
@@ -140,7 +139,7 @@
 	<div class="book-info">Group</div>
 	<div class="book-data" id="Group">
 		{% for group in book.groups %}
-			<a class="book-tag" href="{{ url_for('main.search_books', searchstring='groups:\"' + group + '\"') }}">
+			<a class="tag" href="{{ url_for('main.search_books', searchstring='groups:\"' + group + '\"') }}">
 				{{ group }}
 			</a>
 		{% endfor %}
@@ -152,7 +151,7 @@
 <div class="book-info">Artist</div>
 <div class="book-data" id="Artist">
 	{% for artist in book.artist %}
-		<a class="book-tag" href="{{ url_for('main.search_books', searchstring='artist:\"' + artist + '\"') }}">
+		<a class="tag" href="{{ url_for('main.search_books', searchstring='artist:\"' + artist + '\"') }}">
 			{{ artist }}
 		</a>
 	{% endfor %}
@@ -164,7 +163,7 @@
 	<div class="book-info">Parody</div>
 	<div class="book-data" id="Parody">
 	{% for parody in book.parody %}
-		<a class="book-tag" href="#">
+		<a class="tag" href="#">
 			{{ parody }}
 		</a>
 	{% endfor %}
@@ -176,7 +175,7 @@
 	<div class="book-info">Character</div>
 	<div class="book-data" id="Character">
 		{% for char in book.character %}
-			<a class="book-tag" href="{{ url_for('main.search_books', searchstring='character:\"' + char + '\"') }}">
+			<a class="tag" href="{{ url_for('main.search_books', searchstring='character:\"' + char + '\"') }}">
 				{{ char }}
 			</a>
 		{% endfor %}
@@ -188,7 +187,7 @@
 <div class="book-data" id="Tag">
 	{% for tag in book.tag %}
 		{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
-		<a class="book-tag" href="{{ url_for('main.search_books', searchstring='tag:\"' + tag + '\"') }}">
+		<a class="tag" href="{{ url_for('main.search_books', searchstring='tag:\"' + tag + '\"') }}">
 			{{ tag }}
 		</a>
 	{% endfor %}
@@ -198,7 +197,7 @@
 <div class="book-info">List</div>
 <div class="book-data" id="List">
 	{% for li in book.list %}
-	<div class="book-tag list-tag list-tag-border">
+	<div class="tag list-tag list-tag-border">
                 <a data-value="{{ li }}" href="{{ url_for('main.search_books', searchstring='list:\"' + li + '\"') }}">
 			{{ li }}
   		</a>
@@ -208,7 +207,7 @@
 	</div>
 	{% endfor %}
 	<div id="list-dropdown-container" style="display:inline-block;">
-	<a class="book-tag mdb-drop-btn list-tag-border" onclick="show_dropdown()">
+	<a class="tag mdb-drop-btn list-tag-border" onclick="show_dropdown()">
 		<i class="fas fa-plus mdb-drop-btn" style="font-size: 10px;"></i>
 	</a>
 	<div id="list-dropdown" class="mdb-dropdown-content">
@@ -277,7 +276,7 @@
 					}
 					else {
 						var html_string =[
-						'<div class="book-tag list-tag list-tag-border"><a data-value="',
+						'<div class="tag list-tag list-tag-border"><a data-value="',
 						data.added, '" href="',
 						data.search_tag_url,
 						'">', data.added,
@@ -349,7 +348,7 @@
 					}
 					else {
 						// go through all a tags in vv
-						$('#List > div.book-tag.list-tag.list-tag-border > a').each(function() {
+						$('#List > div.tag.list-tag.list-tag-border > a').each(function() {
 
 							// if data-value attrib matches removed
 							// remove its parent
@@ -395,24 +394,24 @@
 <div class="book-info"></div>
 <div class="book-data" id="">
 {% if book.favorite %}
-<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFavoriteHandler" class="book-read-button button-stack"><i class="fa fa-heart"></i> Favorited</a>
+<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFavoriteHandler" class="button button-stack"><i class="fa fa-heart"></i> Favorited</a>
 {% else %}
-<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="book-read-button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
+<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFavoriteHandler" class="button button-stack dark-color"><i class="fa fa-plus"></i> Add to Favorites</a>
 {% endif %}
 
-<a href="{{ url_for('main.get_info_txt', book_id=book.id) }}" class="book-read-button button-stack pink-color">
+<a href="{{ url_for('main.get_info_txt', book_id=book.id) }}" class="button button-stack pink-color">
 <i class="fas fa-file-alt"></i>
 info.txt
 </a>
 
-<a href={{ url_for('main.show_edit_book', book_id=book.id) }} class="book-read-button button-stack red-color"><i class="fas fa-edit"></i> Edit</a>
+<a href={{ url_for('main.show_edit_book', book_id=book.id) }} class="button button-stack red-color"><i class="fas fa-edit"></i> Edit</a>
 
-<a href="{{ url_for('main.remove_book', book_id=book.id) }}" onclick="return confirm('Are you sure you want to permanently remove this Book?');" class="book-read-button button-stack red-color">
+<a href="{{ url_for('main.remove_book', book_id=book.id) }}" onclick="return confirm('Are you sure you want to permanently remove this Book?');" class="button button-stack red-color">
 <i class="fas fa-trash-alt"></i>
 Remove Book
 </a>
 
-<a href="/" id="backToIndex" class="book-read-button button-stack">
+<a href="/" id="backToIndex" class="button button-stack">
 <i class="fa fa-home"> </i>
 BACK TO INDEX
 </a>
@@ -425,10 +424,10 @@ BACK TO INDEX
 {% for ext_info in book.ext_infos %}
 {# loop.index is 1-based -> use loop.index0 for 0-based #}
 {% if (loop.index0 % 2) == 0 %}
-<div class="row row-no-margin">
+<div class="row no-margin">
 {% endif %}
 <div id="ext-info">
-<div class="row row-no-margin">
+<div class="row no-margin">
 	<div>
 	<div class="ext-info-title" style="display:inline-block;"><a href="{{ ext_info.url }}">External
     Link on {{ ext_info.site|capitalize() }}{{ ' (outdated)' if ext_info.outdated else '' }}</a></div>
@@ -440,7 +439,7 @@ BACK TO INDEX
 	<div class="ext-info-line">
 	<div class="ext-info">Uploader</div>
 	<div class="ext-info-data" id="Uploader">
-		<a class="book-tag" href="#">
+		<a class="tag" href="#">
 			{{ ext_info.uploader }}
 		</a>
 	</div>
@@ -467,13 +466,13 @@ BACK TO INDEX
 	</div>
 </div> {# ext-info-container #}
 	<div class="ext-info-data" id="">
-		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline" class="book-read-button button-stack">
+		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline" class="button button-stack">
 		<i class="fa fa-arrow-circle-right"> </i>
 		Read Online
 		</a>
 
 		{% if ext_info.downloaded %}
-		<a href="{{ url_for('main.set_downloaded', book_id=book.id, ext_info_id=ext_info.id, intbool=0) }}" id="btnDownloadEntry" class="book-read-button button-stack green-color">
+		<a href="{{ url_for('main.set_downloaded', book_id=book.id, ext_info_id=ext_info.id, intbool=0) }}" id="btnDownloadEntry" class="button button-stack green-color">
 		<i class="fas fa-check-circle"> </i>
 		Downloaded
 		</a>
@@ -483,14 +482,14 @@ BACK TO INDEX
 		{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
 		{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
 		{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
-		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="book-read-button button-stack red-color" onclick="window.location.href='{{ url_for("main.set_downloaded", book_id=book.id, ext_info_id=ext_info.id, intbool=1) }}'">
+		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="button button-stack red-color" onclick="window.location.href='{{ url_for("main.set_downloaded", book_id=book.id, ext_info_id=ext_info.id, intbool=1) }}'">
 		<i class="fa fa-arrow-circle-right"> </i>
 		Download
 		</a>
 		{% endif %}
         <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
         ext_info_id=ext_info.id) }}" method=post>
-		<button type="submit" class="book-read-button button-stack pink-color">
+		<button type="submit" class="button button-stack pink-color">
 		<i class="fas fa-sync-alt"></i>
 		Update
 		</button>
@@ -498,7 +497,7 @@ BACK TO INDEX
         </form>
 
         <a href="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}"
-            onclick="return confirm('Are you sure you want to remove this external link from this Book?');" class="book-read-button button-stack red-color">
+            onclick="return confirm('Are you sure you want to remove this external link from this Book?');" class="button button-stack red-color">
         <i class="fas fa-minus-circle"></i>
         Remove
         </a>
@@ -511,14 +510,14 @@ BACK TO INDEX
 {% endif %}
 {% endfor %}
 <div style="margin: 1em 0;"></div>
-<div class="row row-no-margin">
+<div class="row no-margin">
 	<form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post class="search-tags" style="width:100%;">
         {{ csrf_token_field() }}
 		<input type=hidden name=book_title value="{{ book.title }}">
 		<label style="float: left;width: 100%;font-weight: normal;">
 			<div style="float: left;margin-right: 5px;" class="ext-info-title">Add External Link: </div>
 			<input type="text" name="url" class="data-search" style="width: 75%;">
-			<button id="add-ext-info-btn" class="book-read-button button-stack red-color" type="submit">Add</button>
+			<button id="add-ext-info-btn" class="button red-color" type="submit">Add</button>
 		</label>
 		
 	</form>
@@ -560,7 +559,7 @@ BACK TO INDEX
 	</div> {# coll table div end #}
 	</div>
 	</div> {# row end #}
-	<div class="row row-no-margin" style="margin-bottom: 1em;"></div>
+	<div class="row no-margin" style="margin-bottom: 1em;"></div>
 {% endfor %}
 {% endif %}
 {% endblock %}

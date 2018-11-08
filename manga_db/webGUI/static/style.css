@@ -20,7 +20,7 @@ h3              { color: #22a7f0; }
 .purple-color{background-color: #a233a5 !important} /* #a72aaa */
 .pink-color{background-color: #ff468e !important}
 .blue-color { background-color: #44a6f2!important; }
-.dgrey-color { background-color: #2d2d2d!important; }
+.dark-color { background-color: #2d2d2d!important; }
 .red-color { background-color: #f34c4c!important; }
 .green-color { background-color: #31c131!important; }
 .mdb-navbar-brand {
@@ -313,27 +313,6 @@ ul.flash-messages a.underline {
     border-radius: .25rem;
 }
 
-#txtSearch { width: 100%; }
-#mangaDBLists {
-    width: 100%;
-    position: relative;
-    list-style-type: none;
-    margin: 10px 0 0 0;
-    padding: 0;
-    /* start new col when height is reached
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap; works but full ul gets filled -> gap too big between cols */
-    /* The example below shows how to specify that when an element overflows from its container vertically, it should start a new column 150px over. */
-    column-fill: auto;
-    -webkit-column-fill: auto;
-    -moz-column-fill: auto;
-    column-width: 120px;
-    -webkit-column-width: 120px;
-    -moz-column-width: 120px;
-    column-gap: 80px;
-    max-height: 200px;
-}
 #updateBtn {
     margin: 0;
 }
@@ -383,7 +362,12 @@ ul.flash-messages a.underline {
     align-content: start; /* vertically align the whole grid inside the container */
 }
 .no-padding {
-    padding: 0;
+    padding-left: 0!important;
+    padding-right: 0!important;
+}
+.no-margin {
+    margin-left: 0!important;
+    margin-right: 0!important;
 }
 .book-grid-item {
     margin: .2rem;
@@ -581,64 +565,86 @@ ul.flash-messages a.underline {
 .book-grid-item:hover .ribbon.fav {
     display: none;
 }
-
-/*
-.alt-bg {
-    background-color: #1a1a1a;
+.show-book-container {
+}
+@media only screen and (min-width: 970px) {
+    .book-cover-container {
+        margin: 0;
+        flex: 0 0 35%;
+        max-width: 35%;
+        margin-right: .5rem;
+        padding-top: 5px;
+    }
+}
+.book-cover {
+    width: 100%;
+    display: block;
+    max-width: 100%;
+    height: auto;
 }
 .book-title {
-    font-size: 28px;
-    font-family: 'Open Sans',sans-serif;
-    color: #fff;
+    font-size: 1.6rem;
+    font-weight: 400;
 }
-.book-info-wrap .book-info-container {
-    font-family: 'Open Sans',sans-serif;
-    color: #fff;
-    display: table;
-    border-collapse: separate;
+.show-book-container .book-title {
+    margin-bottom: .75rem;
 }
-.book-info-wrap .book-info-container .book-line {
-    display: table-row;
-    vertical-align: middle;
-}
-.book-info-wrap .book-info-container .book-info, .book-info-wrap .book-info-container .book-data {
-    display: table-cell;
-}
-.book-info-wrap .book-info-container .book-info {
-    padding-right: 13px;
-}
-.book-info-wrap .book-info-container .book-info, .book-info-wrap .book-info-container .book-data {
-    display: table-cell;
-}
-.book-tag {
-    background-color: #333;
-    color: #fff !important;
-    font-family: 'Open Sans',sans-serif;
-    font-size: 12px;
-    font-weight: lighter;
-    padding: 5px;
-    height: 20px;
-    line-height: 10px;
-    margin-bottom: 5px;
-    margin-right: 2px;
-    text-decoration: none !important;
-    display: inline-block;
+.button {
+    background-color: #2d2d2d;
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff!important;
+    text-decoration: none!important;
+    padding: 15px;
+    cursor: pointer;
+    border: none;
 }
 .button-stack {
     margin: 5px;
     display: inline-block;
 }
-.book-read-button {
-    background-color: #22a7f0;
+.tag {
+    margin-right: 2px;
+    display: inline-block;
+    background-color: #2d2d2d;
     color: #fff !important;
     font-family: 'Open Sans',sans-serif;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 15px;
-    cursor: pointer;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 10px;
     text-decoration: none !important;
+    padding: 5px;
+    height: 20px;
+    margin-bottom: 5px;
 }
-*/
+.book-info-wrap {
+    float: right;
+    width: 100%;
+}
+@media only screen and (min-width: 970px) {
+    .book-info-wrap {
+        max-width: 64%;
+        flex: 0 0 64%;
+    }
+}
+.book-info-wrap .book-info-container {
+    display: table;
+    border-collapse: separate; /* sep border for cells -> border-spacing has effect */
+    border-spacing: 3px;
+    font-size: .9rem;
+}
+.book-info-wrap .book-info-container .book-line {
+    display: table-row;
+    vertical-align: middle;
+}
+ .book-info-wrap .book-info-container .book-data {
+    display: table-cell;
+}
+.book-info-wrap .book-info-container .book-info {
+    display: table-cell;
+    padding-right: 12px;
+}
+
 .entries img    { width: 100% }
 .entries li h2  { margin-left: -1em; }
 .metanav        { text-align: right; font-size: 0.8em; padding: 0.3em;
