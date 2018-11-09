@@ -1106,3 +1106,14 @@ and i want to leverage id_map to reduce database access which makes sense since 
 support one (concurrent?) user (at least with write access)
 
 __________________________________________________________________________________________________________
+
+medai queries not properly working on smartphone/chrome debug phone view
+
+https://stackoverflow.com/questions/19945658/my-iphone-thinks-its-980px-wide:
+When using media queries you need to add this to your head tag.
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+This allows the website to detect that it is being used on a device.
+
+You can also do this,
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
+This part, user-scalable=0; prevents the user from zooming with their fingers and is useful if you have position: fixed elements.

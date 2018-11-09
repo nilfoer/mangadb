@@ -69,8 +69,14 @@ hr {
     flex-grow: 1;
     justify-content: flex-end;
 }
-.page           { margin: 1rem auto 2rem auto; width: 75%;
+.page           { margin: 1rem auto 2rem auto; width: 100%;
                   padding: 0.8em}
+@media only screen and (min-width: 1024px) {
+    /* use full screen width on smaller devices but center on 3/4 for desktop */
+    .page {
+        width: 75%;
+    }
+}
 #page-next {
     position: fixed;
     top: 0%;
@@ -487,7 +493,7 @@ select:-webkit-autofill:focus {
       * spread out from the start and closer to their loaded pos/size */
     min-width: 200px;
 }
-@media only screen and (min-width: 600px) {
+@media only screen and (min-width: 500px) {
     #searchResult {
         grid-template-columns: repeat(2, auto);
     }
@@ -793,6 +799,45 @@ hr.info-sep {
     border-style: inset;
     border-width: 1px;
     border-color: #2196f3;
+}
+.books-collection-grid {
+    display: grid;
+    grid-template-columns: auto;
+    justify-items: stretch; /* Aligns grid items along the inline (row) axis */
+    align-items: stretch; /* Aligns grid items along the block (column) axis */
+    justify-content: flex-start; /* align the whole grid inside the container */
+    align-content: start; /* vertically align the whole grid inside the container */
+}
+.books-collection-grid .book-grid-item {
+    margin: .2rem;
+    min-width: 200px;
+    /* vw, vh are units depending on viewport-size 1 unit is 1% of vw,vh..
+     * vmin/vmax = 1vw/vh whichever is smaller/bigger */
+    /* max-width: 17vw; */
+    max-width: 250px;
+}
+/* Device-width refers to the display's resolution (eg. the 1024 from
+ * 1024x768), while width refers to the width of the browser itself */
+@media only screen and (min-width: 500px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(2, auto);
+    }
+}
+@media only screen and (min-width: 950px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(3, auto);
+    }
+}
+@media only screen and (min-width: 1200px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(4, auto);
+    }
+}
+@media only screen and (min-width: 1500px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(5, auto);
+    }
+}
 
 .entries img    { width: 100% }
 .entries li h2  { margin-left: -1em; }

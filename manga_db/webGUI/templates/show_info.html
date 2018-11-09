@@ -107,7 +107,7 @@
 <div class="book-line">
 <div class="book-info">Language</div>
 <div class="book-data" id="Language">
-	<a class="tag" href="{{ url_for('main.search_books', searchstring='language:\"' + book.language + '\"') }}">
+	<a class="tag" href="{{ url_for('main.search_books', q='language:\"' + book.language + '\"') }}">
 	{{ book.language }}
 	</a>
 </div>
@@ -127,7 +127,7 @@
 <div class="book-info">Collection</div>
 <div class="book-data" id="Collection">
 {% for collection in book.collection %}
-	<a class="tag" href="{{ url_for('main.search_books', searchstring='collection:\"' + collection + '\"') }}">
+	<a class="tag" href="{{ url_for('main.search_books', q='collection:\"' + collection + '\"') }}">
 	{{ collection }}
 	</a>
 {% endfor %}
@@ -139,7 +139,7 @@
 	<div class="book-info">Group</div>
 	<div class="book-data" id="Group">
 		{% for group in book.groups %}
-			<a class="tag" href="{{ url_for('main.search_books', searchstring='groups:\"' + group + '\"') }}">
+			<a class="tag" href="{{ url_for('main.search_books', q='groups:\"' + group + '\"') }}">
 				{{ group }}
 			</a>
 		{% endfor %}
@@ -151,7 +151,7 @@
 <div class="book-info">Artist</div>
 <div class="book-data" id="Artist">
 	{% for artist in book.artist %}
-		<a class="tag" href="{{ url_for('main.search_books', searchstring='artist:\"' + artist + '\"') }}">
+		<a class="tag" href="{{ url_for('main.search_books', q='artist:\"' + artist + '\"') }}">
 			{{ artist }}
 		</a>
 	{% endfor %}
@@ -175,7 +175,7 @@
 	<div class="book-info">Character</div>
 	<div class="book-data" id="Character">
 		{% for char in book.character %}
-			<a class="tag" href="{{ url_for('main.search_books', searchstring='character:\"' + char + '\"') }}">
+			<a class="tag" href="{{ url_for('main.search_books', q='character:\"' + char + '\"') }}">
 				{{ char }}
 			</a>
 		{% endfor %}
@@ -187,7 +187,7 @@
 <div class="book-data" id="Tag">
 	{% for tag in book.tag %}
 		{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
-		<a class="tag" href="{{ url_for('main.search_books', searchstring='tag:\"' + tag + '\"') }}">
+		<a class="tag" href="{{ url_for('main.search_books', q='tag:\"' + tag + '\"') }}">
 			{{ tag }}
 		</a>
 	{% endfor %}
@@ -198,7 +198,7 @@
 <div class="book-data" id="List">
 	{% for li in book.list %}
 	<div class="tag list-tag list-tag-border">
-                <a data-value="{{ li }}" href="{{ url_for('main.search_books', searchstring='list:\"' + li + '\"') }}">
+                <a data-value="{{ li }}" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
 			{{ li }}
   		</a>
 		<a class="mdb-list-remove" data-value="{{ li }}" href="#">
@@ -540,70 +540,55 @@ Remove Book
             <hr>
         </div>
     </div>
+<div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
     {% for c_book in c_books %}
-	<div class="row" style="margin-bottom:.5rem;">
-	<div class="book-collection-container col {{ 'current-book' if c_book.id == book.id else '' }}">
-    {# use bootstraps rows to implement our responsive table since they already use display: flex #}
-    <div class="row no-margin">
-        <div class="collection-thumb">
-            <a href="{{ url_for('main.show_info', book_id=c_book.id) }}">
-            <img alt="{{ c_book.title }}" class="img-responsive" src={{ url_for('main.thumb_static',
-            filename=c_book.id) }}>
-            </a>
-        </div>
-        <div class="collection-info">
-            <div class="row no-margin">
-                <a href="{{ url_for('main.show_info', book_id=c_book.id) }}" class="book-title">{{ c_book.title }}</a>
+    <div class="book-grid-item {{ 'read' if 'to-read' not in c_book.list else ''}}">
+    <div class="book-grid-item-inner">
+	    {% if c_book.favorite %}
+	    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
+	    {% endif %}
+
+	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
+    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
+    url_for('main.thumb_static', filename=c_book.id) }} class="lazyload">
+    <div class="overlay">
+        <div class="overlay-data">
+            <div class="overlay-title">
+                {{ c_book.title }}
             </div>
-            <div class="c_book-info-container">
-            <div class="c_book-line">
-            <div class="c_book-info">Pages</div>
-            <div class="c_book-data">
-                {{ c_book.pages }}
+            <div class="overlay-pages">
+                {{ c_book.pages }} pages
             </div>
-            </div>
-            <div class="c_book-line">
-            <div class="c_book-info">Language</div>
-            <div class="c_book-data">
-                <a class="tag" href="{{ url_for('main.search_books', q='language:\"' + c_book.language + '\"') }}">
-                {{ c_book.language }}
-                </a>
-            </div>
-            </div>
-            <div class="c_book-line">
-            <div class="c_book-info">Status</div>
-            <div class="c_book-data">
-                {{ c_book.status }}
-            </div>
-            </div>
-            <div class="c_book-line">
-            <div class="c_book-info">My Rating</div>
-            <div class="c_book-data">
-                {% if c_book.my_rating %}
-                    {% for _ in range( c_book.my_rating|round|int() ) %}
-                    <span class="fa fa-star"></span>
-                    {% endfor %}
-                {% else %}
-                    Not rated!
-                {% endif %}
-            </div>
-            </div>
-            <div class="c_book-line">
-            <div class="c_book-info">List</div>
-            <div class="c_book-data">
-                {% for li in c_book.list %}
-                            <a class="tag" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
-                        {{ li }}
-                    </a>
+	    {% if c_book.my_rating %}
+            <div class="overlay-rate blue-color">
+                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
+                {% for _ in range( c_book.my_rating|round|int() ) %}
+                {# &#9733; would also works but looks better with Fontawesome #}
+                <span class="fa fa-star"></span>
                 {% endfor %}
             </div>
+	    {% elif c_book.ext_infos %}
+            <div class="overlay-rate">
+                {% for _ in range( c_book.avg_ext_rating|round|int() ) %}
+                <span class="fa fa-star"></span>
+                {% endfor %}
             </div>
-        </div> {# c_book-info-container #}
-        </div> {# coll info div #}
-        </div> {# row #}
-    </div> {# book coll container #}
-    </div> {# row #}
-	{% endfor %}
+            <span style="font-size: small;">(avg external rating)</span>
+	    {% endif %}
+        </div>
+	<a href={{ url_for('main.show_info', book_id=c_book.id) }}  class="overlay-button">
+                        SHOW
+        </a>
+    </div>
+    <div class="book-grid-item-title border-read">
+    <span class="title">{{ c_book.title_eng }}</span>
+    </div>
+
+    </div>
+    </div>
+    
+  {% endfor %}
+</div>
 	<div class="row no-margin" style="margin-bottom: 1rem;"></div>
 {% endfor %}
 </div> {# bookCollections #}

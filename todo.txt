@@ -5,6 +5,7 @@
     sqlalchemy uses user.addresses = [addr1, addr2] session.commit()...
 - remove copy pasted html/css
 - add read status col
+- language -> lang_id etc. in webgui search
 
 --IDEAS/NEW FEATURES-------------------------------------------------------------------------------------------------------
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

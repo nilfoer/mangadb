@@ -12,6 +12,7 @@
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script type="text/javascript">
     // configure jquery ajax requests to send csrf_token as X-CSRF-Token header on POST request
     // taken from flask-wtf
@@ -91,6 +92,8 @@
 	{% endwith %}
 {% block body %}{% endblock %}
 </div>
+{# only started working once placed at end of website or at least after imgs? #}
+<script type="text/javascript">lazyload();</script>
 <script>
     $("img").on("error", function() {
         $(this).attr("src", "{{ url_for('static', filename='no-image.png') }}");
