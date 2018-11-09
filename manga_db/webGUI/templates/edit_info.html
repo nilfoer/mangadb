@@ -1,13 +1,13 @@
 {% extends "book.html" %}
 {% block book_info %}
-<div class="row row-no-margin">
-<div class="book-page-cover col-md-2 col-sm-12 col-no-padding">
+<div class="row no-margin">
+<div class="book-cover-container col-md-2 col-sm-12 no-padding">
 {% if book.id is not none %}
-	<img alt="{{ book.title }}" class="book-page-image
+	<img alt="{{ book.title }}" class="book-cover
 	img-responsive" src={{ url_for('main.thumb_static',
 	filename=book.id) }}>
 {% else %}
-	<img alt="{{ book.title }}" class="book-page-image img-responsive"
+	<img alt="{{ book.title }}" class="book-cover img-responsive"
 		src={{ url_for('static', filename='no-image.png') if not cover_temp_name else
         url_for('main.thumb_static', filename=cover_temp_name) }}>
 {% endif %}
@@ -58,7 +58,7 @@ $(document).ready(function() {
             else {
                 // browser caches img and if url doesnt change new img wont be displayed
                 // circumvent that by adding a variable to the img url
-                $(".book-page-image").attr("src",
+                $(".book-cover").attr("src",
                     data.cover_path + "?timestamp=" + new Date().getTime());
                 {% if book.id is none %}
                 // get only filename vv
@@ -86,12 +86,11 @@ $(document).ready(function() {
 });
 </script>
 </div>
-<div class="col-md-8 col-sm-12 col-no-padding alt-bg book-info-wrap">
-	<div class="row row-no-margin">
+<div class="col-md-8 col-sm-12 no-padding book-info-wrap">
+	<div class="row no-margin">
 		<div class="book-title">{{ book.title if book.title else 'New Book' }}</div>
-	<hr>
 	</div>
-<div class="book-info-container" style="border-spacing: 3px;min-width:100%;">
+<div class="book-info-container">
 <script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
 {% if book.id is not none %}
@@ -264,7 +263,7 @@ $(document).ready(function() {
 <div class="book-line">
 <div class="edit-book-info"></div>
 <div class="book-data" id="">
-<button type="submit" id="updateBtn" class="book-read-button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
+<button type="submit" id="updateBtn" class="button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
     <script>
     $(document).ready(function() {
         $("#updateBtn").click(function(event) {
@@ -298,7 +297,7 @@ $(document).ready(function() {
         });
     });
     </script>
-<a id="cancel-add-book" href={{ url_for('main.show_entries') }} class="book-read-button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+<a id="cancel-add-book" href={{ url_for('main.show_entries') }} class="button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
 {% if not book.id %}
     <script type="text/javascript">
     $(document).ready(function() {

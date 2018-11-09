@@ -261,6 +261,9 @@ ul.flash-messages li label {
     margin-right: 0; margin-top: auto; margin-bottom: auto; padding: 6px; 
     flex: 0 0 0;
 }
+#upload-cover {
+    font-size: .9rem;
+}
 .edit-book-info {
 	vertical-align: middle;
 	display: table-cell;
@@ -676,6 +679,7 @@ select:-webkit-autofill:focus {
 .show-book-container .book-title {
     margin-bottom: .75rem;
 }
+
 .button {
     background-color: #2d2d2d;
     font-size: 14px;
@@ -689,6 +693,13 @@ select:-webkit-autofill:focus {
 .button-stack {
     margin: 2px;
     display: inline-block;
+}
+input[type=submit] {
+    border: none;
+    color: #fff;
+    /* 1rem == 16px */
+    font-size: .9rem;
+    background-color: #2d2d2d;
 }
 .tag {
     margin-right: 2px;
