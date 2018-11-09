@@ -453,7 +453,7 @@ select:-webkit-autofill:focus {
  * with grid-template-columns: auto auto .. nr_of_cols*auto (auto for auto size) */
 #searchResult {
     display: grid;
-    grid-template-columns: auto;
+    grid-template-columns: repeat(2, auto);
     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
     align-items: stretch; /* Aligns grid items along the block (column) axis */
     justify-content: center; /* align the whole grid inside the container */
@@ -475,14 +475,9 @@ select:-webkit-autofill:focus {
       * while loading and at the end size is re-calculated which makes grid
       * "twitch" around, with a min-width this is avoided since the divs are
       * spread out from the start and closer to their loaded pos/size */
-    min-width: 200px;
+    min-width: 150px;
 }
-@media only screen and (min-width: 500px) {
-    #searchResult {
-        grid-template-columns: repeat(2, auto);
-    }
-}
-@media only screen and (min-width: 950px) {
+@media only screen and (min-width: 700px) {
     #searchResult {
         grid-template-columns: repeat(3, auto);
     }
@@ -794,7 +789,7 @@ hr.info-sep {
 }
 .books-collection-grid .book-grid-item {
     margin: .2rem;
-    min-width: 200px;
+    min-width: 150px;
     /* vw, vh are units depending on viewport-size 1 unit is 1% of vw,vh..
      * vmin/vmax = 1vw/vh whichever is smaller/bigger */
     /* max-width: 17vw; */
@@ -802,12 +797,12 @@ hr.info-sep {
 }
 /* Device-width refers to the display's resolution (eg. the 1024 from
  * 1024x768), while width refers to the width of the browser itself */
-@media only screen and (min-width: 500px) {
+@media only screen and (min-width: 300px) {
     .books-collection-grid {
         grid-template-columns: repeat(2, auto);
     }
 }
-@media only screen and (min-width: 950px) {
+@media only screen and (min-width: 700px) {
     .books-collection-grid {
         grid-template-columns: repeat(3, auto);
     }
