@@ -77,41 +77,25 @@ hr {
         width: 75%;
     }
 }
-#page-next {
+.page-nav {
     position: fixed;
     top: 0%;
-    right: 0;
     height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 0.3em;
+    font-size: 4em;
+    font-weight: bold;
 }
-#page-next:hover {
+.page-nav:hover {
     color: #f34c4c;
     background-color: #7575750f;
 }
-#page-next-inner {
-	position: relative;
-	top: 50%;
-    padding-left: 0.3em;
-    padding-right: 0.3em;
-    font-size: 4em;
-    font-weight: bold;
+#page-next {
+    right: 0;
 }
 #page-prev {
-    position: fixed;
-    top: 0%;
     left: 0;
-    height: 100%;
-}
-#page-prev:hover {
-    color: #f34c4c;
-    background-color: #7575750f;
-}
-#page-prev-inner {
-	position: relative;
-	top: 50%;
-    padding-left: 0.3em;
-    padding-right: 0.3em;
-    font-size: 4em;
-    font-weight: bold;
 }
 .button-leftmost {
     margin-left: 0;

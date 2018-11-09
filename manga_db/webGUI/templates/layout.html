@@ -43,17 +43,17 @@
 <nav class="navbar navbar-expand mdb-nav dark-color">
     <a class="mdb-navbar-brand" href="/">MangaDB</a>
 
-    <form action="{{ url_for('main.search_books') }}" method=get class="search-form">
+    <form id="searchForm" action="{{ url_for('main.search_books') }}" method=get class="search-form">
         <i class="fa fa-search" id="search-icon"></i>
         <input type="text" id="searchBar" class="searchbar" name ="q" placeholder="Search" value="{{ search_field }}"/>
-        <input type="hidden" value="{{ order_col if order_col else 'id' }}" name="order" />
-        <input type="hidden" value="{{ asc_desc if asc_desc else 'DESC' }}" name="sort_col" />
+        <input type="hidden" value="{{ order_col if order_col else 'id' }}" name="sort_col" />
+        <input type="hidden" value="{{ asc_desc if asc_desc else 'DESC' }}" name="order" />
     </form>
     <ul class="navbar-nav mr-auto" id="search-options">
         <li class="nav-item" style="position:relative"> {# relative so dropdown is at correct loc #}
         <a class="nav-link" href="#" role="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fas fa-sort"></i></a>
         
-        <div class="dropdown-menu" aria-labelledby="sortDropdown">
+        <div class="dropdown-menu" id="sortColOptions" aria-labelledby="sortDropdown">
             <a class="dropdown-item {{ 'active' if order_col == 'id' else '' }}" data-value="id" href="#">Id</a>
             <a class="dropdown-item {{ 'active' if order_col == 'title_eng' else '' }}" data-value="title_eng" href="#">English Title</a>
             <a class="dropdown-item {{ 'active' if order_col == 'title_foreign' else '' }}" data-value="title_foreign" href="#">Foreign Title</a>
@@ -63,7 +63,7 @@
       </div>
       </li>
       <li class="nav-item">
-          <a class="nav-link" href="#" id="orderLnk" data-value="{{ order }}"><i class="fas fa-sort-amount-{{ 'down' if order == 'DESC' else 'up' }}"></i></a>
+          <a class="nav-link" href="#" id="orderLnk" data-value="{{ asc_desc if asc_desc else 'DESC' }}"><i class="fas fa-sort-amount-{{ 'down' if asc_desc == 'DESC' else 'up' }}"></i></a>
       </li>
       <li class="nav-item">
           <a class="nav-link" href="#" id="refreshSearch"><i class="fas fa-sync-alt"></i></a>
@@ -77,6 +77,54 @@
         <a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i></a>
         {% endif %}
     </div>
+    <script>
+    $(document).ready(function() {
+        function setSortCol(e) {
+            let new_sort_col = $(e.currentTarget).data("value");
+            $("input[name=sort_col]").val(new_sort_col);
+
+            $("#sortColOptions .dropdown-item.active").removeClass("active");
+            $(e.currentTarget).addClass("active");
+            
+            event.preventDefault();
+            return
+        }
+    
+        $("#sortColOptions .dropdown-item").click(setSortCol);
+
+        function changeOrder(e) {
+            let order_div = $(e.currentTarget);
+            let current_order = order_div.data("value");
+            console.log(order_div, current_order);
+            let new_order = "";
+            if (current_order === "DESC") {
+                new_order = "ASC";
+                order_div.html('<i class="fas fa-sort-amount-up"></i>');
+            } else {
+                new_order = "DESC";
+                order_div.html('<i class="fas fa-sort-amount-down"></i>');
+            }
+            $("input[name=order]").val(new_order);
+            // data-value update isnt shown in chrome debugger but it works correctly
+            console.log("after:", new_order, order_div);
+            order_div.data("value", new_order);
+
+            event.preventDefault();
+            return
+        }
+
+        $("#orderLnk").click(changeOrder);
+        /* An arrow function expression has a shorter syntax compared to
+        function expressions and lexically binds the this value (does not bind
+        its own this, arguments, super, or new.target). Arrow functions are
+        always anonymous. */
+        $("#refreshSearch").click(() => {
+            event.preventDefault();
+            $("#searchForm").submit()
+            return
+        });
+    });
+    </script>
 </nav>
 <div class=page>
 	{% with messages = get_flashed_messages(with_categories=true) %}
