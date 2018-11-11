@@ -55,6 +55,8 @@ def login():
             error = 'Incorrect username or password.'
 
         if error is None:
+            # clear session on login (among others for security reasons e.g.
+            # if per-session-csrf token is used)
             session.clear()
             # only one user atm so we only care that hes logged in
             session['authenticated'] = True
@@ -67,6 +69,8 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
+    # clear session on logout to obv delete login-related info but also among others for
+    # security reasons e.g. if per-session-csrf token is used)
     session.clear()
     return redirect(url_for('auth.login'))
 

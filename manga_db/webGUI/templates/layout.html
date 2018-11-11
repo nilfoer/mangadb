@@ -27,16 +27,6 @@
             if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
                 xhr.setRequestHeader("X-CSRFToken", $('meta[name="csrf-token"]').attr('content'));
             }
-        },
-        // after we get response and success etc was called
-        complete: function(jqXHR, textStatus) {
-            // get and set new token
-            let new_token = jqXHR.getResponseHeader("X-CSRFToken");
-            if (new_token) {
-                $('meta[name="csrf-token"]').attr('content', new_token);
-                // also set hidden csrf-token fields otherwise their token will be invalid
-                $('input[name="_csrf_token"]').attr("value", new_token);
-            }
         }
     });
 </script>

@@ -1117,3 +1117,233 @@ This allows the website to detect that it is being used on a device.
 You can also do this,
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
 This part, user-scalable=0; prevents the user from zooming with their fingers and is useful if you have position: fixed elements.
+__________________________________________________________________________________________________________
+
+flask security
+
+flask session can easily be read be base64 decoding the part b4 the first dot which
+is just the b64 serialized session dict
+the other parts are information with which flask can identify the session, they depend on the secret key
+which means assuming the secret key is secured the session is tamper-proof
+since an attacker has to know the secret key to generate the client id otherwise flask will just reject the session
+-> DONT STORE sensitive info in the session
+-> BUT if secure secret key its safe to assume that the data in the session is valid
+
+protect against XSS (Cross-Site-Scripting)
+malicious js code is injected into the site (by e.g. a search bar that displays the unescaped search term an attacker
+would send a link with js code in the GET args for the query and if the user click on the link the js is executed on
+the site as the client -> can read e.g. session data)
+-> protect site against that by setting http0nly flag on cookies with sensitive info -> cant be read by js
+    (default flask setting SESSION_COOKIE_HTTPONLY = True)
+
+protect against CSRF (Cross-Site-Request-Forgery)
+(CSRF: Attackers who can find a reproducible link that executes a specific action on the target page while the victim is logged in 
+       can embed such link on a page they control and trick the victim into opening it -> e.g. uTorrent web-console
+       allowed GET requests to change e.g. admin pw -> link embedded on (u)Torrent forums -> browser accesses that link
+       automatically and sends all cookies for that domain (e.g. logged in data))
+easiest way to protect against CSRF is not to use cookies for authentication and user sessions, and instead have the 
+application insert the user session or token in all requests in a custom HTTP header -> browser cant send cookies since there are none
+-> but this approach is bad for xss (since best prot are cookies with http0nly enabled, js could also read out headers)
+-> use CSRF Token: randomly generated string that the server assigns to each client. The server passes this token to the 
+   client by some means, and then the client is supposed to send this token back to the server with any requests it sends. The 
+   server checks that this CSRF token is the correct one, and if it is not, it refuses the request.
+
+Session Security
+In spite of all the precautions we took to make our application secure, there is still the chance that an attacker can find 
+a way to steal a session cookie. This can happen, for example, if your user is using a compromised computer. As discussed 
+above, an attacker that uses a stolen session cookie can get the same access the user from who the cookie was stolen has  
+
+-> attach some information about the client to the session, such as their IP address and the browser's user agent. Every 
+time the server receives a request with a session cookie, it an checks if these client attributes match, and if they don't 
+it can throw away the session, forcing the client to log in again. In particular, the IP address of a client is very 
+difficult to spoof
+
+-> we can get ip using: request.remote_address or 
+    request.headers.get("X-Forwarded-For") -> standard header for identifying the originating IP address of a client 
+                                              connecting to a web server through an HTTP proxy or a load balancer
+-> user-agent: request.headers.get("User-Agent")
+=> this protection doesnt really make sense to me, since if an attacker already has control/infected of the clients
+    computer he can already have access to his login credentials etc. (only exception is prob public computer or
+    if attacker only managed to steal sess cookie and nothing more)
+    
+CSRF-Protection in flask-wtf and django
+django generates a random string and salts it with another rnd string of same length
+>>> random = random.SystemRandom()
+>>> allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+>>> rnd_string = ''.join(random.choice(allowed_chars) for i in range(12))
+>>> rnd_string
+'hyf3dx3jZdCQ'
+>>> salt = ''.join(random.choice(allowed_chars) for i in range(12))
+>>> chars = allowed_chars
+>>> pairs = zip((chars.index(x) for x in rnd_string), (chars.index(x) for x in salt))
+# pairs e.g.
+# [(7, 30), (24, 59), (5, 30), (55, 24), (3, 23), (23, 23), (55, 37), (9, 38), (51, 0), (3, 60), (28, 12), (42, 26)]
+>>> cipher = ''.join(chars[(x + y) % len(chars)] for x, y in pairs)
+>>> cipher
+'LvJrAUEVZbOg'
+>>> salted = salt + cipher
+
+unsalting:
+>>> token = salted
+>>> CSRF_SECRET_LENGTH = 12
+>>> salt = token[:CSRF_SECRET_LENGTH]
+>>> token = token[CSRF_SECRET_LENGTH:]
+>>> pairs = zip((chars.index(x) for x in token), (chars.index(x) for x in salt))
+# pairs
+# [(37, 30), (21, 59), (35, 30), (17, 24), (26, 23), (46, 23), (30, 37), (47, 38), (51, 0), (1, 60), (40, 12), (6, 26)]
+>>> secret = ''.join(chars[x - y] for x, y in pairs)  # Note negative values are ok
+>>> secret
+'hyf3dx3jZdCQ'
+
+to get token -> if CSRF_COOKIE not set generate one, else unsalt token and return new salted token
+-> each time a token is requested its a new value but these values still compares succefully when unsalted
+csrf token checking excerpt:
+def _get_token..:
+    ...
+    csrf_token = _sanitize_token(cookie_token)
+    if csrf_token != cookie_token:
+        # Cookie token needed to be replaced;
+        # the cookie needs to be reset.
+        request.csrf_cookie_needs_reset = True
+    return csrf_token
+    
+def process_request(self, request):
+        csrf_token = self._get_token(request)
+        if csrf_token is not None:
+            # Use same token next time.
+            request.META['CSRF_COOKIE'] = csrf_token    
+            
+def process_view
+if request.is_secure():
+                # Suppose user visits http://example.com/
+                # An active network attacker (man-in-the-middle, MITM) sends a
+                # POST form that targets https://example.com/detonate-bomb/ and
+                # submits it via JavaScript.
+                #
+                # The attacker will need to provide a CSRF cookie and token, but
+                # that's no problem for a MITM and the session-independent
+                # secret we're using. So the MITM can circumvent the CSRF
+                # protection. This is true for any HTTP connection, but anyone
+                # using HTTPS expects better! For this reason, for
+                # https://example.com/ we need additional protection that treats
+                # http://example.com/ as completely untrusted. Under HTTPS,
+                # Barth et al. found that the Referer header is missing for
+                # same-domain requests in only about 0.2% of cases or less, so
+                # we can use strict Referer checking.
+                ... code for checkin the ref headers
+                ...
+code for checking if to set csrf token on response:
+def process_response(self, request, response):
+        if not getattr(request, 'csrf_cookie_needs_reset', False):
+            # csrf_cookie_needs_reset gets set to True by rotate_token (comment says e.g. done on login)
+            # or if sanitized token doesnt match cookie token in _get_token
+            if getattr(response, 'csrf_cookie_set', False): # only used in this func (only checked csrf.py file)
+                return response
+
+        if not request.META.get("CSRF_COOKIE_USED", False):
+            return response
+
+        # Set the CSRF cookie even if it's already set, so we renew
+        # the expiry timer.
+        self._set_token(request, response)
+        response.csrf_cookie_set = True
+        return response    
+-> process_request set the cookie CSRF_COOKIE to token returned by self._get_token which is only the same token
+    if its a valid (does not need to be the same) token
+-> but in self._set_token they just set the cookie to value of request.META['CSRF_COOKIE'] which changed if it was
+        an invalid token and stays the same if it was a valid token (not same token)
+        
+Flask-WTF csrf protection:
+generation
+    def generate_csrf(secret_key=None, token_key=None):
+if no csrf token on g yet
+generate a hash with hashlib.sha1(os.urandom(64)).hexdigest() -> gets saved in session
+on g it it is saved as signed token:
+    s = URLSafeTimedSerializer(secret_key, salt='wtf-csrf-token')
+    token = s.dumps(session[field_name])
+
+validation
+    def validate_csrf(data, secret_key=None, time_limit=None, token_key=None):
+signed token is checked for validity, same secret key and salt is needed otherwise s.loads raises an execption    
+    s = URLSafeTimedSerializer(secret_key, salt='wtf-csrf-token')
+    try:
+        token = s.loads(data, max_age=time_limit)
+    except SignatureExpired:
+        raise ValidationError('The CSRF token has expired.')
+    except BadData:
+        raise ValidationError('The CSRF token is invalid.')        
+
+    if not safe_str_cmp(session[field_name], token):
+        raise ValidationError('The CSRF tokens do not match.')
+additionally when CSRFProtect is used to use csrf prot globally
+referers are also checked 
+
+flask-wtf signs the token to also protect against a BREACH attack (if per-session token is used)
+since they can only get the hash from the session but the token needs to be signed with salt and secret key
+       
+>>> from itsdangerous import URLSafeTimedSerializer
+>>> secret_key = "test"
+>>> salt = "salt"
+>>> s = URLSafeTimedSerializer(secret_key, salt=salt)
+>>> import secrets
+>>> token = secrets.token_urlsafe(32)
+>>> token
+'ZolaVeemxQT_pEpbKiiAtwYtfcbRPy5RwEcGA-11UgM'
+>>> token_signed = s.dumps(token)
+>>> token_signed
+'IlpvbGFWZWVteFFUX3BFcGJLaWlBdHdZdGZjYlJQeTVSd0VjR0EtMTFVZ00i.DsorGA.V3hLcRK2IV5V_iH6PRk8y2cQyUg'
+# first part (b4 ".") is just b64 encoded json rest is signature to ensure first part hasnt been tampered with
+# session does this automatically for us and uses URLSafeTimedSerializer itself internally
+>>> import base64
+>>> base64.urlsafe_b64decode(token_signed.split(".",1)[0])
+b'"ZolaVeemxQT_pEpbKiiAtwYtfcbRPy5RwEcGA-11UgM"'
+>>> token_signed = base64.urlsafe_b64encode(b'"invlaid token content"') + b".DsorGA.V3hLcRK2IV5V_iH6PRk8y2cQyUg"
+>>> token_signed
+b'ImludmxhaWQgdG9rZW4gY29udGVudCI=.DsorGA.V3hLcRK2IV5V_iH6PRk8y2cQyUg'
+>>> s.loads(token_signed)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "C:\python3.6\lib\site-packages\itsdangerous.py", line 643, in loads
+    .unsign(s, max_age, return_timestamp=True)
+  File "C:\python3.6\lib\site-packages\itsdangerous.py", line 449, in unsign
+    date_signed=timestamp)
+itsdangerous.BadTimeSignature: Signature b'V3hLcRK2IV5V_iH6PRk8y2cQyUg' does not match
+>>> token_signed = s.dumps(token)
+>>> token_signed
+'IlpvbGFWZWVteFFUX3BFcGJLaWlBdHdZdGZjYlJQeTVSd0VjR0EtMTFVZ00i.DsosKg.b4LWwbUK6ce0tasbHn8J0Ic4GtA'
+>>> token_signed = s.dumps(token)
+# signature part of signed token changes every time
+>>> token_signed
+'IlpvbGFWZWVteFFUX3BFcGJLaWlBdHdZdGZjYlJQeTVSd0VjR0EtMTFVZ00i.DsosOQ.n1CWp5C5boGhe6Ix58gZ65W4FpM'
+>>> s.loads(token_signed)
+'ZolaVeemxQT_pEpbKiiAtwYtfcbRPy5RwEcGA-11UgM'        
+
+SALT in itsdangerous:
+All classes also accept a salt argument. The name might be misleading because usually if you think of salts in cryptography 
+you would expect the salt to be something that is stored alongside the resulting signed string as a way to prevent rainbow 
+table lookups. Such salts are usually public.
+
+In “itsdangerous”, like in the original Django implementation, the salt serves a different purpose. You could describe it 
+as namespacing. It’s still not critical if you disclose it because without the secret key it does not help an attacker.
+
+Let’s assume that you have two links you want to sign. You have the activation link on your system which can activate a 
+user account and then you have an upgrade link that can upgrade a user’s account to a paid account which you send out via 
+email. If in both cases all you sign is the user ID a user could reuse the variable part in the URL from the activation 
+link to upgrade the account. Now you could either put more information in there which you sign (like the intention: upgrade 
+or activate), but you could also use different salts:
+>>> s1 = URLSafeSerializer('secret-key', salt='activate-salt')
+>>> s1.dumps(42)
+'NDI.kubVFOOugP5PAIfEqLJbXQbfTxs'
+>>> s2 = URLSafeSerializer('secret-key', salt='upgrade-salt')
+>>> s2.dumps(42)
+'NDI.7lx-N1P-z2veJ7nT1_2bnTkjGTE'
+>>> s2.loads(s1.dumps(42))
+Traceback (most recent call last):
+  ...
+itsdangerous.BadSignature: Signature "kubVFOOugP5PAIfEqLJbXQbfTxs" does not match
+
+Only the serializer with the same salt can load the value:
+>>> s2.loads(s2.dumps(42))
+42
+    
+__________________________________________________________________________________________________________
