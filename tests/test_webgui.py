@@ -12,8 +12,8 @@ from flask import url_for, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from manga_db.webGUI import create_app
-from manga_db.webGUI.mdb import get_mdb
 from manga_db.ext_info import ExternalInfo
+from manga_db.webGUI.mdb import t_local
 from utils import all_book_info, gen_hash_from_file
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -50,7 +50,12 @@ def app_setup():
             )
     client = app.test_client()
 
-    return tmpdir, app, client
+    yield tmpdir, app, client
+
+    # clean up thread local so we avoid a re-used thread using an old mdb connection
+    # from the thread local    
+    t_local.mdb_init = False
+    t_local.mdb = None
 
 
 def test_login_required(app_setup):

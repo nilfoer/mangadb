@@ -1347,3 +1347,13 @@ Only the serializer with the same salt can load the value:
 42
     
 __________________________________________________________________________________________________________
+
+Testing problem with threading.local() and multiple tests in a row
+
+tests worked when tested separately but failed when tested in one go
+-> bug: flask uses threads and we use thread.local() to have one db connection per thread
+        when that thread gets reused (and it does i checked: on test_list_action_ajax we were in dir tmp_10 and
+        thread local used tmp_7) it uses an old mdb connection
+=> import ref to thread local from manga_db.webGUI.mdb and set mdb_init to False
+   so a new mdb instance will be used when the thread is re-used
+__________________________________________________________________________________________________________
