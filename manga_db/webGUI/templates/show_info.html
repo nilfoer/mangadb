@@ -548,7 +548,7 @@ Remove Book
     </div>
 <div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
     {% for c_book in c_books %}
-    <div class="book-grid-item {{ 'read' if 'to-read' not in c_book.list else ''}}">
+    <div class="book-grid-item {{ 'read' if 'to-read' not in c_book.list else ''}} {{ 'current' if c_book.id == book.id else '' }}">
     <div class="book-grid-item-inner">
 	    {% if c_book.favorite %}
 	    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>

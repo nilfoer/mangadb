@@ -39,6 +39,7 @@ def init_app(app):
         # -> BUT we need to re-set it every time so the session gets re-signed
         #    otherwise the exact same session cookie is transmitted
         token = session.get("_csrf_token", None)
+        response.set_cookie('name', 'I am cookie')
         if token is not None:
             session["_csrf_token"] = token
         return response

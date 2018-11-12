@@ -19,9 +19,6 @@ from utils import all_book_info, gen_hash_from_file
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-# cant use recommended way of testing since our code fails when it uses
-# muliple threads and we dont need the threads since the webgui is only
-# supposed to be used by one person
 @pytest.fixture
 def app_setup():
     tmpdir_list = [dirpath for dirpath in os.listdir(TESTS_DIR) if dirpath.startswith(
@@ -84,14 +81,24 @@ def test_login(app_setup):
     resp = login(app, client, "adjakl", "aksak")
     assert b'No registered user!' in resp.data
 
+    with client.session_transaction() as sess:
+        token_before = sess["_csrf_token"]
     app.config["USERNAME"] = "test"
     app.config["PASSWORD"] = generate_password_hash("testpw")
     resp = login(app, client, "test", "testpw")
-    assert b'id="foundBooks"' in resp.data
+    assert b'id="searchResult"' in resp.data
+    # csrf token is session-based make sure it changes on login
+    with client.session_transaction() as sess:
+        assert sess["_csrf_token"] != token_before
+        token_before = sess["_csrf_token"]
 
     with app.app_context():
         resp = client.get(url_for("auth.logout"), follow_redirects=True)
     assert b"Login" in resp.data
+    # csrf token is session-based make sure it changes on logout
+    with client.session_transaction() as sess:
+        assert sess["_csrf_token"] != token_before
+        assert "authenticated" not in sess
 
     resp = login(app, client, "test", "afdaklla")
     assert b'Incorrect username or password' in resp.data
@@ -163,41 +170,48 @@ def test_csrf_token(app_setup):
 
         with client.session_transaction() as sess:
             sess["_csrf_token"] = "token123"
-        # ajax
-        resp = client.post(
-                url_for("auth.login"),
-                data=dict(
-                    username="test",
-                    password="testpw",
-                ),
-                headers={
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': 'invalidtoken'
-                }, follow_redirects=True)
-        assert resp.status_code == 403
 
-        with client.session_transaction() as sess:
-            # asser new token was generated
-            # since it does this automatically for ajax requests
-            assert sess["_csrf_token"] != "token123"
-            new_token = sess["_csrf_token"]
+        # test that we re-set the csrf token -> session cookie changed
+        resp = client.get("/", follow_redirects=True)
 
-        resp = client.post(
-                url_for("auth.login"),
-                data=dict(
-                    username="test",
-                    password="testpw",
-                ),
-                headers={
-                    # ajax woudl normally use: 'Content-Type': 'application/json',
-                    # but login doesnt support that
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': new_token
-                }, follow_redirects=True)
-        assert resp.status_code == 200
+        import base64, binascii
 
-        with client.session_transaction() as sess:
-            assert resp.headers["X-CSRFToken"] == sess["_csrf_token"]
+        def decode_sess(s):
+            se = s.split(".", 1)[0]
+            n = 0
+            while n < 4:
+                try:
+                    decoded = base64.urlsafe_b64decode(se)
+                except binascii.Error:
+                    # add padding
+                    se += "="
+                else:
+                    return decoded
+                n += 1
+            return None
+
+        # To create a cookie, the Set-Cookie header is sent from a server in
+        # response to requests.
+        # In the Set-Cookie header, a cookie is defined by a name associated
+        # with a value. A web server can configure the domain and path
+        # directives to restrain the scope of cookies. While session cookies
+        # are deleted when a browser shuts down, the permanent cookies expire
+        # at the time defined by Expires or Max-Age.
+        # Among the directives, the Secure and HttpOnly attributes are
+        # particularly relevant to the security of cookies:
+        # Setting Secure directive forbids a cookie to be transmitted via simple HTTP.
+        # Setting the HttpOnly directive prevents access to cookie value through javascript.
+        # there can be multiple set-cookie headers
+        set_cookies = resp.headers.getlist("Set-Cookie")
+        # filter for set session cookie
+        set_cookie_sess = [h for h in set_cookies if "session=" in h][0]
+        start, end = set_cookie_sess.index("=") + 1, set_cookie_sess.index(";")
+        sess_cstr = set_cookie_sess[start:end]
+        sess_dict = json.loads(decode_sess(sess_cstr))
+        # _csrf_token present but unchanged
+        assert sess_dict["_csrf_token"] == "token123"
+        # test that we're useing httponly sess cookie while were at it
+        assert "; HttpOnly;" in set_cookie_sess
 
 
 def list_action_ajax(app, client, action, book_id, name, before):
@@ -330,12 +344,12 @@ def test_show_info(app_setup):
 
         assert soup.select_one("#LastChange").text.strip() == "2018-10-24"
         assert not soup.select_one("#Note")
-        assert soup.select_one("#btnFavoriteHandler").text.strip() == "Add to Favorites"
+        assert soup.select_one("#btnFav").text.strip() == "Add to Favorites"
         assert soup.select_one("#btnDownloadEntry").text.strip() == "Download"
 
         # extinfo
         assert "Tsumino.com" in soup.select_one(".ext-info-title > a").text
-        assert soup.select_one("#Uploader > a ").text.strip() == "Scarlet Spy"
+        assert soup.select_one("#Uploader").text.strip() == "Scarlet Spy"
         assert soup.select_one("#Uploaded").text.strip() == "2018-10-17"
         assert soup.select_one("#Rating").text.strip() == "4.23 (101 users / 1020 favs)"
         assert soup.select_one("#Censorship").text.strip() == "Censored"
@@ -353,25 +367,30 @@ def test_show_info(app_setup):
                 b"Izumi&#39;s Story- Ch. 2") in resp.data
         r_html = resp.data.decode("utf-8")
         soup = bs4.BeautifulSoup(r_html, "html.parser")
-        assert soup.select_one("#btnFavoriteHandler").text.strip() == "Favorited"
+        assert soup.select_one("#btnFav").text.strip() == "Favorite"
         assert soup.select_one("#btnDownloadEntry").text.strip() == "Downloaded"
         assert soup.select_one("#Collection > a ").text.strip() == "Dolls"
-        assert b"Collection: Dolls" in resp.data
 
-        col_rows = soup.select("a.trow")
-        cells = col_rows[0].select(".tcell")
+        assert b"COLLECTION: </span>Dolls" in resp.data
+
+        # save since only one collection otherwise have to add more detail to selector
+        coll_items = soup.select(".books-collection-grid .book-grid-item-inner")
         # book that is displayed correctly marked
-        assert "book-collection-is-me" in col_rows[0]["class"]
-        assert cells[0].text.strip() == ("Dolls -Yoshino Izumi Hen- | Dolls -Yoshino Izumi's"
-                                         " Story- Ch. 2 / ドールズ -芳乃泉編- Ch. 2")
-        assert cells[1].text.strip() == "3.5"
-        assert cells[2].text.strip() == "25"
+        assert "current" in coll_items[0].parent["class"]
+        assert coll_items[0].select_one(".overlay-title").text.strip() == (
+                "Dolls -Yoshino Izumi Hen- | Dolls -Yoshino Izumi's"
+                " Story- Ch. 2 / ドールズ -芳乃泉編- Ch. 2")
+        assert len(coll_items[0].select_one(".overlay-rate").select(".fa.fa-star")) == 4
+        assert "avg external rating" not in str(coll_items[0].select_one(".overlay-rate"))
+        assert coll_items[0].select_one(".overlay-pages").text.strip() == "25 pages"
 
-        cells = col_rows[1].select(".tcell")
-        assert "book-collection-is-me" not in col_rows[1]["class"]
-        assert cells[0].text.strip() == "Dolls Ch. 8 / ドールズ 第8話"
-        assert cells[1].text.strip() == "Not rated"
-        assert cells[2].text.strip() == "31"
+        assert "current" not in coll_items[1].parent["class"]
+        assert coll_items[1].select_one(".overlay-title").text.strip() == (
+                "Dolls Ch. 8 / ドールズ 第8話")
+        assert len(coll_items[1].select_one(".overlay-rate").select(".fa.fa-star")) == 4
+        # str of dom tag obj in bs4 returns html repr
+        assert "avg external rating" not in str(coll_items[1].select_one(".overlay-rate"))
+        assert coll_items[1].select_one(".overlay-pages").text.strip() == "31 pages"
 
 
 def test_apply_upd_changes(app_setup):
