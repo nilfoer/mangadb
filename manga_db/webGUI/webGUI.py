@@ -254,7 +254,7 @@ def apply_upd_changes(book_id):
         elif col == "status":
             update_dic["status_id"] = STATUS_IDS[val]
         elif col == "language":
-            update_dic["language_id"] = mdb.get_language(val)
+            update_dic["language_id"] = mdb.get_language(val, create_unpresent=True)
         elif col in Book.COLUMNS:
             update_dic[col] = val
         else:

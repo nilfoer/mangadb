@@ -11,6 +11,7 @@ from .db.loading import load_instance
 from .db.id_map import IndentityMap
 from .manga import Book
 from .ext_info import ExternalInfo
+from .constants import CENSOR_IDS, STATUS_IDS
 
 
 configure_logging("manga_db.log")
@@ -39,9 +40,9 @@ class MangaDB:
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
 
-    VALID_SEARCH_COLS = {"title", "language", "status", "favorite",
+    VALID_SEARCH_COLS = {"title", "language", "language_id", "status", "favorite",
                          "category", "artist", "parody", "character", "collection", "groups",
-                         "tag", "list"}
+                         "tag", "list", "status", "status_id"}
 
     def __init__(self, root_dir, db_path, read_only=False, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path, read_only)
@@ -81,16 +82,19 @@ class MangaDB:
         return result
 
     # used in extractor to get language id if language isnt in db itll be added
-    def get_language(self, language):
+    def get_language(self, language, create_unpresent=False):
         # add language if its not a language_id
         if language not in self.language_map and type(language) == str:
-            with self.db_con:
-                c = self.db_con.execute("INSERT OR IGNORE INTO Languages (name) VALUES (?)",
-                                        (language,))
-            if c.lastrowid:
-                self.language_map[language] = c.lastrowid
-                self.language_map[c.lastrowid] = language
-            return c.lastrowid
+            if create_unpresent:
+                with self.db_con:
+                    c = self.db_con.execute("INSERT OR IGNORE INTO Languages (name) VALUES (?)",
+                                            (language,))
+                if c.lastrowid:
+                    self.language_map[language] = c.lastrowid
+                    self.language_map[c.lastrowid] = language
+                return c.lastrowid
+            else:
+                return None
         else:
             try:
                 return self.language_map[language]
@@ -130,7 +134,7 @@ class MangaDB:
         if not data:
             return None, None
         # @Cleanup @Temporary convert lanugage in data to id
-        data["language_id"] = self.get_language(data["language"])
+        data["language_id"] = self.get_language(data["language"], create_unpresent=True)
         del data["language"]
 
         book = Book(self, **data)
@@ -337,7 +341,6 @@ class MangaDB:
         assoc_col_values_incl = {}
         assoc_col_values_excl = {}
         # TODO turn language_id into language and so on
-        # TODO filter col name
         # Return all non-overlapping matches of pattern in string, as a list of strings.
         # The string is scanned left-to-right, and matches are returned in the order found.
         # If one or more groups are present in the pattern, return a list of groups; this will
@@ -393,6 +396,9 @@ class MangaDB:
             else:
                 normal_col_values[search_col] = part
 
+        # convert name of Censorship, Language etc. to id
+        self.convert_names_to_ids(normal_col_values)
+
         # validate order_by from user input
         if not search.validate_order_by_str(order_by):
             logger.warning("Sorting %s is not supported", order_by)
@@ -406,6 +412,29 @@ class MangaDB:
             return [load_instance(self, Book, row) for row in rows]
         else:
             return self.get_x_books(kwargs.pop("limit", 60), order_by=order_by, **kwargs)
+
+    def convert_names_to_ids(self, dictlike):
+        try:
+            language_id = self.get_language(dictlike["language"], create_unpresent=False)
+            if language_id is not None:
+                dictlike["language_id"] = language_id
+            del dictlike["language"]
+        except KeyError:
+            pass
+        try:
+            censor_id = CENSOR_IDS.get(dictlike["censorship"], None)
+            if censor_id is not None:
+                dictlike["censor_id"] = censor_id
+            del dictlike["censorship"]
+        except KeyError:
+            pass
+        try:
+            status_id = STATUS_IDS.get(dictlike["status"], None)
+            if status_id is not None:
+                dictlike["status_id"] = status_id
+            del dictlike["status"]
+        except KeyError:
+            pass
 
     @staticmethod
     def _load_or_create_sql_db(filename, read_only=False):
@@ -633,8 +662,6 @@ class MangaDB:
             CREATE UNIQUE INDEX IF NOT EXISTS idx_tag_name ON Tag (name);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_title_eng_foreign
                 ON Books (title_eng, title_foreign);
-            CREATE INDEX IF NOT EXISTS idx_id_onpage_imported_from ON ExternalInfo
-                (id_onpage, imported_from);
 
             CREATE TRIGGER IF NOT EXISTS set_books_last_change
                                  AFTER UPDATE ON Books

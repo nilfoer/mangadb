@@ -234,7 +234,7 @@ class Book(DBRow):
     @language.setter
     def language(self, value):
         if isinstance(value, str):
-            self.language_id = self.manga_db.get_language(value)
+            self.language_id = self.manga_db.get_language(value, create_unpresent=True)
         else:
             logger.warning("Type of language needs to be string!")
 

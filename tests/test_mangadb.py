@@ -28,12 +28,15 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     assert mdb.get_language("English") == 1
     assert mdb.get_language(1) == "English"
 
-    lang_id = mdb.get_language("Klingonian")
+    lang_id = mdb.get_language("Klingonian", create_unpresent=True)
     assert mdb.get_language(lang_id) == "Klingonian"
     c = mdb.db_con.execute("SELECT id FROM Languages WHERE name = ?", ("Klingonian",))
     lid = c.fetchone()
     assert lid[0] == lang_id
     assert mdb.get_language(34249) is None
+    lang_id = mdb.get_language("Rimouka")
+    assert lang_id is None
+    assert not mdb.db_con.execute("SELECT 1 FROM Languages WHERE name = 'Rimouka'").fetchone()
 
     os.makedirs(os.path.join(tmpdir, "thumbs"))
 
@@ -174,14 +177,14 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
             ('parody:"!Test and Test2;Test;Incl and incl" pages:25 '
              'tag:"Multi Word Tag;Test1;!Test3;Test2;!Test4" '
              'favorite:0 language:English',
-                [{"favorite": "0", "language": "English"},
+                [{"favorite": "0", "language_id": 1},
                  {"parody": ["Test", "Incl and incl"],
                   "tag": ["Multi Word Tag", "Test1", "Test2"]},
                  {"parody": ["Test and Test2"], "tag": ["Test3", "Test4"]}]),
             ('parody:"!Test and Test2;Test;Incl and incl" title search '
              'tag:!Test3;Test2;!Test4 list:!to-read" '
              'favorite:0 language:English',
-                [{"title": "title search", "favorite": "0", "language": "English"},
+                [{"title": "title search", "favorite": "0", "language_id": 1},
                  {"parody": ["Test", "Incl and incl"],
                   "tag": ["Test2"]},
                  {"parody": ["Test and Test2"], "tag": ["Test3", "Test4"],
@@ -203,3 +206,22 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
         # first arg is connection for search_normal_mult_assoc
         del arg_li[0]
         assert arg_li == expected
+
+    dictlike = {"language": "English", "censorship": "Invalid", "status_id": 1}
+    mdb.convert_names_to_ids(dictlike)
+    assert dictlike["language_id"] == 1
+    assert "language" not in dictlike
+    assert "censor_id" not in dictlike
+    assert "censorship" not in dictlike
+    assert dictlike["status_id"] == 1
+
+    dictlike = {"language": "adjkal", "censorship": "Uncensored", "status": "Unknown"}
+    mdb.convert_names_to_ids(dictlike)
+    assert "language" not in dictlike
+    assert "language_id" not in dictlike
+    # test that get_language with create_unpresent=False didnt create languages entry
+    assert not mdb.db_con.execute("SELECT 1 FROM Languages WHERE name = 'adjkal'").fetchone()
+    assert "censorship" not in dictlike
+    assert dictlike["censor_id"] == 4
+    assert "status" not in dictlike
+    assert dictlike["status_id"] == 1

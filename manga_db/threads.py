@@ -76,7 +76,8 @@ def single_thread_import(url_lists, to_process, url_queue, book_queue):
                 continue
             print(f"{current_thread().name}: Adding book at {url}")
             # @Cleanup @Temporary convert lanugage in data to id
-            extr_data["language_id"] = mdb.get_language(extr_data["language"])
+            extr_data["language_id"] = mdb.get_language(extr_data["language"],
+                                                        create_unpresent=True)
             del extr_data["language"]
 
             book = Book(mdb, **extr_data)
