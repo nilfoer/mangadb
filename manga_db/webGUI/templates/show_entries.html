@@ -14,7 +14,10 @@
 <div id="searchResult">
 {% if books %}
     {% for book in books %}
-    <div class="book-grid-item {{ 'read' if 'to-read' not in book.list else ''}}">
+    <div class="book-grid-item 
+        {% if book.read_status is not none %}
+        {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
+        {% endif %}">
     <div class="book-grid-item-inner">
 	    {% if book.favorite %}
 	    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
@@ -32,7 +35,7 @@
                 {{ book.pages }} pages
             </div>
 	    {% if book.my_rating %}
-            <div class="overlay-rate blue-color">
+            <div class="overlay-rate blue-fcolor">
                 {# To cast to a string in an expression, you use x|string() instead of str(x) #}
                 {% for _ in range( book.my_rating|round|int() ) %}
                 {# &#9733; would also works but looks better with Fontawesome #}
@@ -52,7 +55,7 @@
                         SHOW
         </a>
     </div>
-    <div class="book-grid-item-title border-read">
+    <div class="book-grid-item-title">
     <span class="title">{{ book.title_eng }}</span>
     </div>
 

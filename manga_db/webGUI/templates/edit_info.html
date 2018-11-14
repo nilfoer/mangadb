@@ -109,7 +109,7 @@ $(document).ready(function() {
 <div class="book-line">
 <div class="edit-book-info">English Title</div>
 <div class="book-data" id="EnglishTitle" style="width:100%;">
-	<input type="text" class="selectize-input" name="title_eng" id="EnglishTitle"
+	<input type="text" class="selectize-input" name="title_eng" id="EnglishTitleInp"
     {% if book.title_eng %}
     value="{{ book.title_eng }}"
     {% endif %}
@@ -119,7 +119,7 @@ $(document).ready(function() {
 <div class="book-line">
 <div class="edit-book-info">Foreign Title</div>
 <div class="book-data" id="ForeignTitle">
-	<input type="text" class="selectize-input" name="title_foreign" id="ForeignTitle"
+	<input type="text" class="selectize-input" name="title_foreign" id="ForeignTitleInp"
     {% if book.title_foreign %}
     value="{{ book.title_foreign }}"
     {% endif %}
@@ -129,10 +129,21 @@ $(document).ready(function() {
 <div class="book-line">
 <div class="edit-book-info">Pages</div>
 <div class="book-data" id="Pages">
-	<input required type="text" class="selectize-input" name="pages" id="Pages"
+	<input required type="text" class="selectize-input" name="pages" id="PagesInp"
     placeholder="Number of pages as a whole number"
     {% if book.pages is not none %}
         value="{{ book.pages }}"
+    {% endif %}
+    />
+</div>
+</div>
+<div class="book-line">
+<div class="edit-book-info">Reading Status</div>
+<div class="book-data" id="ReadingStatus">
+	<input type="text" class="selectize-input" name="read_status" id="ReadingStatusInp"
+    placeholder="0 == finished reading, empty == not read!"
+    {% if book.read_status is not none %}
+        value="{{ book.read_status }}"
     {% endif %}
     />
 </div>
@@ -151,7 +162,7 @@ $(document).ready(function() {
 <div class="book-line">
 <div class="edit-book-info">My Rating</div>
 <div class="book-data" id="MyRating">
-	<input type="text" class="selectize-input" name="my_rating" value="{{ book.my_rating|float() if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
+	<input type="text" class="selectize-input" id="MyRatingInp" name="my_rating" value="{{ book.my_rating|float() if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
 </div>
 </div>
 <div class="book-line">
@@ -268,10 +279,12 @@ $(document).ready(function() {
     <script>
     $(document).ready(function() {
         $("#updateBtn").click(function(event) {
-            let title_eng = $("input[name=title_eng]").val();
-            let title_foreign = $("input[name=title_foreign]").val();
-            let page_val = $("input[name=pages]").val();
-            let my_rating = $("input[name=my_rating]").val();
+            let title_eng = $("#EnglishTitleInp").val();
+            let title_foreign = $("#ForeignTitleInp").val();
+            let page_val = $("#PagesInp").val();
+            console.log(page_val);
+            let read_status = $.trim($("#ReadingStatusInp").val());
+            let my_rating = $("#MyRatingInp").val();
             let nr = parseFloat(my_rating);
 
             if (!title_eng && !title_foreign) {
@@ -282,6 +295,10 @@ $(document).ready(function() {
                 // The value of the input element is returned, revert it into a number using + sign
                 // could also use modulo
                 alert("Pages is not a whole number!");
+                event.preventDefault();
+                return false;
+            } else if (read_status != "" && !Number.isInteger(+read_status)) {
+                alert("Reading status needs to be whole number!");
                 event.preventDefault();
                 return false;
             } else if (Number.isNaN(+my_rating)) {

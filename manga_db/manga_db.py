@@ -510,6 +510,7 @@ class MangaDB:
                     language_id INTEGER NOT NULL,
                     pages INTEGER NOT NULL,
                     status_id INTERGER NOT NULL,
+                    read_status INTEGER,
                     my_rating REAL,
                     note TEXT,
                     last_change DATE NOT NULL,

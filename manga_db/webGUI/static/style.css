@@ -525,6 +525,9 @@ select:-webkit-autofill:focus {
 .book-grid-item.read:hover .book-grid-item-inner {
     border-color: #31c131!important;
 }
+.book-grid-item.reading:hover .book-grid-item-inner {
+    border-color: #ffe000!important;
+}
 .book-grid-item-inner {
     position: relative; /* so we can place title on bottom of div */
     border: 2px solid transparent; /* transparent border so items dont get moved when we show it; didnt work with box-sizing: border-box; since we dont have a specified height*/
@@ -561,6 +564,9 @@ select:-webkit-autofill:focus {
 .book-grid-item.read .overlay-data .overlay-rate {
     color: #31c131!important;
 }
+.book-grid-item.reading .overlay-data .overlay-rate {
+    color: #ffe000!important;
+}
 .book-grid-item .overlay-button {
     position: absolute;
     left: 0;
@@ -578,6 +584,10 @@ select:-webkit-autofill:focus {
 }
 .book-grid-item.read .overlay-button:hover {
     background-color: #31c131!important;
+}
+.book-grid-item.reading .overlay-button:hover {
+    background-color: #ffe000!important;
+    color: #2d2d2d!important;
 }
 .book-grid-item-title {
     position: absolute;
@@ -607,6 +617,9 @@ select:-webkit-autofill:focus {
 }
 .book-grid-item.read .book-grid-item-title {
     border-color: #31c131!important;
+}
+.book-grid-item.reading .book-grid-item-title {
+    border-color: #ffe000!important;
 }
 /* src: https://www.cssportal.com/css-ribbon-generator/ */
 .ribbon.fav {

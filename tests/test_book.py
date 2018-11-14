@@ -413,6 +413,7 @@ def test_save_book(setup_mdb_dir, caplog):
             title_foreign="Foreign1",
             language_id=1,
             pages=25,
+            read_status=13,
             status_id=1,
             my_rating=None,
             category=["Manga"],

@@ -30,6 +30,7 @@ class Book(DBRow):
     language_id = Column(int, nullable=False)
     pages = Column(int, nullable=False)
     status_id = Column(int, nullable=False)
+    read_status = Column(int, nullable=True)
     my_rating = Column(float)
     category = AssociatedColumnMany("Category", Relationship.MANYTOMANY,
                                     assoc_table="BookCategory")
@@ -58,6 +59,7 @@ class Book(DBRow):
             language_id=None,
             pages=None,
             status_id=None,
+            read_status=None,
             my_rating=None,
             category=None,
             collection=None,
@@ -80,6 +82,7 @@ class Book(DBRow):
         self.language_id = language_id
         self.pages = pages
         self.status_id = status_id
+        self.read_status = read_status
         self.my_rating = my_rating
         self.category = category
         self.collection = collection

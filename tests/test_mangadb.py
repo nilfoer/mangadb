@@ -81,14 +81,14 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     actual = all_book_info(mdb.db_con, 18, include_id=False)
 
     for i, v in enumerate(actual):
-        if i == 15:
+        if i == 16:
             assert v == "to-read;to-download"
             continue
         elif i == 7:
             # last_change
             assert v == datetime.date.today()
             continue
-        elif i == 27:
+        elif i == 28:
             # last_update
             assert v == datetime.date.today()
             continue

@@ -604,8 +604,12 @@ def edit_book(book_id):
     # another statement ...;DROP Table
     for col in Book.COLUMNS:
         val = request.form.get(col, None)
-        if col in ("pages", "status_id", "language_id"):
-            val = int(val)
+        if val is None:
+            continue
+        elif col in ("pages", "status_id", "language_id"):
+            val = int(val.strip())
+        elif col == "read_status":
+            val = int(val.strip()) if val != "" else val
         elif col == "my_rating":
             # dont add if empty string or 0..
             if not val:

@@ -310,6 +310,7 @@ def test_show_info(app_setup):
         r_html = resp.data.decode("utf-8")
         soup = bs4.BeautifulSoup(r_html, "html.parser")
         assert soup.select_one("#Pages").text.strip() == "19"
+        assert soup.select_one("#ReadingStatus").text.strip() == "Not Read"
         assert soup.select_one("#Status").text.strip() == "Unknown"
 
         lang = soup.select("#Language > a")
@@ -372,6 +373,7 @@ def test_show_info(app_setup):
                 b"Izumi&#39;s Story- Ch. 2") in resp.data
         r_html = resp.data.decode("utf-8")
         soup = bs4.BeautifulSoup(r_html, "html.parser")
+        assert soup.select_one("#ReadingStatus").text.strip() == "23"
         assert soup.select_one("#btnFav").text.strip() == "Favorite"
         assert soup.select_one("#btnDownloadEntry").text.strip() == "Downloaded"
         assert soup.select_one("#Collection > a ").text.strip() == "Dolls"
@@ -746,6 +748,7 @@ def test_add_book(app_setup):
         "extr_data_json": extr_json,
         "cover_temp_name": "tempcover",
         "_csrf_token": "token123",
+        "read_status": "",
         "language_id": 1,
         "my_rating": 3.4,
         "note": "test",
@@ -764,8 +767,13 @@ def test_add_book(app_setup):
         assert not os.path.isfile(tmpcov_path)
         assert os.path.isfile(os.path.join(tmpdir, "thumbs", "18"))
 
-        row_expected = ('Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, 3.4, "test",
-                        datetime.date.today(), 0, 'Kakuzatou', 'Doujinshi', "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test", "Testpar1;Testpar2", 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken', 43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175, 1703, 0, datetime.date.today(), 0)
+        row_expected = ('Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, 3.4,
+                        "test", datetime.date.today(), 0, None, 'Kakuzatou', 'Doujinshi',
+                        "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
+                        "Testpar1;Testpar2",
+                        'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
+                        43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175,
+                        1703, 0, datetime.date.today(), 0)
 
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
                                  detect_types=sqlite3.PARSE_DECLTYPES)
@@ -774,7 +782,7 @@ def test_add_book(app_setup):
         # also compare them sorted
         assert tuple((c for c in row if not (type(c) == str and "Femdom" in c))) == row_expected
         tags_expected = sorted('Femdom;Handjob;Large Breasts;Nakadashi;Straight Shota;Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;Elder Sister;Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug'.split(";"))
-        assert sorted(row[9].split(";")) == tags_expected
+        assert sorted(row[10].split(";")) == tags_expected
 
     # cancel add book
     tmpcov_path = os.path.join(tmpdir, "thumbs", "tempcover")
