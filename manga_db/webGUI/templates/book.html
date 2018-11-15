@@ -10,6 +10,16 @@
 </div> {# book-page-container #}
 {% else %}
 <div class="book-title">{{ error_msg }}</div>
+{% if import_url %}
+<form method=post action="{{ url_for('main.import_book') }}">
+{{ csrf_token_field() }}
+<input type=hidden name=ext_url value="{{ import_url }}"/>
+<button type=submit class="button inline-block green-color button-leftmost" style="margin-top:.5rem;">
+    <i class="fas fa-file-import"></i> {# <i class="fas fa-cloud-download-alt"></i> #}
+    Import Book
+</button>
+</form>
+{% endif %}
 {% endif %}
 </div>
 

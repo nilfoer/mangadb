@@ -418,7 +418,7 @@ def test_apply_upd_changes(app_setup):
                     "list": "Added List;ListAdded;;;"
                     },
                 follow_redirects=False)
-        assert resp.status_code == 200
+        assert resp.location == url_for("main.show_info", book_id=7)
 
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
                                  detect_types=sqlite3.PARSE_DECLTYPES)

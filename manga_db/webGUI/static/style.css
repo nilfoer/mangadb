@@ -707,6 +707,9 @@ select:-webkit-autofill:focus {
     margin: 2px;
     display: inline-block;
 }
+.inline-block {
+    display: inline-block;
+}
 input[type=submit] {
     border: none;
     color: #fff;

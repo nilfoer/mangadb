@@ -5,10 +5,11 @@ Description: Creates webGUI for manga_db using flask
 
 import os.path
 import json
+import re
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
         render_template, flash, send_from_directory,
-        jsonify, send_file, session
+        jsonify, send_file, session, g
 )
 
 from .mdb import get_mdb
@@ -26,6 +27,8 @@ ALLOWED_THUMB_EXTENSIONS = set(('png', 'jpg', 'jpeg', 'gif'))
 
 # no url prefix
 main_bp = Blueprint("main", __name__)
+
+URL_RE = re.compile(r"(?:https?://)?(?:\w+\.)?(\w+\.\w+)/")
 
 
 # create route for thumbs/static data that isnt in static, can be used in template with
@@ -58,11 +61,14 @@ def show_entries():
 
 
 @main_bp.route('/book/<int:book_id>')
-def show_info(book_id, book=None, **kwargs):
+def show_info(book_id):
     mdb = get_mdb()
     # enable passing book obj over optional param while keeping url route option
     # with required param
-    if book is None:
+    if "book" in g:
+        # global obj g: assign/get with g.var_name, or g.pop(var_name) to also remove from g
+        book = g.book
+    else:
         book = mdb.get_book(book_id)
     if book is None:
         return render_template(
@@ -76,8 +82,8 @@ def show_info(book_id, book=None, **kwargs):
             books_in_collection = mdb.get_books_in_collection(collection)
             collections.append((collection, books_in_collection))
 
-    book_upd_changes = kwargs.pop("book_upd_changes", None)
-    show_outdated = kwargs.pop("show_outdated", None)
+    book_upd_changes = g.pop("book_upd_changes", None)
+    show_outdated = g.pop("show_outdated", None)
     outdated = None
     if show_outdated:
         try:
@@ -130,7 +136,9 @@ def import_book(url=None):
         book_in_db.ext_infos.append(ext_info)
 
         flash(f"Added external link at '{ext_info.url}' to book!")
-        return show_info(book_id=bid, show_outdated=eid if outdated else None)
+        if outdated:
+            g.show_outdated = eid
+        return redirect(url_for("main.show_info", book_id=bid))
     else:
         # dl cover as temp uuid name and display add book page
         import uuid
@@ -143,9 +151,9 @@ def import_book(url=None):
                              extr_data=extr_data_json)
 
 
-@main_bp.route('/jump', methods=["POST"])
+@main_bp.route('/jump', methods=["GET"])
 def jump_to_book_by_url():
-    url = request.form['ext_url']
+    url = request.args['ext_url']
 
     extr_cls = extractor.find(url)
     id_onpage = extr_cls.book_id_from_url(url)
@@ -158,7 +166,10 @@ def jump_to_book_by_url():
         # passing var to func works directly when using optional param
         # while stilling being able to use the rout argument
         # route("/import"...) def import_book(url=None):...
-        return import_book(url)
+        return render_template(
+            'book.html',
+            error_msg=f"Book wasn't found in the Database! Should it be imported?",
+            import_url=url)
     elif len(books) > 1:
         flash("Please choose the book belonging to the supplied URL!", "title")
         flash("Due to external sites re-using their book IDs it can happen that "
@@ -179,7 +190,8 @@ def jump_to_book_by_url():
             order_col_libox="id",
             asc_desc="DESC")
     else:
-        return show_info(book_id=None, book=books[0])
+        g.book = books[0]
+        return redirect(url_for("main.show_info", book_id=books[0].id))
 
 
 @main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=("POST",))
@@ -194,11 +206,13 @@ def update_book_ext_info(book_id, ext_info_id):
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {ext_info.url}")
         flash("Check the logs for more details!", "info")
-        return show_info(book_id=book_id, book=old_book)
+        g.book = old_book
+        return redirect(url_for("main.show_info", book_id=book_id))
     elif status == "title_missmatch":
         flash("Update failed!", "warning")
         flash(f"Title of book at URL didn't match title '{old_book.title}'", "info")
-        return show_info(book_id=book_id, book=old_book)
+        g.book = old_book
+        return redirect(url_for("main.show_info", book_id=book_id))
 
     changes, _ = old_book.diff(new_book)
     # filter changes and convert to jinja friendlier format
@@ -238,7 +252,9 @@ def update_book_ext_info(book_id, ext_info_id):
                 continue
             flash(change, "info")
 
-    return show_info(book_id, book_upd_changes=converted if changes else None)
+    if changes:
+        g.book_upd_changes = converted
+    return redirect(url_for("main.show_info", book_id=book_id))
 
 
 @main_bp.route('/book/<int:book_id>/apply_update', methods=["POST"])
@@ -268,7 +284,8 @@ def apply_upd_changes(book_id):
     book.update_from_dict(update_dic)
     book.save()
 
-    return show_info(book_id=book_id, book=book)
+    g.book = book
+    return redirect(url_for("main.show_info", book_id=book_id))
 
 
 @main_bp.route('/book/<int:book_id>/get_info_txt')
@@ -347,6 +364,9 @@ def first_last_more(books, after=None, before=None):
 @main_bp.route("/search", methods=["GET"])
 def search_books():
     searchstr = request.args['q']
+    if URL_RE.match(searchstr):
+        return redirect(url_for("main.jump_to_book_by_url", ext_url=searchstr))
+
     # prepare defaults so we dont always have to send them when using get
     order_by_col = request.args.get('sort_col', "id", type=str)
     asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
@@ -456,7 +476,7 @@ def add_ext_info(book_id):
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
-        return show_info(book_id=book_id)
+        return redirect(url_for("main.show_info", book_id=book_id))
     mdb = get_mdb()
     book, ext_info = mdb.book_from_data(extr_data)
     if book.title != book_title:
@@ -471,7 +491,9 @@ def add_ext_info(book_id):
     ei_id, outdated = ext_info.save()
 
     flash(f"External link was added as id {ei_id}")
-    return show_info(book_id=book_id, show_outdated=ext_info.id if outdated else None)
+    if outdated:
+        g.show_outdated = ext_info.id
+    return redirect(url_for("main.show_info", book_id=book_id))
 
 
 @main_bp.route("/book/add")
@@ -539,7 +561,9 @@ def add_book():
     if temp_name is not None:
         os.rename(os.path.join(current_app.config["THUMBS_FOLDER"], temp_name),
                   os.path.join(current_app.config["THUMBS_FOLDER"], str(bid)))
-    return show_info(book_id=bid, book=book, show_outdated=outdated_on_ei_id)
+    g.book = book
+    g.show_outdated = outdated_on_ei_id
+    return redirect(url_for("main.show_info", book_id=bid))
 
 
 @main_bp.route("/book/add/cancel", methods=["POST"])
@@ -636,8 +660,7 @@ def edit_book(book_id):
     book.update_from_dict(update_dic)
     book.save()
 
-    # @Speed could also pass book to show_info directly, but by getting book from db
-    # again we can see if changes applied correctly?
+    g.book = book
     return redirect(url_for("main.show_info", book_id=book_id))
 
 
@@ -706,4 +729,5 @@ def remove_ext_info(book_id, ext_info_id):
         flash(f"External link with id {ext_info_id} wasnt found on book!")
     else:
         flash(f"External link with url '{url}' was removed from Book!")
-    return show_info(book_id=book_id, book=book)
+    g.book = book
+    return redirect(url_for("main.show_info", book_id=book_id))

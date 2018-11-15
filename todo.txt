@@ -1,4 +1,3 @@
-- change functions in webgui to redirect instead of returning the func to redirect to if the url should change    
 - update unchanged vals from db when loading instance?    
     or at least make sure that e.g. when we save external info with book_id but without adding it to book
     book will be modified to match state in db?

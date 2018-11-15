@@ -5,7 +5,7 @@
     <form method=post action="{{ url_for('main.import_book') }}">
         {{ csrf_token_field() }}
         <input type="hidden" name="ext_url" value="{{ add_anyway }}"/>
-        <button class="book-read-button button-stack green-color" type="submit">Add Book anyway!</button>
+        <button class="button button-stack green-color" type="submit">Add Book anyway!</button>
     </form>
 </div>
 {% endif %}
