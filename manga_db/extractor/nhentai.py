@@ -42,12 +42,13 @@ class NhentaiExtractor(BaseMangaExtractor):
     def get_metadata(self):
         if self.metadata is None:
             if self.json is None:
-                self.json = json.loads(self.get_html(
-                        self.API_URL_FORMAT.format(id_onpage=self.id_onpage)))
+                self.json = self.get_html(
+                        self.API_URL_FORMAT.format(id_onpage=self.id_onpage))
                 if not self.json:
                     logger.warning(
                             "Extraction failed! JSON response was empty for url '%s'", self.url)
                     return None
+                self.json = json.loads(self.json)
             self.thumb_url = self.THUMB_URL_FORMAT.format(media_id=self.json["media_id"])
             self.metadata = self.transform_metadata(self.json)
         return self.metadata
@@ -58,7 +59,9 @@ class NhentaiExtractor(BaseMangaExtractor):
 
     @staticmethod
     def tags_of_type(metadata, type_name):
-        return [tag["name"].title() for tag in metadata["tags"] if tag["type"] == type_name]
+        # MangaDB style if titelized tags etc.: chun-li -> Chun-Li, big ass -> Big Ass
+        return ["-".join(tn.title() for tn in tag["name"].split("-"))
+                for tag in metadata["tags"] if tag["type"] == type_name]
 
     def transform_metadata(self, metadata):
         """
@@ -91,8 +94,11 @@ class NhentaiExtractor(BaseMangaExtractor):
             if re.search(self.KW_LOOKP_RE_FORMAT.format(keyword=status_kw),
                          metadata["title"]["english"], re.IGNORECASE):
                 result["status_id"] = STATUS_IDS[status_kw]
+                break
+        else:
+            result["status_id"] = STATUS_IDS["Unknown"]
 
-        result["tag"] = self.tags_of_type(metadata, "tags")
+        result["tag"] = self.tags_of_type(metadata, "tag")
         result["artist"] = self.tags_of_type(metadata, "artist")
         result["category"] = self.tags_of_type(metadata, "category")
         result["character"] = self.tags_of_type(metadata, "character")
