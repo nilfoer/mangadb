@@ -314,7 +314,7 @@ def get_info_txt(book_id):
             as_attachment=True,
             # apparently also needs to be b/encoded otherwise we get an UnicodeEncodeError
             # if it contains non-ascii chars
-            attachment_filename=f"{book.title.replace('/', '')}_info.txt".encode('utf-8')
+            attachment_filename=f"{book.title.replace('/', '')}_info.txt"
             )
 
 
