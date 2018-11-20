@@ -35,8 +35,3 @@ def configure_logging(log_path):
         },
         'disable_existing_loggers': False
     })
-
-
-# log to dir of package but set actual logging loc to working dir when called
-# as script (done in main)
-configure_logging(os.path.join(os.path.dirname(os.path.realpath(__file__)), "manga_db.log"))

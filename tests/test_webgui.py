@@ -351,7 +351,7 @@ def test_show_info(app_setup):
         assert soup.select_one("#LastChange").text.strip() == "2018-10-24"
         assert not soup.select_one("#Note")
         assert soup.select_one("#btnFav").text.strip() == "Add to Favorites"
-        assert soup.select_one("#btnDownloadEntry").text.strip() == "Download"
+        assert soup.select_one("#Downloaded > .fa-times")
 
         # extinfo
         assert "Tsumino.com" in soup.select_one(".ext-info-title > a").text
@@ -375,7 +375,7 @@ def test_show_info(app_setup):
         soup = bs4.BeautifulSoup(r_html, "html.parser")
         assert soup.select_one("#ReadingStatus").text.strip() == "23"
         assert soup.select_one("#btnFav").text.strip() == "Favorite"
-        assert soup.select_one("#btnDownloadEntry").text.strip() == "Downloaded"
+        assert soup.select_one("#Downloaded > .fa-check")
         assert soup.select_one("#Collection > a ").text.strip() == "Dolls"
 
         assert b"COLLECTION: </span>Dolls" in resp.data

@@ -76,7 +76,7 @@
             $("#sortColOptions .dropdown-item.active").removeClass("active");
             $(e.currentTarget).addClass("active");
             
-            event.preventDefault();
+            e.preventDefault();
             return
         }
     
@@ -99,7 +99,7 @@
             console.log("after:", new_order, order_div);
             order_div.data("value", new_order);
 
-            event.preventDefault();
+            e.preventDefault();
             return
         }
 
@@ -108,8 +108,8 @@
         function expressions and lexically binds the this value (does not bind
         its own this, arguments, super, or new.target). Arrow functions are
         always anonymous. */
-        $("#refreshSearch").click(() => {
-            event.preventDefault();
+        $("#refreshSearch").click((e) => {
+            e.preventDefault();
             $("#searchForm").submit()
             return
         });

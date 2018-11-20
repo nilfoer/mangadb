@@ -62,7 +62,7 @@
 {% endblock %}
 {% block book_info %}
 <div class="row no-margin">
-<div class="book-cover-container col-md-2 col-sm-12 no-padding">
+<div class="book-cover-container col-md-4 col-sm-12">
 	<img alt="{{ book.title }}" class="book-cover
 	img-responsive" src={{ url_for('main.thumb_static',
 	filename=book.id) }}>
@@ -421,10 +421,13 @@ info.txt
 
 <a href={{ url_for('main.show_edit_book', book_id=book.id) }} class="button button-stack red-color"><i class="fas fa-edit"></i> Edit</a>
 
-<a href="{{ url_for('main.remove_book', book_id=book.id) }}" onclick="return confirm('Are you sure you want to permanently remove this Book?');" class="button button-stack red-color">
-<i class="fas fa-trash-alt"></i>
-Remove Book
-</a>
+<form class="button-stack" action="{{ url_for('main.remove_book', book_id=book.id) }}" method=post>
+    <button class="button red-color" type="submit" onclick="return confirm('Are you sure you want to permantly remove this Book?');">
+        <i class="fas fa-trash-alt"></i>
+        Remove Book
+    </button>
+    {{ csrf_token_field() }}
+</form>
 
 <a href="/" id="backToIndex" class="button button-stack"><i class="fa fa-home"></i> Index</a>
 </div>
@@ -482,6 +485,16 @@ Remove Book
 	</div>
 	</div>
 	<div class="ext-info-line">
+	<div class="ext-info">Downloaded</div>
+	<div class="ext-info-data" id="Downloaded">
+		{% if ext_info.downloaded %}
+        <i class="fas fa-check green-fcolor"></i>
+        {% else %}
+        <i class="fas fa-times red-fcolor"></i>
+        {% endif %}
+	</div>
+	</div>
+	<div class="ext-info-line">
 	<div class="ext-info">Last Update</div>
 	<div class="ext-info-data" id="LastUpdate">
 		{{ ext_info.last_update }}
@@ -489,42 +502,40 @@ Remove Book
 	</div>
 </div> {# ext-info-container #}
 	<div class="ext-info-btn-container row no-margin">
-		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline" class="button button-stack">
+        <div class="btn-group dropright">
+		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline"
+        class="button button-stack ext-info-read-button">
         <i class="fas fa-book-reader"> </i>
 		Read Online
 		</a>
+        <button class="button button-stack dropdown-toggle dropdown-split" id="ExtInfoDrop{{ ext_info.id }}" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        </button>
+        
+        <div class="dropdown-menu" aria-labelledby="ExtInfoDrop{{ ext_info.id }}">
+            <a class="dropdown-item" href="{{ url_for('main.set_downloaded', book_id=book.id,
+            ext_info_id=ext_info.id, intbool=0 if ext_info.downloaded else 1) }}">
+            <i class="fas fa-download"> </i>
+            Toggle Downloaded</a>
+            <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
+            ext_info_id=ext_info.id) }}" method=post>
+            <button class="dropdown-item" type="submit">
+            <i class="fas fa-sync-alt"></i>
+            Update
+            </button>
+            {{ csrf_token_field() }}
+            </form>
 
-		{% if ext_info.downloaded %}
-		<a href="{{ url_for('main.set_downloaded', book_id=book.id, ext_info_id=ext_info.id, intbool=0) }}" id="btnDownloadEntry" class="button button-stack green-color">
-		<i class="fas fa-check-circle"> </i>
-		Downloaded
-		</a>
-		{% else %}
-		{# able to open this link in a tab and book will be marked as downloaded while the new tab will be redirected to the dl page, setting downloaded to 0 should be done using the list edits, since pressing the dl button can happen on accident to easily #}
-		{# reload page when link is clicked (onclick=window.location.reload() ) so downloaded value gets updated -> but doesnt work when opened in new window, onclick=window.open(url, '_blank') [watch out that quotation marks get alternated etc.!] works but its a PopUp and has to be allowed first, but this is the only solution (with opening tsumino dl and displaying downloaded correctly) since just clicking and then going back after dl will also show old values (href to tsumino with _blank and reload -> flask wont get called at all) #}
-		{# works with href zu tsumino dl and target _blank mit onclick by assigning window.location.href (url of the current page) which doesnt require PopUp-privileges -> assigning url to window.location.href=url =^ redirect to url => redirect current window to set_dl (downloaded get set and page will display correct vals) and by href _blank a new tab will be opened to tsumino dl page BUT this wont work with open new tab/middle mouse click then it will just open the tsumino dl page #}
-		{# Ueber das Objekt location, das in der JavaScript-Objekthierarchie unterhalb des window-Objekts liegt, haben Sie Zugriff auf den vollstaendigen URI der aktuell angezeigten Web-Seite. Sie koennen den URI oder Teile davon zur Weiterverarbeitung abfragen und aendern. Beim Aendern fuehrt der Web-Browser einen Sprung zu einem neuen URI aus, genau so wie bei einem Verweis #}
-		{# onclick="window.location.href={{..}}" wont work since url needs to be encased by quotation marks -> onclick="window.location.href='{{..}}'" (then also alternate quotation marks #}
-		<a href="{{ "http://www.tsumino.com/Download/Index/" ~ ext_info.id_onpage }}" target="_blank" id="btnDownloadEntry" class="button button-stack blue-color" onclick="window.location.href='{{ url_for("main.set_downloaded", book_id=book.id, ext_info_id=ext_info.id, intbool=1) }}'">
-        <i class="fas fa-download"> </i>
-		Download
-		</a>
-		{% endif %}
-        <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
-        ext_info_id=ext_info.id) }}" method=post>
-		<button type="submit" class="button button-stack purple-color">
-		<i class="fas fa-sync-alt"></i>
-		Update
-		</button>
-        {{ csrf_token_field() }}
-        </form>
+            <div class="dropdown-divider"></div>
 
-        <a href="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}"
-            onclick="return confirm('Are you sure you want to remove this external link from this Book?');" class="button button-stack red-color">
-        <i class="fas fa-minus-circle"></i>
-        Remove
-        </a>
-
+            <form action="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}" method=post>
+            <button class="dropdown-item" type="submit" onclick="return confirm('Are you sure you want to remove this external link from this Book?');">
+                <i class="fas fa-minus-circle"></i>
+                Remove
+            </button>
+            {{ csrf_token_field() }}
+            </form>
+        </div>
+        </div>
 
 </div>
 </div>

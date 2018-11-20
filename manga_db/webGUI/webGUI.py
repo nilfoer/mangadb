@@ -713,7 +713,7 @@ def upload_cover(book_id):
         return jsonify({"error": "Wrong extension for thumb!"})
 
 
-@main_bp.route('/book/<int:book_id>/remove')
+@main_bp.route('/book/<int:book_id>/remove', methods=("POST",))
 def remove_book(book_id):
     book = get_mdb().get_book(book_id)
     book.remove()
@@ -721,7 +721,7 @@ def remove_book(book_id):
     return redirect(url_for('main.show_entries'))
 
 
-@main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/remove')
+@main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/remove', methods=("POST",))
 def remove_ext_info(book_id, ext_info_id):
     book = get_mdb().get_book(book_id)
     url = book.remove_ext_info(ext_info_id)
