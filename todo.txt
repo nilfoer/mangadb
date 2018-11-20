@@ -2,7 +2,6 @@
     or at least make sure that e.g. when we save external info with book_id but without adding it to book
     book will be modified to match state in db?
     sqlalchemy uses user.addresses = [addr1, addr2] session.commit()...
-- path for link collector
 
 --IDEAS/NEW FEATURES-------------------------------------------------------------------------------------------------------
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

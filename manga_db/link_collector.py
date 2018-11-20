@@ -3,6 +3,7 @@ import time
 import cmd
 import re
 import json
+import os
 
 import pyperclip
 
@@ -19,8 +20,9 @@ class LinkCollector(cmd.Cmd):
 
     URL_RE = re.compile(r"(?:https?://)?(?:\w+\.)?(\w+\.\w+)/")
 
-    def __init__(self, standard_lists):
+    def __init__(self, data_path, standard_lists):
         super().__init__()
+        self.data_root = os.path.realpath(os.path.normpath(data_path))
         # must be immutable
         self._standard_downloaded = "downloaded" in standard_lists
         self._standard_lists = tuple((x for x in standard_lists if x != "downloaded"))
@@ -174,7 +176,7 @@ class LinkCollector(cmd.Cmd):
     def do_import(self, args):
         logger.info("Started working on list with %d items!", len(self.links))
         try:
-            import_multiple(self.links)
+            import_multiple(self.data_root, self.links)
         # baseexception so we also except KeyboardInterrupt etc.
         except BaseException:
             self.export_json("link_collect_resume.json")
@@ -202,12 +204,15 @@ class LinkCollector(cmd.Cmd):
             f.write(json.dumps(self.links))
 
     @classmethod
-    def from_json(cls, filename, standard_lists):
-        with open(filename, "r", encoding="UTF-8") as f:
-            links = json.loads(f.read())
-
-        lc = cls(standard_lists)
-        lc.links = links
+    def from_json(cls, filename, data_path, standard_lists):
+        lc = cls(data_path, standard_lists)
+        if not os.path.isfile(filename):
+            logger.warning("Couldn't resume from file 'link_collector_resume.json' it wasn't found"
+                           " in the current working directory")
+        else:
+            with open(filename, "r", encoding="UTF-8") as f:
+                links = json.loads(f.read())
+            lc.links = links
         return lc
 
 

@@ -56,9 +56,9 @@ def thread_retrieve_data_or_cover(url_queue, book_queue):
         time.sleep(URL_WORKER_SLEEP)
 
 
-def single_thread_import(url_lists, to_process, url_queue, book_queue):
+def single_thread_import(data_path, url_lists, to_process, url_queue, book_queue):
     # only the thread that created the sqlite conn can use it!!
-    mdb = MangaDB(".", "manga_db.sqlite")
+    mdb = MangaDB(data_path, os.path.join(data_path, "manga_db.sqlite"))
 
     processed = 0
     while True:
@@ -107,7 +107,14 @@ def single_thread_import(url_lists, to_process, url_queue, book_queue):
             book_queue.task_done()
 
 
-def import_multiple(url_lists):
+def import_multiple(data_path, url_lists):
+    data_path = os.path.realpath(data_path)
+    # make sure db file and thumbs folder exists
+    if not os.path.isfile(os.path.join(data_path, "manga_db.sqlite")):
+        logger.error("Couldn't find manga_db.sqlite in %s", data_path)
+        return
+    os.makedirs(os.path.join(data_path, "thumbs"), exist_ok=True)
+
     url_queue = Queue()
     book_queue = Queue()
     print("** Filling URL Queue! **")
@@ -130,7 +137,7 @@ def import_multiple(url_lists):
     importer = Thread(
             name="Importer", target=single_thread_import,
             # program may exit if there are only daemon threads left
-            args=(url_lists, to_process, url_queue, book_queue)
+            args=(data_path, url_lists, to_process, url_queue, book_queue)
             )
     importer.start()
 

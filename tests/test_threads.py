@@ -1,4 +1,5 @@
 import os
+import logging
 import pytest
 import sqlite3
 
@@ -27,18 +28,30 @@ def new_get_cover(self):
 
 # run python -m pytest -m "not slow" to deselect slow tests
 @pytest.mark.slow
-def test_import_multiple(setup_mdb_dir, monkeypatch):
+def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     tmpdir, mdb_file = setup_mdb_dir
-    os.makedirs(os.path.join(tmpdir, "thumbs"))
 
     os.chdir(tmpdir)
+    # test having import_multiple write to diff dir than cwd
+    import random
+    subdir = ''.join(random.choices(list("abcdefghijklmnopqrstuvwxyz"), k=10))
+    tmpdir = os.path.join(tmpdir, subdir)
+    os.makedirs(tmpdir)
+    mdb_file_new = os.path.join(tmpdir, "manga_db.sqlite")
+    os.rename(mdb_file, mdb_file_new)
+    mdb_file = mdb_file_new
     # have to change get_html to retrieve file from disk instead
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", new_get_html)
     # patch get_cover to point to thumb on disk
     monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", new_get_cover)
     url_links = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                          "to_import_link_collect_resume.json"))
-    import_multiple(url_links)
+    caplog.clear()
+    import_multiple("./adjkadjkla", url_links)
+    exp_pa = os.path.realpath("adjkadjkla")
+    assert caplog.record_tuples == [("manga_db.threads", logging.ERROR,
+                                     f"Couldn't find manga_db.sqlite in {exp_pa}")]
+    import_multiple(tmpdir, url_links)
     con_res = sqlite3.connect(mdb_file, detect_types=sqlite3.PARSE_DECLTYPES)
     con_expected = sqlite3.connect(os.path.join(TESTS_DIR, "threads_test_files",
                                                 "manga_db_to_import.sqlite"),

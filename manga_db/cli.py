@@ -29,6 +29,9 @@ def main():
                            "links collected!", nargs="*", default=())
     collector.add_argument("-re", "--resume", action="store_true", help="Resume importing books "
                            "from resume file")
+    collector.add_argument("-dp", "--data-path", default="./instance/", type=str,
+                           help="Path to folder containing manga_db.sqlite file; Default uses"
+                                "instance folder current working directory")
     collector.set_defaults(func=_cl_collector)
 
     get_info = subparsers.add_parser("get_info")
@@ -93,9 +96,10 @@ def _cl_show_book(args, mdb):
 
 def _cl_collector(args, mdb):
     if args.resume:
-        lc = LinkCollector.from_json("link_collect_resume.json", args.standard_list)
+        lc = LinkCollector.from_json("link_collect_resume.json", args.data_path,
+                                     args.standard_list)
     else:
-        lc = LinkCollector(args.standard_list)
+        lc = LinkCollector(args.data_path, args.standard_list)
     lc.cmdloop()
 
 
