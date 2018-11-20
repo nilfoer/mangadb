@@ -503,7 +503,7 @@ info.txt
 </div> {# ext-info-container #}
 	<div class="ext-info-btn-container row no-margin">
         <div class="btn-group dropright">
-		<a href={{ 'http://www.tsumino.com/Read/View/' ~ ext_info.id_onpage }} id="btnReadOnline"
+		<a href={{ read_url(ext_info.imported_from, ext_info.id_onpage) }} id="btnReadOnline"
         class="button button-stack ext-info-read-button">
         <i class="fas fa-book-reader"> </i>
 		Read Online
@@ -597,7 +597,7 @@ info.txt
                 <span class="fa fa-star"></span>
                 {% endfor %}
             </div>
-	    {% elif c_book.ext_infos %}
+	    {% elif book.ext_infos and book.avg_ext_rating %}
             <div class="overlay-rate">
                 {% for _ in range( c_book.avg_ext_rating|round|int() ) %}
                 <span class="fa fa-star"></span>

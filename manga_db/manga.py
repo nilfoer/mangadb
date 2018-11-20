@@ -147,7 +147,10 @@ class Book(DBRow):
     def avg_ext_rating(self):
         if self.ext_infos:
             ratings = [ei.rating for ei in self.ext_infos if ei.rating]
-            return sum(ratings)/len(ratings)
+            if ratings:
+                return sum(ratings)/len(ratings)
+            else:
+                return None
         else:
             return None
 

@@ -21,7 +21,9 @@ SUPPORTED_SITES = {
         # site id, site name
         1: "tsumino.com",
         # site name, id
-        "tsumino.com": 1
+        "tsumino.com": 1,
+        "nhentai.net": 2,
+        2: "nhentai.net",
         }
 
 
@@ -32,6 +34,15 @@ def find(url):
             return cls
     else:
         raise NoExtractorFound(f"No matching extractor found for '{url}'")
+
+
+def find_by_site_id(site_id):
+    """Find extractor for given site_id"""
+    for cls in _list_extractor_classes():
+        if cls.site_id == site_id:
+            return cls
+    else:
+        raise NoExtractorFound(f"No matching extractor found for site_id '{site_id}'")
 
 
 def add_extractor_cls_module(module):

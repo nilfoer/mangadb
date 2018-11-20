@@ -7,7 +7,6 @@ import bs4
 from .base import BaseMangaExtractor
 from ..util import is_foreign
 from ..constants import CENSOR_IDS, STATUS_IDS
-from ..extractor import SUPPORTED_SITES
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,7 @@ class TsuminoExtractor(BaseMangaExtractor):
                                 r"(Info|View|Index)/(\d+)/?([\w-]+)?")
     ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
     TITLE_RE = re.compile(r"^(.+) \/ (.+)")
+    READ_URL_FORMAT = "http://www.tsumino.com/Read/View/{id_onpage}"
     RATING_FULL_RE = re.compile(r"(\d\.\d{1,2}|\d) \((\d+) users / (\d+) favs\)")
     metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
             "title": "Title", "uploader": "Uploader", "upload_date": "Uploaded",
@@ -41,6 +41,10 @@ class TsuminoExtractor(BaseMangaExtractor):
             return f"TsuminoExtractor('{self.url}', {metastring})"
         else:
             return f"TsuminoExtractor('{self.url}')"
+
+    @classmethod
+    def read_url_from_id_onpage(cls, id_onpage):
+        return cls.READ_URL_FORMAT.format(id_onpage=id_onpage)
 
     @classmethod
     def split_title(cls, value):
@@ -119,7 +123,7 @@ class TsuminoExtractor(BaseMangaExtractor):
 
         result["language"] = "English"
         result["status_id"] = STATUS_IDS["Unknown"]
-        result["imported_from"] = SUPPORTED_SITES["tsumino.com"]
+        result["imported_from"] = self.site_id
 
         return result
 
