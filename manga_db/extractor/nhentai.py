@@ -17,7 +17,7 @@ class NhentaiExtractor(BaseMangaExtractor):
     # grp 1 is prob contained magazine?/vol? grp 2 is title
     TITLE_RE = re.compile(r"^(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
     API_URL_FORMAT = "https://nhentai.net/api/gallery/{id_onpage}"
-    THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.jpg"
+    THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.{img_ext}"
     READ_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/1/"
     KW_LOOKP_RE_FORMAT = r"(?:\[|\(){keyword}[^)\]\n]*(?:\]|\))"
 
@@ -39,6 +39,17 @@ class NhentaiExtractor(BaseMangaExtractor):
     def read_url_from_id_onpage(cls, id_onpage):
         return cls.READ_URL_FORMAT.format(id_onpage=id_onpage)
 
+    def build_cover_url(self):
+        img_type = self.json["images"]["cover"]["t"]
+        if img_type == "j":
+            img_ext = "jpg"
+        elif img_type == "p":
+            img_ext = "png"
+        else:
+            logger.error("Didn't recognize nhentai's image type: %s", img_type)
+            return None
+        return self.THUMB_URL_FORMAT.format(media_id=self.json["media_id"], img_ext=img_ext)
+
     def get_metadata(self):
         if self.metadata is None:
             if self.json is None:
@@ -49,7 +60,7 @@ class NhentaiExtractor(BaseMangaExtractor):
                             "Extraction failed! JSON response was empty for url '%s'", self.url)
                     return None
                 self.json = json.loads(self.json)
-            self.thumb_url = self.THUMB_URL_FORMAT.format(media_id=self.json["media_id"])
+            self.thumb_url = self.build_cover_url()
             self.metadata = self.transform_metadata(self.json)
         return self.metadata
 
@@ -74,10 +85,12 @@ class NhentaiExtractor(BaseMangaExtractor):
 
         title_eng = metadata["title"]["english"]
         title_foreign = metadata["title"]["japanese"]
-        title_eng_cleaned = self.TITLE_RE.match(title_eng).group(2).strip()
-        title_foreign_cleaned = self.TITLE_RE.match(title_foreign).group(2).strip()
-        result["title_eng"] = title_eng_cleaned
-        result["title_foreign"] = title_foreign_cleaned
+        if title_eng:
+            title_eng_cleaned = self.TITLE_RE.match(title_eng).group(2).strip()
+            result["title_eng"] = title_eng_cleaned
+        if title_foreign:
+            title_foreign_cleaned = self.TITLE_RE.match(title_foreign).group(2).strip()
+            result["title_foreign"] = title_foreign_cleaned
         result["note"] = (f"Full titles on nhentai.net: English '{title_eng}' "
                           f"Foreign '{title_foreign}'")
         result["pages"] = metadata["num_pages"]

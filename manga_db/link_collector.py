@@ -49,14 +49,19 @@ class LinkCollector(cmd.Cmd):
         for url in self.watch_clip():
             # dont overwrite (possibly modified by set_lists) entry in self.links
             if url is not None and url not in self.links:
-                try:
-                    extractor.find(url)
-                    logger.info("Found supported url: %s", url)
-                    self.links[url] = {"lists": self._standard_lists,
-                                       "downloaded": self._standard_downloaded}
-                    self._recent_value = url
-                except extractor.NoExtractorFound:
-                    logger.info("Unsupported URL!")
+                if "\n" in url:
+                    urls = url.splitlines()
+                else:
+                    urls = (url,)
+                for add_url in urls:
+                    try:
+                        extractor.find(add_url)
+                        logger.info("Found supported url: %s", add_url)
+                        self.links[add_url] = {"lists": self._standard_lists,
+                                               "downloaded": self._standard_downloaded}
+                        self._recent_value = add_url
+                    except extractor.NoExtractorFound:
+                        logger.info("Unsupported URL!")
 
     def do_add(self, args):
         arg_li = args.split()
