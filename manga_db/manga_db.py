@@ -505,7 +505,7 @@ class MangaDB:
             PRAGMA foreign_keys=ON; -- make sure foreign key support is activated
             CREATE TABLE IF NOT EXISTS Books(
                     id INTEGER PRIMARY KEY ASC,
-                    title_eng TEXT UNIQUE,
+                    title_eng TEXT,
                     title_foreign TEXT,
                     language_id INTEGER NOT NULL,
                     pages INTEGER NOT NULL,
