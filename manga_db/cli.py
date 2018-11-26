@@ -15,9 +15,9 @@ def main():
     parser = argparse.ArgumentParser(description="Command-line interface for MangaDB - A "
                                      "database to keep track of your manga reading habits!")
 
-    parser.add_argument("-db", "--db-path", default="manga_db.sqlite", type=str,
+    parser.add_argument("-db", "--db-path", default="./instance/manga_db.sqlite", type=str,
                         help="Path to db file; Default uses file named 'manga_db.sqlite' "
-                        "in current working directory")
+                             "in directory instance")
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='sub-command help', dest="subcmd")
 
@@ -64,7 +64,8 @@ def main():
     if args.subcmd == "webgui":
         args.func()
     else:
-        mdb = MangaDB(".", args.db_path)
+        db_path = os.path.realpath(os.path.normpath(args.db_path))
+        mdb = MangaDB(os.path.dirname(db_path), db_path)
         args.func(args, mdb)
 
 
