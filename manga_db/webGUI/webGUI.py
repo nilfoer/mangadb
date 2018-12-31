@@ -527,26 +527,7 @@ def show_add_book(book=None, cover_temp=None, extr_data=None):
 @main_bp.route("/book/add/submit", methods=["POST"])
 def add_book():
     mdb = get_mdb()
-    data = {}
-    for col in Book.COLUMNS:
-        val = request.form.get(col, None)
-        if col in ("pages", "status_id", "language_id"):
-            val = int(val)
-        elif col == "my_rating":
-            # dont add if empty string or 0..
-            if not val:
-                continue
-            val = float(val)
-        if not isinstance(val, str):
-            data[col] = val
-        else:
-            val = val.strip()
-            # dont add empty strings!
-            if val != "":
-                data[col] = val
-    for col in Book.ASSOCIATED_COLUMNS:
-        val_list = request.form.getlist(col)
-        data[col] = val_list
+    data = book_form_to_dic(request.form)
     book = Book(mdb, **data)
     extr_data = request.form.get("extr_data_json", None)
     if extr_data:
@@ -618,11 +599,8 @@ def show_edit_book(book_id, book=None):
         available_options=available_options)
 
 
-@main_bp.route("/book/edit/<int:book_id>/submit", methods=["POST"])
-def edit_book(book_id):
-    book = get_mdb().get_book(book_id)
-
-    update_dic = {}
+def book_form_to_dic(form):
+    result = {}
     # fine here since i just get the col names in COLUMNS and ASSOCIATED_COLUMNS
     # but have to be careful not to just e.g. iterate over the request.form dict or
     # whatever and execute sql queries with col names substituted in f-string and not
@@ -633,7 +611,7 @@ def edit_book(book_id):
     # esp combination with executescript is dangerous since you can use ; to start
     # another statement ...;DROP Table
     for col in Book.COLUMNS:
-        val = request.form.get(col, None)
+        val = form.get(col, None)
         if val is None:
             continue
         elif col in ("pages", "status_id", "language_id"):
@@ -641,27 +619,27 @@ def edit_book(book_id):
         elif col == "read_status":
             val = int(val.strip()) if val != "" else val
         elif col == "my_rating":
-            # dont add if empty string or 0..
-            if not val:
-                continue
-            try:
-                val = float(val)
-            except ValueError:
-                current_app.logger.warning("Couldnt convert value '%s' to float for column '%s'",
-                                           val, col)
-                flash(f"{col} needs to be a floating point number!", "info")
-                return redirect(url_for("main.show_edit_book", book_id=book_id))
+            val = float(val.strip()) if val != "" else val
+
         if not isinstance(val, str):
-            update_dic[col] = val
+            result[col] = val
         else:
             val = val.strip()
             # add None instead of empty strings!
-            update_dic[col] = val if val else None
+            result[col] = val if val else None
     for col in Book.ASSOCIATED_COLUMNS:
         if col == "ext_infos":
             continue
-        val_list = request.form.getlist(col)
-        update_dic[col] = val_list
+        val_list = form.getlist(col)
+        result[col] = val_list
+    return result
+
+
+@main_bp.route("/book/edit/<int:book_id>/submit", methods=["POST"])
+def edit_book(book_id):
+    book = get_mdb().get_book(book_id)
+
+    update_dic = book_form_to_dic(request.form)
 
     book.update_from_dict(update_dic)
     book.save()
