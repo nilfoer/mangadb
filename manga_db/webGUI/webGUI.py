@@ -425,14 +425,14 @@ def set_favorite(book_id, fav_intbool):
         url_for("main.show_info", book_id=book_id))
 
 
-@main_bp.route("/book/<book_id>/rate/<float:rating>")
+@main_bp.route("/book/<int:book_id>/rate/<float:rating>")
 def rate_book(book_id, rating):
     Book.rate_book_id(get_mdb(), book_id, rating)
     return redirect(
         url_for("main.show_info", book_id=book_id))
 
 
-@main_bp.route("/book/<book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
+@main_bp.route("/book/<int:book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
 def set_downloaded(book_id, ext_info_id, intbool):
     ExternalInfo.set_downloaded_id(get_mdb(), ext_info_id, intbool)
     return redirect(
