@@ -5,6 +5,24 @@
 - import multiple add ext info if already in db
 - merge/link books or multiple titles/book?
 - bug in paging when going prev and sorting by last change
+    keyset pagination does not work when were not sorting by id
+    for other order bys we need to remember the value were sorting by primarily
+    and technically also the id if the titles match
+    
+    here we compare the id being higher only if the titles match (which means they would sort the same on just title_eng)
+    so we get correct pagination on books with the same title
+    SELECT * FROM Books
+	WHERE Books.title_eng <= "moon phase material" -- <= since there might be books with the same title
+	AND (Books.title_eng != "moon phase material" OR (Books.title_eng == "moon phase material" AND Books.id < 2421))
+	ORDER BY Books.title_eng DESC, Books.id DESC
+    LIMIT 10
+    or shorter:
+    SELECT * FROM Books
+	WHERE Books.title_eng < "moon phase material"
+	OR (Books.title_eng == "moon phase material" AND Books.id < 2421)
+	ORDER BY Books.title_eng DESC, Books.id DESC
+    LIMIT 10
+    ^^ also most performant solution for sqlite (as far as i know) tested against using UNION or EXCEPT which was much slower
 
 --IDEAS/NEW FEATURES-------------------------------------------------------------------------------------------------------
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

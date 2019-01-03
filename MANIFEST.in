@@ -1,0 +1,13 @@
+# MANIFEST.in
+exclude *
+include README.md
+include LICENSE.txt
+prune *
+recursive-exclude *.egg-info *
+recursive-include manga_db *.py
+include manga_db/webGUI
+recursive-include manga_db/webGUI *
+# exclude log files and pyc or pyo files
+global-exclude *.log
+global-exclude *.py[co]
+# recursive-include tests *
