@@ -247,7 +247,8 @@ $(document).ready(function() {
 <div class="book-data" id="Tag">
 	<select multiple name="tag" class="selectized select-multiple-create" placeholder="Add tags, delimiter is ';'">
 		<option value="">Add tags, delimiter is ';'</option>
-		{% for _, name in available_options['tag'] %}
+        {# attribute=1 is same as key=lambda x: x[1] for normal sort #}
+		{% for _, name in available_options['tag']|sort(attribute=1) %}
 		<option value="{{ name }}" {{'selected' if name in book.tag else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>

@@ -67,15 +67,13 @@ def show_entries():
 
 
 @main_bp.route('/book/<int:book_id>')
-def show_info(book_id):
+def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None):
     mdb = get_mdb()
     # enable passing book obj over optional param while keeping url route option
     # with required param
-    if "book" in g:
-        # global obj g: assign/get with g.var_name, or g.pop(var_name) to also remove from g
-        book = g.book
-    else:
+    if book is None:
         book = mdb.get_book(book_id)
+
     if book is None:
         return render_template(
             'show_info.html',
@@ -88,8 +86,6 @@ def show_info(book_id):
             books_in_collection = mdb.get_books_in_collection(collection)
             collections.append((collection, books_in_collection))
 
-    book_upd_changes = g.pop("book_upd_changes", None)
-    show_outdated = g.pop("show_outdated", None)
     outdated = None
     if show_outdated:
         try:
@@ -142,9 +138,7 @@ def import_book(url=None):
         book_in_db.ext_infos.append(ext_info)
 
         flash(f"Added external link at '{ext_info.url}' to book!")
-        if outdated:
-            g.show_outdated = eid
-        return redirect(url_for("main.show_info", book_id=bid))
+        return show_info(bid, show_outdated=eid if outdated else None)
     else:
         # dl cover as temp uuid name and display add book page
         import uuid
@@ -196,7 +190,6 @@ def jump_to_book_by_url():
             order_col_libox="id",
             asc_desc="DESC")
     else:
-        g.book = books[0]
         return redirect(url_for("main.show_info", book_id=books[0].id))
 
 
@@ -212,12 +205,10 @@ def update_book_ext_info(book_id, ext_info_id):
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {ext_info.url}")
         flash("Check the logs for more details!", "info")
-        g.book = old_book
         return redirect(url_for("main.show_info", book_id=book_id))
     elif status == "title_missmatch":
         flash("Update failed!", "warning")
         flash(f"Title of book at URL didn't match title '{old_book.title}'", "info")
-        g.book = old_book
         return redirect(url_for("main.show_info", book_id=book_id))
 
     changes, _ = old_book.diff(new_book)
@@ -258,9 +249,9 @@ def update_book_ext_info(book_id, ext_info_id):
                 continue
             flash(change, "info")
 
-    if changes:
-        g.book_upd_changes = converted
-    return redirect(url_for("main.show_info", book_id=book_id))
+    # putting the converted changes on g doesnt work since we redirect
+    # and thats a new request and g only stays valid for the current one
+    return show_info(book_id, book_upd_changes=converted if changes else None)
 
 
 @main_bp.route('/book/<int:book_id>/apply_update', methods=["POST"])
@@ -290,7 +281,6 @@ def apply_upd_changes(book_id):
     book.update_from_dict(update_dic)
     book.save()
 
-    g.book = book
     return redirect(url_for("main.show_info", book_id=book_id))
 
 
@@ -497,9 +487,7 @@ def add_ext_info(book_id):
     ei_id, outdated = ext_info.save()
 
     flash(f"External link was added as id {ei_id}")
-    if outdated:
-        g.show_outdated = ext_info.id
-    return redirect(url_for("main.show_info", book_id=book_id))
+    return show_info(book_id, show_outdated=ext_info.id if outdated else None)
 
 
 @main_bp.route("/book/add")
@@ -548,9 +536,7 @@ def add_book():
     if temp_name is not None:
         os.rename(os.path.join(current_app.config["THUMBS_FOLDER"], temp_name),
                   os.path.join(current_app.config["THUMBS_FOLDER"], str(bid)))
-    g.book = book
-    g.show_outdated = outdated_on_ei_id
-    return redirect(url_for("main.show_info", book_id=bid))
+    return show_info(bid, book=book, show_outdated=outdated_on_ei_id)
 
 
 @main_bp.route("/book/add/cancel", methods=["POST"])
@@ -644,7 +630,6 @@ def edit_book(book_id):
     book.update_from_dict(update_dic)
     book.save()
 
-    g.book = book
     return redirect(url_for("main.show_info", book_id=book_id))
 
 
@@ -713,5 +698,4 @@ def remove_ext_info(book_id, ext_info_id):
         flash(f"External link with id {ext_info_id} wasnt found on book!")
     else:
         flash(f"External link with url '{url}' was removed from Book!")
-    g.book = book
     return redirect(url_for("main.show_info", book_id=book_id))

@@ -201,7 +201,7 @@
 <div class="book-line">
 <div class="book-info">Tag</div>
 <div class="book-data" id="Tag">
-	{% for tag in book.tag %}
+	{% for tag in book.tag|sort() %}
 		{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
 		<a class="tag" href="{{ url_for('main.search_books', q='tag:\"' + tag + '\"') }}">
 			{{ tag }}
