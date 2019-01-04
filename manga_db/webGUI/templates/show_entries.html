@@ -71,22 +71,22 @@
 </div>
 </div>
 
-{% if last_id %}
+{% if last %}
 {% if search_field %}
 	{% if more.next %}
-    <a href="{{ url_for('main.search_books', after=last_id, searchstring=search_field,
+    <a href="{{ url_for('main.search_books', after=last, q=search_field,
 	sort_col=order_col, order=asc_desc) }}"><div class="page-nav" id="page-next">›</div></a>
 	{% endif %}
 	{% if more.prev %}
-    <a href="{{ url_for('main.search_books', before=first_id, searchstring=search_field,
+    <a href="{{ url_for('main.search_books', before=first, q=search_field,
 	sort_col=order_col, order=asc_desc) }}"><div class="page-nav" id="page-prev">‹</div></a>
 	{% endif %}
 {% else %}
 	{% if more.next %}
-    <a href="{{ url_for('main.show_entries', after=last_id, sort_col=order_col, order=asc_desc) }}"><div class="page-nav" id="page-next">›</div></a>
+    <a href="{{ url_for('main.show_entries', after=last, sort_col=order_col, order=asc_desc) }}"><div class="page-nav" id="page-next">›</div></a>
 	{% endif %}
 	{% if more.prev %}
-    <a href="{{ url_for('main.show_entries', before=first_id, sort_col=order_col, order=asc_desc) }}"><div class="page-nav" id="page-prev">‹</div></a>
+    <a href="{{ url_for('main.show_entries', before=first, sort_col=order_col, order=asc_desc) }}"><div class="page-nav" id="page-prev">‹</div></a>
 	{% endif %}
 {% endif %}
 {% endif %}

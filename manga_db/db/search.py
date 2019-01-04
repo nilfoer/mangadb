@@ -20,8 +20,9 @@ def search_assoc_col_string_parse(valuestring, delimiter=";"):
     return vals_and, vals_ex
 
 
-VALID_ORDER_BY = ("ASC", "DESC", "Books.id", "Books.title_eng", "Books.title_foreign",
-                  "Books.pages", "Books.my_rating", "Books.last_change")
+VALID_ORDER_BY = {"ASC", "DESC", "Books.id", "Books.title_eng", "Books.title_foreign",
+                  "Books.pages", "Books.my_rating", "Books.last_change", "id", "last_change",
+                  "title_eng", "title_foreign", "pages", "my_rating"}
 
 
 def validate_order_by_str(order_by):
@@ -143,6 +144,20 @@ def search_normal_mult_assoc(
     return rows
 
 
+def insert_order_by_id(query, order_by="Books.id DESC"):
+    # !! Assumes SQL statements are written in UPPER CASE !!
+    # also sort by id secondly so order by is unique (unless were already using id)
+    if "books.id" not in order_by.lower():
+        query = query.splitlines()
+        # if we have subqueries take last order by to insert; strip line of whitespace since
+        # we might have indentation
+        order_by_i = [i for i, ln in enumerate(query) if ln.strip().startswith("ORDER BY")][-1]
+        inserted = f"ORDER BY {order_by}, {order_by.split('.')[0]}.id {order_by.split(' ')[1]}"
+        query[order_by_i] = inserted
+        query = "\n".join(query)
+    return query
+
+
 def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
                                order_by="Books.id DESC", first_cond=False):
     """Finalizes query by inserting keyset pagination statement
@@ -157,10 +172,9 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
     if after is not None and before is not None:
         raise ValueError("Either after or before can be supplied but not both!")
     elif after is None and before is None:
-        return query, vals_in_order
+        return insert_order_by_id(query, order_by), vals_in_order
 
     result = None
-    # contrary to split partition returns list with the elements that were split on included
     asc = True if order_by.lower().endswith("asc") else False
     if after is not None:
         comp = ">" if asc else "<"
@@ -171,11 +185,25 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
     lines = [l.strip() for l in query.splitlines()]
     insert_before = [i for i, l in enumerate(lines) if l.startswith("GROUP BY") or
                      l.startswith("ORDER BY")][0]
-    keyset_pagination = f"{'WHERE' if first_cond else 'AND'} Books.id {comp} ?"
+    if "books.id" not in order_by.lower():
+        order_by_col = order_by.split(' ')[0]
+        # since we sort by both the primary order by and the id to make the sort unique
+        # we need to check for rows matching the value of the sort col -> then we use the id to
+        # have a correct sort
+        # parentheses around the whole statement important otherwise rows fullfilling the OR
+        # statement will get included when searching even if they dont fullfill the rest
+        keyset_pagination = (f"{'WHERE' if first_cond else 'AND'} ({order_by_col} {comp} ? "
+                             f"OR ({order_by_col} == ? AND Books.id {comp} ?))")
+        # 2-tuple of (primary, secondary)
+        primary, secondary = after if after is not None else before
+        vals_in_order.extend([primary, primary, secondary])
+    else:
+        keyset_pagination = f"{'WHERE' if first_cond else 'AND'} Books.id {comp} ?"
+        # if vals_in_order is not None:
+        vals_in_order.append(after[0] if after is not None else before[0])
     lines.insert(insert_before, keyset_pagination)
     result = "\n".join(lines)
-    if vals_in_order is not None:
-        vals_in_order.append(after if after is not None else before)
+    result = insert_order_by_id(result, order_by)
 
     if before is not None:
         # @Cleanup assuming upper case order statment
@@ -187,6 +215,9 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
             FROM (
                 {result}
             ) AS t
-            ORDER BY {order_by.replace('Books', 't', 1)}"""
+            ORDER BY {order_by.replace('Books.', 't.')}"""
+        # since were using a subquery we need to modify our order by to use the AS tablename
+        result = insert_order_by_id(result, order_by.replace("Books.", "t."))
 
+    print(result, vals_in_order)
     return result, vals_in_order

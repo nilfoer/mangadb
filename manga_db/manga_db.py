@@ -175,7 +175,6 @@ class MangaDB:
         return bid, book, outdated_on_ei_id
 
     def get_x_books(self, x, after=None, before=None, order_by="Books.id DESC"):
-
         # order by has to come b4 limit/offset
         query = f"""
                 SELECT * FROM Books

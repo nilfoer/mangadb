@@ -17,6 +17,7 @@ from .json_custom import to_serializable
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
 from ..manga import Book
+from ..db.search import validate_order_by_str
 from ..ext_info import ExternalInfo
 from .. import extractor
 
@@ -45,23 +46,39 @@ def thumb_static(filename):
     return send_from_directory(current_app.config['THUMBS_FOLDER'], filename)
 
 
-@main_bp.route('/', methods=["GET"])
-def show_entries():
+def get_books(query=None):
     order_by_col = request.args.get('sort_col', "id", type=str)
+    # validate our sorting col otherwise were vulnerable to sql injection
+    if not validate_order_by_str(order_by_col):
+        order_by_col = "id"
     asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
     order_by = f"Books.{order_by_col} {asc_desc}"
-    after = request.args.get("after", None, type=int)
-    before = request.args.get("before", None, type=int)
-    books = get_mdb().get_x_books(BOOKS_PER_PAGE+1, after=after, before=before,
-                                  order_by=order_by)
-    first_id, last_id, more = first_last_more(books, after, before)
+    # dont need to validate since we pass them in with SQL param substitution
+    after = request.args.getlist("after", None)
+    after = after if after else None
+    before = request.args.getlist("before", None)
+    before = before if before else None
+    if query:
+        # get 1 entry more than BOOKS_PER_PAGE so we know if we need btn in that direction
+        books = get_mdb().search(query, order_by=order_by, limit=BOOKS_PER_PAGE+1,
+                                 after=after, before=before)
+    else:
+        books = get_mdb().get_x_books(BOOKS_PER_PAGE+1, after=after, before=before,
+                                      order_by=order_by)
+    first, last, more = first_last_more(books, order_by_col, after, before)
 
+    return books, order_by_col, asc_desc, first, last, more
+
+
+@main_bp.route('/', methods=["GET"])
+def show_entries():
+    books, order_by_col, asc_desc, first, last, more = get_books()
     return render_template(
         'show_entries.html',
         books=books,
         more=more,
-        first_id=first_id,
-        last_id=last_id,
+        first=first,
+        last=last,
         order_col=order_by_col,
         asc_desc=asc_desc)
 
@@ -314,7 +331,7 @@ def get_info_txt(book_id):
             )
 
 
-def first_last_more(books, after=None, before=None):
+def first_last_more(books, order_by_col="id", after=None, before=None):
     if not books:
         return None, None, None
 
@@ -354,7 +371,14 @@ def first_last_more(books, after=None, before=None):
 
     first_id = books[0].id
     last_id = books[-1].id
-    return first_id, last_id, more
+    if "id" != order_by_col.lower():
+        # if we are sorting by something else than id
+        # we also need to pass the values of that col
+        primary_first = getattr(books[0], order_by_col)
+        primary_last = getattr(books[-1], order_by_col)
+        return (primary_first, first_id), (primary_last, last_id), more
+    else:
+        return first_id, last_id, more
 
 
 @main_bp.route("/search", methods=["GET"])
@@ -363,24 +387,14 @@ def search_books():
     if URL_RE.match(searchstr):
         return redirect(url_for("main.jump_to_book_by_url", ext_url=searchstr))
 
-    # prepare defaults so we dont always have to send them when using get
-    order_by_col = request.args.get('sort_col', "id", type=str)
-    asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
-    after = request.args.get("after", None, type=int)
-    before = request.args.get("before", None, type=int)
-
-    order_by = f"Books.{order_by_col} {asc_desc}"
-    # get 1 entry more than BOOKS_PER_PAGE so we know if we need btn in that direction
-    books = get_mdb().search(searchstr, order_by=order_by, limit=BOOKS_PER_PAGE+1,
-                             after=after, before=before)
-    first_id, last_id, more = first_last_more(books, after, before)
+    books, order_by_col, asc_desc, first, last, more = get_books(searchstr)
 
     return render_template(
         'show_entries.html',
         books=books,
         more=more,
-        first_id=first_id,
-        last_id=last_id,
+        first=first,
+        last=last,
         search_field=searchstr,
         order_col=order_by_col,
         asc_desc=asc_desc)
