@@ -187,7 +187,8 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
     lines = [l.strip() for l in query.splitlines()]
     insert_before = [i for i, l in enumerate(lines) if l.startswith("GROUP BY") or
                      l.startswith("ORDER BY")][0]
-    if "books.id" not in order_by.lower():
+    un_unique_sort_col = "books.id" not in order_by.lower()
+    if un_unique_sort_col:
         order_by_col = order_by.split(' ')[0]
         # 2-tuple of (primary, secondary)
         primary, secondary = after if after is not None else before
@@ -252,7 +253,8 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
         vals_in_order.append(after[0] if after is not None else before[0])
     lines.insert(insert_before, keyset_pagination)
     result = "\n".join(lines)
-    result = insert_order_by_id(result, order_by)
+    if un_unique_sort_col:
+        result = insert_order_by_id(result, order_by)
 
     if before is not None:
         # @Cleanup assuming upper case order statment
@@ -265,7 +267,8 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
                 {result}
             ) AS t
             ORDER BY {order_by.replace('Books.', 't.')}"""
-        # since were using a subquery we need to modify our order by to use the AS tablename
-        result = insert_order_by_id(result, order_by.replace("Books.", "t."))
+        if un_unique_sort_col:
+            # since were using a subquery we need to modify our order by to use the AS tablename
+            result = insert_order_by_id(result, order_by.replace("Books.", "t."))
 
     return result, vals_in_order
