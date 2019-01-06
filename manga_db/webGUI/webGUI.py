@@ -58,6 +58,14 @@ def get_books(query=None):
     after = after if after else None
     before = request.args.getlist("before", None)
     before = before if before else None
+
+    # branch on condition if we have a NULL for the primary sorting col
+    # order_by_col isnt id but we only got one value from after/before
+    if after is not None and len(after) == 1 and order_by_col != "id":
+        after = (None, after[0])
+    elif before is not None and len(before) == 1 and order_by_col != "id":
+        before = (None, before[0])
+
     if query:
         # get 1 entry more than BOOKS_PER_PAGE so we know if we need btn in that direction
         books = get_mdb().search(query, order_by=order_by, limit=BOOKS_PER_PAGE+1,

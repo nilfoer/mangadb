@@ -166,6 +166,8 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
     :param query: Query string
     :param vals_in_order: List of values that come before id after/before in terms of parameter
                           substitution; Might be None if caller wants to handle it himself
+    :param order_by: primary column to sort by and the sorting order e.g. Books.id DESC
+    :param first_cond: If the clause were inserting will be the first condition in the statment
     :return: Returns finalized query and vals_in_order"""
     # CAREFUL order_by needs to be unique for keyset pagination, possible to add rnd cols
     # to make it unique
@@ -181,22 +183,69 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
     else:
         comp = "<" if asc else ">"
 
-    # @Cleanup assuming upper case ORDER BY
+    # @Cleanup assuming upper case sqlite statements
     lines = [l.strip() for l in query.splitlines()]
     insert_before = [i for i, l in enumerate(lines) if l.startswith("GROUP BY") or
                      l.startswith("ORDER BY")][0]
     if "books.id" not in order_by.lower():
         order_by_col = order_by.split(' ')[0]
+        # 2-tuple of (primary, secondary)
+        primary, secondary = after if after is not None else before
+        # if primary is NULL we need IS NULL as "equals comparison operator" since
+        # normal comparisons with NULL are always False
+        if primary is None:
+            equal_comp = "IS NULL"
+        else:
+            equal_comp = "== ?"
+        # for ASCENDING order:
+        # slqite sorts NULLS first by default -> when e.g. going forwards in ASC order
+        # and we have a NULL value for primary sorting col as last row/book on page
+        # we need to include IS NOT NULL condition so we include rows with not-null values
+        # if the NULL isnt the last row/book we can go forward normallly
+        # if we go backwards we always need to include OR IS NULL since there might be a
+        # NULL on the next page
+        # if the NULL is first on the page then we need IS NULL and compare the id
+        # other way around for DESC order
+        # also other way around if sqlite sorted NULLs last (we could also emulate that with
+        # ORDER BY (CASE WHEN null_column IS NULL THEN 1 ELSE 0 END) ASC, primary ASC, id ASC)
+
+        # longer but more explicit if clauses
+        # if before is not None:
+        #     if asc:
+        #         # include NULLs when going backwards unless we already had a NULL on the page
+        #         null_clause = f"OR ({order_by_col} IS NULL)" if primary is not None else ""
+        #     else:
+        #         # include NOT NULLs when going backwards unless we already had a
+        #         # NOT NULL on the page
+        #         null_clause = f"OR ({order_by_col} IS NOT NULL)" if primary is None else ""
+        # else:
+        #     if asc:
+        #         # include NULLs when going forwards unless we already had a NOT NULL on the page
+        #         null_clause = f"OR ({order_by_col} IS NOT NULL)" if primary is None else ""
+        #     else:
+        #         # include NULLs when going forwards unless we already had a NULL on the page
+        #         null_clause = f"OR ({order_by_col} IS NULL)" if primary is not None else ""
+        if (before is not None and asc) or (after is not None and not asc):
+            # ASC: include NULLs when going backwards unless we already had a NULL on the page
+            # DESC: include NULLs when going forwards unless we already had a NULL on the page
+            null_clause = f"OR ({order_by_col} IS NULL)" if primary is not None else ""
+        elif (before is not None and not asc) or (after is not None and asc):
+            # ASC: include NULLs when going forwards unless we already had a NOT NULL on the page
+            # DESC: include NOT NULLs when going backwards unless we already had a
+            #       NOT NULL on the page
+            null_clause = f"OR ({order_by_col} IS NOT NULL)" if primary is None else ""
+
         # since we sort by both the primary order by and the id to make the sort unique
         # we need to check for rows matching the value of the sort col -> then we use the id to
         # have a correct sort
         # parentheses around the whole statement important otherwise rows fullfilling the OR
         # statement will get included when searching even if they dont fullfill the rest
         keyset_pagination = (f"{'WHERE' if first_cond else 'AND'} ({order_by_col} {comp} ? "
-                             f"OR ({order_by_col} == ? AND Books.id {comp} ?))")
-        # 2-tuple of (primary, secondary)
-        primary, secondary = after if after is not None else before
-        vals_in_order.extend([primary, primary, secondary])
+                             f"OR ({order_by_col} {equal_comp} AND Books.id {comp} ?) "
+                             f"{null_clause})")
+        # we only need primare 2 times if we compare by a value with ==
+        vals_in_order.extend((primary, primary, secondary) if equal_comp.startswith("==")
+                             else (primary, secondary))
     else:
         keyset_pagination = f"{'WHERE' if first_cond else 'AND'} Books.id {comp} ?"
         # if vals_in_order is not None:
@@ -219,5 +268,4 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
         # since were using a subquery we need to modify our order by to use the AS tablename
         result = insert_order_by_id(result, order_by.replace("Books.", "t."))
 
-    print(result, vals_in_order)
     return result, vals_in_order
