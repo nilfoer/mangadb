@@ -2,7 +2,6 @@
     or at least make sure that e.g. when we save external info with book_id but without adding it to book
     book will be modified to match state in db?
     sqlalchemy uses user.addresses = [addr1, addr2] session.commit()...
-- nhentai import webgui not getting tags artist etc. while its working with multi import
 - merge/link books or multiple titles/book?
 
 --IDEAS/NEW FEATURES-------------------------------------------------------------------------------------------------------

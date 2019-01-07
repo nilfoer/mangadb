@@ -181,7 +181,10 @@ $(document).ready(function() {
 <div class="book-data" id="Category">
 	<select multiple name="category" multiple class="selectized select-multiple-create" placeholder="Add categories, delimiter is ';'">
 		<option value="">Add categories, delimiter is ';'</option>
-		{% for _, name in available_options['category'] %}
+        {# big mistake before only iterated over available options which meant that if that option wasnt already used in the db it wouldnt be shown when importing the book from an extractor #}
+        {# @Hack since available options is a 2-tuple of id, name and the lists on the book are just the names we have to select the correct item of the tuple or leave the string #}
+		{% for item in available_options['category'] + book.category %}
+        {%  set name = item if item is string else item[1] %}
 		<option value="{{ name }}" {{'selected' if name in book.category else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -192,7 +195,8 @@ $(document).ready(function() {
 <div class="book-data" id="Collection">
 	<select multiple name="collection" class="selectized select-multiple-create" placeholder="Add collections, delimiter is ';'">
 		<option value="">Add collections, delimiter is ';'</option>
-		{% for _, name in available_options['collection'] %}
+		{% for item in available_options['collection'] + book.collection %}
+        {%  set name = item if item is string else item[1] %}
 		<option value="{{ name }}" {{'selected' if name in book.collection else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -203,7 +207,8 @@ $(document).ready(function() {
 <div class="book-data" id="Group">
 	<select multiple name="groups" class="selectized select-multiple-create" placeholder="Add groups, delimiter is ';'">
 		<option value="">Add groups, delimiter is ';'</option>
-		{% for _, name in available_options['groups'] %}
+		{% for item in available_options['groups'] + book.groups %}
+        {%  set name = item if item is string else item[1] %}
 		<option value="{{ name }}" {{'selected' if name in book.groups else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -214,7 +219,8 @@ $(document).ready(function() {
 <div class="book-data" id="Artist">
 	<select multiple name="artist" class="selectized select-multiple-create" placeholder="Add artists, delimiter is ';'">
 		<option value="">Add artists, delimiter is ';'</option>
-		{% for _, name in available_options['artist'] %}
+		{% for item in available_options['artist'] + book.artist %}
+        {%  set name = item if item is string else item[1] %}
 		<option value="{{ name }}" {{'selected' if name in book.artist else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -225,7 +231,8 @@ $(document).ready(function() {
 <div class="book-data" id="Parody">
 	<select multiple name="parody" class="selectized select-multiple-create" placeholder="Add parodies, delimiter is ';'">
 		<option value="">Add parodies, delimiter is ';'</option>
-		{% for _, name in available_options['parody'] %}
+		{% for item in available_options['parody'] + book.parody %}
+        {%  set name = item if item is string else item[1] %}
 		<option value="{{ name }}" {{'selected' if name in book.parody else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -236,7 +243,8 @@ $(document).ready(function() {
 <div class="book-data" id="Character">
 	<select multiple  name="character" class="selectized select-multiple-create" placeholder="Add characters, delimiter is ';'">
 		<option value="">Add characters, delimiter is ';'</option>
-		{% for _, name in available_options['character'] %}
+		{% for item in available_options['character'] + book.character %}
+        {%  set name = item if item is string else item[1] %}
 		<option value="{{ name }}" {{'selected' if name in book.character else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -247,8 +255,7 @@ $(document).ready(function() {
 <div class="book-data" id="Tag">
 	<select multiple name="tag" class="selectized select-multiple-create" placeholder="Add tags, delimiter is ';'">
 		<option value="">Add tags, delimiter is ';'</option>
-        {# attribute=1 is same as key=lambda x: x[1] for normal sort #}
-		{% for _, name in available_options['tag']|sort(attribute=1) %}
+		{% for name in (available_options['tag'] + book.tag)|sort() %}
 		<option value="{{ name }}" {{'selected' if name in book.tag else ''}}>{{ name }}</option>
 		{% endfor %}
 	</select>
@@ -259,6 +266,7 @@ $(document).ready(function() {
 <div class="book-data" id="List">
 	<select multiple name="list" class="selectized select-multiple-create" placeholder="Add lists, delimiter is ';'">
 		<option value="">Add lists, delimiter is ';'</option>
+        {# can only be on book if its also in available options unless we support importing lists from external websites like e.g. tsumino #}
 		{% for _, name in available_options['list'] %}
 		<option value="{{ name }}" {{'selected' if name in book.list else ''}}>{{ name }}</option>
 		{% endfor %}
