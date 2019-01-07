@@ -94,11 +94,22 @@ def single_thread_import(data_path, url_lists, to_process, url_queue, book_queue
             if bid is None:
                 logger.info("Book at url '%s' was already in DB!",
                             url if url is not None else book.ext_infos[0].url)
+                # load book thats already in db and try to add ext_info to it
+                # if its not already on the book
+                b = mdb.get_book(title_eng=book.title_eng, title_foreign=book.title_foreign)
+                if not any(ei for ei in b.ext_infos if ei.id_onpage == ext_info.id_onpage
+                           and ei.imported_from == ext_info.imported_from):
+                    ext_info.book = b
+                    ext_info.book_id = b.id
+                    b.ext_infos.append(ext_info)
+                    ext_info.save()
+                    logger.info("Added external info at url '%s' to book instead!",
+                                url if url is not None else book.ext_infos[0].url)
                 # also counts as processed/done
                 # book_done called in finally
-                continue
-            cover_path = os.path.join(mdb.root_dir, "thumbs", f"{book.id}")
-            url_queue.put((DOWNLOAD_COVER, (thumb_url, cover_path)))
+            else:
+                cover_path = os.path.join(mdb.root_dir, "thumbs", f"{book.id}")
+                url_queue.put((DOWNLOAD_COVER, (thumb_url, cover_path)))
         finally:
             processed += 1
             # wrap task_done in finally so even when we get an exception (thread wont exit)

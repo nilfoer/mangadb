@@ -53,7 +53,7 @@ class NhentaiExtractor(BaseMangaExtractor):
     def get_metadata(self):
         if self.metadata is None:
             if self.json is None:
-                self.json = self.get_html(
+                self.json = NhentaiExtractor.get_html(
                         self.API_URL_FORMAT.format(id_onpage=self.id_onpage))
                 if not self.json:
                     logger.warning(

@@ -1,4 +1,5 @@
 import os
+import shutil
 import logging
 import pytest
 import sqlite3
@@ -22,7 +23,7 @@ def new_get_html(url):
 def new_get_cover(self):
     # thumbs have same name as html files (minus extension)
     fpath = os.path.join(TESTS_DIR, "threads_test_files", "thumbs",
-                         os.path.normpath(url_furl_map[self.url][19:-5]))
+                         os.path.normpath(url_furl_map[self.url][19:].rsplit(".", 1)[0]))
     return "file:///" + fpath
 
 
@@ -38,7 +39,9 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     tmpdir = os.path.join(tmpdir, subdir)
     os.makedirs(tmpdir)
     mdb_file_new = os.path.join(tmpdir, "manga_db.sqlite")
-    os.rename(mdb_file, mdb_file_new)
+    # we modified all_test_files db file -> copy new one to tmpdir
+    mdb_file = os.path.join(TESTS_DIR, "threads_test_files", "manga_db_base.sqlite")
+    shutil.copy2(mdb_file, mdb_file_new)
     mdb_file = mdb_file_new
     # have to change get_html to retrieve file from disk instead
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", new_get_html)
@@ -47,14 +50,14 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     url_links = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                          "to_import_link_collect_resume.json"))
     caplog.clear()
-    import_multiple("./adjkadjkla", url_links)
-    exp_pa = os.path.realpath("adjkadjkla")
+    import_multiple("./adjkadjklabc", url_links)
+    exp_pa = os.path.realpath("adjkadjklabc")
     assert caplog.record_tuples == [("manga_db.threads", logging.ERROR,
                                      f"Couldn't find manga_db.sqlite in {exp_pa}")]
     import_multiple(tmpdir, url_links)
     con_res = sqlite3.connect(mdb_file, detect_types=sqlite3.PARSE_DECLTYPES)
     con_expected = sqlite3.connect(os.path.join(TESTS_DIR, "threads_test_files",
-                                                "manga_db_to_import.sqlite"),
+                                                "manga_db_expected.sqlite"),
                                    detect_types=sqlite3.PARSE_DECLTYPES)
     # order isnt predictable since order depends on how fast html is retrieved
     assert all_table_cells(con_res) == all_table_cells(con_expected)
@@ -71,6 +74,12 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     id_onpagestr_checksum = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                                      "chksms.json"))
     for row in rows:
+        if row["id_onpage"] in (94465, 249896):
+            # for id 94465 nothing was added since the same ext info already exists
+            # for id 249896 only the ext info was added
+            # -> no cover written
+            assert not os.path.isfile(os.path.join(tmpdir, "thumbs", str(row["id"])))
+            continue
         expected = id_onpagestr_checksum[str(row["id_onpage"])]
         actual = gen_hash_from_file(os.path.join(tmpdir, "thumbs", str(row["id"])), "sha512")
         assert actual == expected

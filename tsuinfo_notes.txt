@@ -1357,3 +1357,68 @@ tests worked when tested separately but failed when tested in one go
 => import ref to thread local from manga_db.webGUI.mdb and set mdb_init to False
    so a new mdb instance will be used when the thread is re-used
 __________________________________________________________________________________________________________
+
+bug in paging when going prev and sorting by last change
+keyset pagination does not work when were not sorting by id
+for other order bys we need to remember the value were sorting by primarily
+and technically also the id if the titles match
+
+here we compare the id being higher only if the titles match (which means they would sort the same on just title_eng)
+so we get correct pagination on books with the same title
+SELECT * FROM Books
+WHERE Books.title_eng <= "moon phase material" -- <= since there might be books with the same title
+AND (Books.title_eng != "moon phase material" OR (Books.title_eng == "moon phase material" AND Books.id < 2421))
+ORDER BY Books.title_eng DESC, Books.id DESC
+LIMIT 10
+or shorter:
+SELECT * FROM Books
+WHERE Books.title_eng < "moon phase material"
+OR (Books.title_eng == "moon phase material" AND Books.id < 2421)
+ORDER BY Books.title_eng DESC, Books.id DESC
+LIMIT 10
+^^ also most performant solution for sqlite (as far as i know) tested against using UNION or EXCEPT which was much slower
+
+one problem remains is that comparisons with NULL are always NULL
+and so rows might be skipped since our get_x_books without paging
+statements includes them but with keyset pagingation doesnt
+
+-> need to check books/rows on page for NULL vals in the primary sorting col and
+   remember the id of the last book (sorted by secondary sorting col which is id)
+# for next ASC
+# here im getting the nulls in correct order and its including IS not null (otherwise we 
+# would only get nulls)
+SELECT * FROM Books         
+WHERE (					--v NULL since our title_foreign of last book on page was NULL
+    (Books.title_foreign < NULL)
+    OR (Books.title_foreign IS NULL AND Books.id > 2783) -- only change this to IS null
+    OR (Books.title_foreign IS NOT NULL)
+)
+ORDER BY Books.title_foreign ASC, Books.id ASC
+LIMIT 60
+# prev works similarly IF we have one book with NULL as sorting col value on the page
+# otherwise we can just use (if we dont have a NULL on the page):
+SELECT *
+FROM (
+    SELECT * FROM Books
+    WHERE (
+        (Books.title_foreign < "AFshghdfdfh")
+        OR (Books.title_foreign == "AFshghdfdfh" AND Books.id < 2750)
+        OR (Books.title_foreign IS NULL)
+    )
+    ORDER BY Books.title_foreign DESC, Books.id DESC
+    LIMIT 60
+) AS t
+ORDER BY t.title_foreign ASC, t.id ASC
+# if we do have a NULL:
+SELECT *
+FROM (
+    SELECT * FROM Books
+    WHERE (
+        (Books.title_foreign < NULL)
+        OR (Books.title_foreign IS NULL AND Books.id < 2750)		
+    )
+    ORDER BY Books.title_foreign DESC, Books.id DESC
+    LIMIT 60
+) AS t
+ORDER BY t.title_foreign ASC, t.id ASC
+__________________________________________________________________________________________________________
