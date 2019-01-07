@@ -116,7 +116,7 @@ def test_extr_nhent(monkeypatch, caplog):
     t = NhentaiExtractor(url)
     json_str = NhentaiExtractor.get_html(build_testsdir_furl("extr_files/nhentai_77052.json"))
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html",
-                        lambda x, y: json_str)
+                        lambda x: json_str)
     res = t.get_metadata()
 
     assert res == manual_nhentai
@@ -125,7 +125,7 @@ def test_extr_nhent(monkeypatch, caplog):
     # test no data receieved
     args = []
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html",
-                        lambda x, y: args.append(y))
+                        lambda x: args.append(x))
     monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover",
                         lambda x: None)
     caplog.clear()
