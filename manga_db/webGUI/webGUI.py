@@ -527,6 +527,7 @@ def show_add_book(book=None, cover_temp=None, extr_data=None):
                                    if type(_id) == int]
 
     # @Hack HUGE need to throw away ids otherwise sorting doesnt work with book.tag
+    # also change this in add_book
     available_options["tag"] = [name for (_, name) in available_options["tag"]]
     return render_template(
         'edit_info.html',
@@ -602,6 +603,9 @@ def show_edit_book(book_id, book=None):
                                      if type(_id) == int]
     available_options["status"] = [(_id, name) for _id, name in STATUS_IDS.items()
                                    if type(_id) == int]
+    # @Hack HUGE need to throw away ids otherwise sorting doesnt work with book.tag
+    # also change this in add_book
+    available_options["tag"] = [name for (_, name) in available_options["tag"]]
 
     return render_template(
         'edit_info.html',
