@@ -16,6 +16,7 @@ class NhentaiExtractor(BaseMangaExtractor):
     ID_ONPAGE_RE = re.compile(r"nhentai\.net/g/(\d+)/?")
     # grp 1 is prob contained magazine?/vol? grp 2 is title
     TITLE_RE = re.compile(r"^(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
+    INFO_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/"
     API_URL_FORMAT = "https://nhentai.net/api/gallery/{id_onpage}"
     THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.{img_ext}"
     READ_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/1/"
@@ -50,14 +51,30 @@ class NhentaiExtractor(BaseMangaExtractor):
             return None
         return self.THUMB_URL_FORMAT.format(media_id=self.json["media_id"], img_ext=img_ext)
 
+    def get_json_from_html(self, html):
+        try:
+            json_str = html.split("var gallery = new N.gallery(")[1].split("gallery.init();")[0]
+            # remove formatting that was inbetween: json_end});\r\n\t\tgallery.init()
+            json_str = "".join(s for s in json_str if s not in ("\n", "\r", "\t"))
+            # remove ); from end of str
+            json_str = json_str[:-2]
+        except IndexError:
+            json_str = None
+        if not json_str:
+            logger.warning("Couldn't extract JSON string from html on %s", self.url)
+        return json_str
+
     def get_metadata(self):
         if self.metadata is None:
             if self.json is None:
-                self.json = NhentaiExtractor.get_html(
-                        self.API_URL_FORMAT.format(id_onpage=self.id_onpage))
-                if not self.json:
+                html = NhentaiExtractor.get_html(
+                        self.INFO_URL_FORMAT.format(id_onpage=self.id_onpage))
+                if not html:
                     logger.warning(
-                            "Extraction failed! JSON response was empty for url '%s'", self.url)
+                            "Extraction failed! HTML response was empty for url '%s'", self.url)
+                    return None
+                self.json = self.get_json_from_html(html)
+                if not self.json:
                     return None
                 self.json = json.loads(self.json)
             self.thumb_url = self.build_cover_url()

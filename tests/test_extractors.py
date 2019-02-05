@@ -107,16 +107,16 @@ def test_extr_nhent(monkeypatch, caplog):
     # decensored, ongoing in title
     url = "https://nhentai.net/g/77052/"
     t = NhentaiExtractor(url)
-    t.json = json.loads(NhentaiExtractor.get_html(
-        build_testsdir_furl("extr_files/nhentai_251287.json")))
+    t.json = json.loads(t.get_json_from_html(
+        NhentaiExtractor.get_html(build_testsdir_furl("extr_files/nhentai_251287.html"))))
     res = t.get_metadata()
     assert res["censor_id"] == CENSOR_IDS["Decensored"]
     assert res["status_id"] == STATUS_IDS["Ongoing"]
 
     t = NhentaiExtractor(url)
-    json_str = NhentaiExtractor.get_html(build_testsdir_furl("extr_files/nhentai_77052.json"))
+    html_str = NhentaiExtractor.get_html(build_testsdir_furl("extr_files/nhentai_77052.html"))
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html",
-                        lambda x: json_str)
+                        lambda x: html_str)
     res = t.get_metadata()
 
     assert res == manual_nhentai
@@ -131,11 +131,11 @@ def test_extr_nhent(monkeypatch, caplog):
     caplog.clear()
     t = NhentaiExtractor(url)
     assert t.get_metadata() is None
-    assert args == ["https://nhentai.net/api/gallery/77052"]
+    assert args == ["https://nhentai.net/g/77052/"]
     assert caplog.record_tuples == [
             ("manga_db.extractor.nhentai", logging.WARNING,
              # url without last dash
-             f"Extraction failed! JSON response was empty for url '{url}'"),
+             f"Extraction failed! HTML response was empty for url '{url}'"),
             ]
 
 
