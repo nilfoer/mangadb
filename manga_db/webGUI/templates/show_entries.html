@@ -14,6 +14,7 @@
 <div id="searchResult">
 {% if books %}
     {% for book in books %}
+    <div class="book-grid-item-container">
     <div class="book-grid-item 
         {% if book.read_status is not none %}
         {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
@@ -55,12 +56,15 @@
                         SHOW
         </a>
     </div>
-    <div class="book-grid-item-title">
-    <span class="title">{{ book.title_eng }}</span>
-    </div>
 
+    </div> <!-- book-grid-item-inner -->
+    </div> <!-- book-grid-item -->
+    <div class="book-grid-item-title">
+        <span class="title">
+            <a href={{ url_for('main.show_info', book_id=book.id) }}>{{ book.title_eng }}</a>
+        </span>
     </div>
-    </div>
+    </div> <!-- book-grid-item-container -->
     
   {% endfor %}
 
