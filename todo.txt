@@ -3,6 +3,24 @@
     book will be modified to match state in db?
     sqlalchemy uses user.addresses = [addr1, addr2] session.commit()...
 - merge/link books or multiple titles/book?
+- detect nhentai slow down msg:
+    <h1>Slow down</h1>
+                <p>
+                        You're loading pages way too quickly.
+
+
+                                If you're on a shared connection and aren't loading pages quickly, consider creating an account.
+
+                </p>
+
+                <form method="post">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="UuYIdADNIO9FxKk2a5XDooGJcxanaNfbDmdOw0idD5GQe4drjG0uEIDZmthdRJkg">
+
+                        <input name="next" type="hidden" value="/g/158520/" />
+                        <button class="button button-wide">Continue</button>
+                </form>
+    --> need to actually press button to continue?
+
 
 --IDEAS/NEW FEATURES-------------------------------------------------------------------------------------------------------
 - assoc col with ONETOMANY/MANYTOONE hide _id col and only show row/object

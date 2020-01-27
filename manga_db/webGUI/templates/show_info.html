@@ -69,30 +69,30 @@
 </div>
 <div class="col-md-8 col-sm-12 no-padding book-info-wrap">
 <div class="row no-margin">
-	<div class="book-title">{{ book.title }}</div>
+	<div class="book-title">{{ book.title_eng or book.title_foreign }}</div>
 </div>
 <div class="book-info-container">
-<div class="book-line">
-<div class="book-info">English Title</div>
-<div class="book-data" id="EnglishTitle">
+<div class="book-row">
+<div class="book-field-title">English Title</div>
+<div class="book-field-data" id="EnglishTitle">
 	{{ book.title_eng }}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">Foreign Title</div>
-<div class="book-data" id="ForeignTitle">
+<div class="book-row">
+<div class="book-field-title">Foreign Title</div>
+<div class="book-field-data" id="ForeignTitle">
 	{{ book.title_foreign }}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">Pages</div>
-<div class="book-data" id="Pages">
+<div class="book-row">
+<div class="book-field-title">Pages</div>
+<div class="book-field-data" id="Pages">
 	{{ book.pages }}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">Reading Status</div>
-<div class="book-data" id="ReadingStatus">
+<div class="book-row">
+<div class="book-field-title">Reading Status</div>
+<div class="book-field-data" id="ReadingStatus">
     {% if book.read_status is not none %}
 	{{ 'Finished' if book.read_status == 0 else book.read_status }}
     {% else %}
@@ -100,15 +100,15 @@
     {% endif %}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">Status</div>
-<div class="book-data" id="Status">
+<div class="book-row">
+<div class="book-field-title">Status</div>
+<div class="book-field-data" id="Status">
 	{{ book.status }}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">My Rating</div>
-<div class="book-data" id="MyRating">
+<div class="book-row" style="margin-bottom: 5px;">
+<div class="book-field-title">My Rating</div>
+<div class="book-field-data" id="MyRating">
 	{% for n in range(5) %}
 	{# check for my_rating being None and set all stars active as long as rating>n #}
 	{# my_rating is float so convert to float #}
@@ -120,17 +120,17 @@
 	{% endfor %}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">Language</div>
-<div class="book-data" id="Language">
+<div class="book-row">
+<div class="book-field-title">Language</div>
+<div class="book-field-data" id="Language">
 	<a class="tag" href="{{ url_for('main.search_books', q='language:\"' + book.language + '\"') }}">
 	{{ book.language }}
 	</a>
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">Category</div>
-<div class="book-data" id="Category">
+<div class="book-row">
+<div class="book-field-title">Category</div>
+<div class="book-field-data" id="Category">
 {% for cat in book.category %}
 <a class="tag" href="#">
 	{{ cat }}
@@ -139,9 +139,9 @@
 </div>
 </div>
 {% if book.collection %}
-<div class="book-line">
-<div class="book-info">Collection</div>
-<div class="book-data" id="Collection">
+<div class="book-row">
+<div class="book-field-title">Collection</div>
+<div class="book-field-data" id="Collection">
 {% for collection in book.collection %}
 	<a class="tag" href="{{ url_for('main.search_books', q='collection:\"' + collection + '\"') }}">
 	{{ collection }}
@@ -151,9 +151,9 @@
 </div>
 {% endif %}
 {% if book.groups %}
-	<div class="book-line">
-	<div class="book-info">Group</div>
-	<div class="book-data" id="Group">
+	<div class="book-row">
+	<div class="book-field-title">Group</div>
+	<div class="book-field-data" id="Group">
 		{% for group in book.groups %}
 			<a class="tag" href="{{ url_for('main.search_books', q='groups:\"' + group + '\"') }}">
 				{{ group }}
@@ -163,9 +163,9 @@
 	</div>
 {% endif %}
 {% if book.artist %}
-<div class="book-line">
-<div class="book-info">Artist</div>
-<div class="book-data" id="Artist">
+<div class="book-row">
+<div class="book-field-title">Artist</div>
+<div class="book-field-data" id="Artist">
 	{% for artist in book.artist %}
 		<a class="tag" href="{{ url_for('main.search_books', q='artist:\"' + artist + '\"') }}">
 			{{ artist }}
@@ -175,9 +175,9 @@
 </div>
 {% endif %}
 {% if book.parody %}
-	<div class="book-line">
-	<div class="book-info">Parody</div>
-	<div class="book-data" id="Parody">
+	<div class="book-row">
+	<div class="book-field-title">Parody</div>
+	<div class="book-field-data" id="Parody">
 	{% for parody in book.parody %}
 		<a class="tag" href="#">
 			{{ parody }}
@@ -187,9 +187,9 @@
 	</div>
 {% endif %}
 {% if book.character %}
-	<div class="book-line">
-	<div class="book-info">Character</div>
-	<div class="book-data" id="Character">
+	<div class="book-row">
+	<div class="book-field-title">Character</div>
+	<div class="book-field-data" id="Character">
 		{% for char in book.character %}
 			<a class="tag" href="{{ url_for('main.search_books', q='character:\"' + char + '\"') }}">
 				{{ char }}
@@ -198,9 +198,9 @@
 	</div>
 	</div>
 {% endif %}
-<div class="book-line">
-<div class="book-info">Tag</div>
-<div class="book-data" id="Tag">
+<div class="book-row">
+<div class="book-field-title">Tag</div>
+<div class="book-field-data" id="Tag">
 	{% for tag in book.tag|sort() %}
 		{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
 		<a class="tag" href="{{ url_for('main.search_books', q='tag:\"' + tag + '\"') }}">
@@ -209,9 +209,9 @@
 	{% endfor %}
 </div>
 </div>
-<div class="book-line">
-<div class="book-info">List</div>
-<div class="book-data" id="List">
+<div class="book-row">
+<div class="book-field-title">List</div>
+<div class="book-field-data" id="List">
 	{% for li in book.list %}
 	<div class="tag list-tag list-tag-border">
                 <a data-value="{{ li }}" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
@@ -222,9 +222,9 @@
 			</a>
 	</div>
 	{% endfor %}
-	<div id="list-dropdown-container" style="display:inline-block;">
+	<div id="list-dropdown-container">
 	<a class="tag mdb-drop-btn list-tag-border" onclick="show_dropdown()">
-		<i class="fas fa-plus mdb-drop-btn" style="font-size: 10px;"></i>
+		<i class="fas fa-plus mdb-drop-btn" id="mdb-list-add-btn"></i>
 	</a>
 	<div id="list-dropdown" class="mdb-dropdown-content">
 		{% for li in lists %}
@@ -391,18 +391,18 @@
 </div>
 </div>
 {% if book.note %}
-<div class="book-line">
-<div class="book-info">Note</div>
-<div class="book-data" id="Note">
+<div class="book-row">
+<div class="book-field-title">Note</div>
+<div class="book-field-data" id="Note">
 	{% for line in book.note.splitlines() %}
 		{{ line }}<br />
 	{% endfor %}
 </div>
 </div>
 {% endif %}
-<div class="book-line">
-<div class="book-info">Last Change</div>
-<div class="book-data" id="LastChange">
+<div class="book-row" style="margin-bottom: .5rem;">
+<div class="book-field-title">Last Change</div>
+<div class="book-field-data" id="LastChange">
 	{{ book.last_change }}
 </div>
 </div>
@@ -573,6 +573,7 @@ info.txt
         {% if book.read_status is not none %}
         {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
         {% endif %} {{ 'current' if c_book.id == book.id else '' }}">
+    <div class="book-grid-item-cover">
     <div class="book-grid-item-inner">
 	    {% if c_book.favorite %}
 	    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
@@ -609,16 +610,16 @@ info.txt
 	<a href={{ url_for('main.show_info', book_id=c_book.id) }}  class="overlay-button">
                         SHOW
         </a>
-    </div>
+    </div> {# overlay #}
+    </div> {# book-grid-item-inner #}
+    </div> {# book-grid-item-cover #}
     <div class="book-grid-item-title">
     <span class="title">{{ c_book.title_eng }}</span>
-    </div>
+    </div> {# book-grid-item-title #}
 
-    </div>
-    </div>
-    
+    </div> {# book-grid-item #}
   {% endfor %}
-</div>
+</div> {# book-collection-grid #}
 	<div class="row no-margin" style="margin-bottom: 1rem;"></div>
 {% endfor %}
 </div> {# bookCollections #}
