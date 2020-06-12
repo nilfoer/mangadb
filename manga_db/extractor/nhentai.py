@@ -53,11 +53,48 @@ class NhentaiExtractor(BaseMangaExtractor):
 
     def get_json_from_html(self, html):
         try:
-            json_str = html.split("var gallery = new N.gallery(")[1].split("gallery.init();")[0]
+            json_str = html.split("window._gallery = JSON.parse(\"")[1].split("\");")[0]
+            # https://stackoverflow.com/questions/41466814/python-unicode-double-backslashes
+            # by jsbueno <- code served as starting point
+            # escaped unicode chars in gallery json e.g. \u0022 or \u005Cu3083
+            # site ended up double encoding those unicode arguments
+            # (\u005 is \ so the above becomes \u3083 which then becomes a japanese char)
+            # first re-encode those to byte-string objects, and then decode
+            # with the unicode_escape codec. For these purposes it is usefull to
+            # make use of the latin1 codec as the transparent encoding: all
+            # bytes in the str object are preserved in the new bytes object
+            # doesnt work with these japanese chars since latin1 can't encode it
+            # utf-8 can but when decoding we just get the escaped unicode back
+            # for SOME characters (where the \ for escpaing the \u code has been escaped as well)
+            # -> encode and decode those chars manually using utf-8 for encoding and
+            # unicode-escape codec for decoding
+            # OR even better just encode and decode twice utf-8/unicode-escape
+            json_str = json_str.encode('utf-8').decode('unicode-escape')
+            json_str = json_str.encode('utf-8').decode('unicode-escape')
+            # # decode escaped unicode chars manually
+            # str_list = []
+            # i = 0
+            # last_append = 0
+            # while i < len(json_str):
+            #     # check if we should expect an escaped unicode char
+            #     # \u0000 -> 6 chars needed
+            #     if i < (len(json_str) - 6) and (json_str[i] == "\\" and json_str[i+1] == "u"):
+            #         esc_seq = json_str[i:i+6]
+            #         char = esc_seq.encode("utf-8").decode("unicode-escape")
+            #         print(repr(esc_seq), repr(char))
+            #         # save str till last substitution with our decoded char
+            #         str_list.append(json_str[last_append:i] + char)
+            #         i += 6  # advance to next char that is not part of current escape sequence
+            #         if i >= len(json_str):
+            #             break
+            #         last_append = i
+            #     elif i >= (len(json_str) - 6):
+            #         str_list.append(json_str[last_append:len(json_str)])
+            #         break
+            #     else:
+            #         i += 1
+            # json_str = "".join(str_list)
             # remove formatting that was inbetween: json_end});\r\n\t\tgallery.init()
-            json_str = "".join(s for s in json_str if s not in ("\n", "\r", "\t"))
-            # remove ); from end of str
-            json_str = json_str[:-2]
         except IndexError:
             json_str = None
         if not json_str:

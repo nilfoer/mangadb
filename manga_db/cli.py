@@ -22,6 +22,8 @@ def main():
                                        help='sub-command help', dest="subcmd")
 
     webgui = subparsers.add_parser("webgui", aliases=["web"])
+    webgui.add_argument("-o", "--open", action="store_true", 
+                        help="Run on you machine's IP and make the webGUI accessible from your LAN")
     webgui.set_defaults(func=_cl_webgui)
 
     collector = subparsers.add_parser("link_collector", aliases=["collect"])
@@ -62,7 +64,7 @@ def main():
         sys.exit(0)
     # let webgui handle db_con when subcmd is selected
     if args.subcmd == "webgui":
-        args.func()
+        args.func(args)
     else:
         db_path = os.path.realpath(os.path.normpath(args.db_path))
         mdb = MangaDB(os.path.dirname(db_path), db_path)
@@ -110,13 +112,17 @@ def _cl_export(args, mdb):
                 f"{os.path.abspath(args.path)}!")
 
 
-def _cl_webgui():
+def _cl_webgui(args):
     # use terminal environment vars to set debug etc.
     # windows: set FLASK_ENV=development -> enables debug or set FLASK_DEBUG=1
     app = create_app()
     # use threaded=False so we can leverage MangaDB's id_map
     # also makes sense since we only want to support one user (at least with write access)
-    app.run(threaded=False, port=7578)
+    # use host='0.0.0.0' or ip to run on machine's ip address and be accessible over lan
+    if args.open:
+        app.run(threaded=False, host='0.0.0.0', port=7578)
+    else:
+        app.run(threaded=False, port=7578)
 
 
 def cli_yes_no(question_str):

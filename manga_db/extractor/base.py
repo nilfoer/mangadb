@@ -45,8 +45,13 @@ class BaseMangaExtractor:
         except urllib.request.HTTPError as err:
             logger.warning("HTTP Error %s: %s: \"%s\"", err.code, err.reason, url)
         else:
-            res = site.read().decode('utf-8')
+            # leave the decoding up to bs4
+            res = site.read()
             site.close()
+
+            # try to read encoding from headers otherwise use utf-8 as fallback
+            encoding = site.headers.get_content_charset()
+            res = res.decode(encoding.lower() if encoding else "utf-8")
             logger.debug("Getting html done!")
 
         return res

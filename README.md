@@ -15,6 +15,8 @@ run_manga_db.py webgui
 ```
 Then you can access the WebGUI by going to `localhost:7578` in your web browser. The first time you access the WebGUI you have to create a user by clicking on **Register**. Then just type in the username and password combination you chose and press **Login**.
 
+To be able to access the site with e.g. your phone in your LAN use `run_manga_db.py webgui --open` and then browse to http://INSERT.YOUR.IP.HERE:7578/
+
 ### Adding books
 You can either import books from supported sites by pasting their URL into the search field and selecting **Import Book** or press the **+** symbol in the top right to add a book manually.
 
