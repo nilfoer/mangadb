@@ -598,7 +598,7 @@ info.txt
                 <span class="fa fa-star"></span>
                 {% endfor %}
             </div>
-	    {% elif book.ext_infos and book.avg_ext_rating %}
+	    {% elif c_book.avg_ext_rating is not none %}
             <div class="overlay-rate">
                 {% for _ in range( c_book.avg_ext_rating|round|int() ) %}
                 <span class="fa fa-star"></span>
