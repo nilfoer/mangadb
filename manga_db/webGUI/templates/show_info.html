@@ -59,6 +59,27 @@
 	</div>
 </div>
 {% endif %}
+{% if add_ei_or_new_book_prompt %}
+<div class="row dark-color" style="margin-bottom:2em;">
+	<div class="col" style="padding: 1em 1em 0 1em">
+		<form action="{{ url_for('main.import_book') }}" method=post>
+        {{ csrf_token_field() }}
+        <h5>Title of book to import matches with the title of this book!</h5>
+		<ul class="flash-messages">
+        <li class="info">Should the <a href={{ add_ei_or_new_book_prompt[0] }}>URL</a> be added as an external link to this book or
+            should it be imported as a new book?</li>
+		<li>
+            <button type="submit" name="action" value="add_ext" id="addExt" class="button blue-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-plus"></i><span style="margin-left: 5px;">Add as external link!</span></button>
+		    <button type="submit" name="action" value="add_new" id="addNew" class="button red-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-book"></i><span style="margin-left: 5px;">Add as new book!</span></button>
+        </li>
+		</ul>
+        <input type="hidden" name="extr_data_json" value="{{ add_ei_or_new_book_prompt[1] }}" />
+        <input type="hidden" name="ext_url" value={{ add_ei_or_new_book_prompt[0] }} />
+        <input type="hidden" name="thumb_url" value={{ add_ei_or_new_book_prompt[2] }} />
+	</form>
+	</div>
+</div>
+{% endif %}
 {% endblock %}
 {% block book_info %}
 <div class="row no-margin">

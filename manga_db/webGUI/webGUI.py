@@ -6,6 +6,8 @@ Description: Creates webGUI for manga_db using flask
 import os.path
 import json
 import re
+
+from datetime import datetime
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
         render_template, flash, send_from_directory,
@@ -92,7 +94,8 @@ def show_entries():
 
 
 @main_bp.route('/book/<int:book_id>')
-def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None):
+def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None,
+              add_ei_or_new_book_prompt=None):
     mdb = get_mdb()
     # enable passing book obj over optional param while keeping url route option
     # with required param
@@ -130,30 +133,44 @@ def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None):
         build_title=Book.build_title,
         lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")],
         book_upd_changes=book_upd_changes,
-        outdated=outdated)
+        outdated=outdated,
+        add_ei_or_new_book_prompt=add_ei_or_new_book_prompt)
 
 
 @main_bp.route('/import', methods=["POST"])
-def import_book(url=None):
+def import_book(url=None, force_new=False):
     if url is None:
         url = request.form['ext_url']
     mdb = get_mdb()
-    extr_data, thumb_url = mdb.retrieve_book_data(url)
-    if extr_data is None:
-        flash("Failed getting book!", "warning")
-        flash("Either there was something wrong with the url or the extraction failed!", "info")
-        flash(f"URL was: {url}")
-        flash("Check the logs for more details!", "info")
-        return redirect(url_for("main.show_entries"))
+    extr_data, thumb_url = None, None
+    add_ext_info = False
+    if "extr_data_json" in request.form:
+        # coming from add as external or new book prompt!!
+        extr_data = json.loads(request.form['extr_data_json'])
+        thumb_url = request.form['thumb_url']
+        # during json conversion datetime was converted to a str (in isoformat)
+        extr_data["upload_date"] = datetime.strptime(extr_data['upload_date'], "%Y-%m-%d").date()
+        if request.form['action'] == "add_new":
+            force_new = True
+        else:
+            add_ext_info = True
+    else:
+        extr_data, thumb_url = mdb.retrieve_book_data(url)
+        if extr_data is None:
+            flash("Failed getting book!", "warning")
+            flash("Either there was something wrong with the url or the extraction failed!",
+                  "info")
+            flash(f"URL was: {url}")
+            flash("Check the logs for more details!", "info")
+            return redirect(url_for("main.show_entries"))
     book = Book(mdb, **extr_data)
     # convert data to json so we can rebuilt ext_info when we add it to DB
     # as we have to take all data from edit_info page or store a json serialized ExternalInfo
     # in session; jsonify return flask.Response i just need a str
     extr_data_json = json.dumps(extr_data, default=to_serializable)
 
-    bid = mdb.get_book_id(book.title_eng, book.title_foreign)
-    if bid is not None:
-        # book was alrdy in DB
+    bid = mdb.get_book_id(book.title_eng, book.title_foreign) if not force_new else None
+    if add_ext_info:
         # -> add extinfo instead of importing whole book => NO since if its in id_map
         # book.ext_infos wont match state in DB
         book_in_db = mdb.get_book(bid)
@@ -164,6 +181,10 @@ def import_book(url=None):
 
         flash(f"Added external link at '{ext_info.url}' to book!")
         return show_info(bid, show_outdated=eid if outdated else None)
+    elif bid is not None:
+        # book was alrdy in DB
+        # show prompt to add extinfo or add as a new book
+        return show_info(bid, add_ei_or_new_book_prompt=(url, extr_data_json, thumb_url))
     else:
         # dl cover as temp uuid name and display add book page
         import uuid
@@ -198,7 +219,7 @@ def jump_to_book_by_url():
     elif len(books) > 1:
         flash("Please choose the book belonging to the supplied URL!", "title")
         flash("Due to external sites re-using their book IDs it can happen that "
-              "a book ID on that page that lead too Book A now leads to Book B.")
+              "a book ID on that page that lead to Book A now leads to Book B.")
         flash("There are multiple books in this DB which have the same external "
               "ID! Please choose the one that has the same title (and pages) as "
               "the one at the URL you supplied!", "info")

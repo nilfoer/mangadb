@@ -76,15 +76,14 @@ manual_nhentai = {
         "url": "https://nhentai.net/g/77052/",
         "pages": 26,
         "id_onpage": 77052,
-        "favorites": 1422,
+        "favorites": 6865,
         "upload_date": datetime.datetime.strptime("2014-06-29", "%Y-%m-%d").date(),
         "title_eng": "Zecchou Trans Poison",
         "title_foreign": "絶頂トランスポイズン",
         "tag": ['Futanari', 'Transformation', 'Big Breasts', 'Pregnant', 'Big Ass',
-                'Prostate Massage', 'Anal', 'Crossdressing', 'Shemale', 'Yuri', 'Lactation',
+                'Anal', 'Crossdressing', 'Shemale', 'Yuri', 'Lactation',
                 'Hotpants', 'Impregnation', 'Gender Bender', 'Shotacon', 'Deepthroat',
-                'Autofellatio', 'Dickgirl On Male', 'Dickgirl On Dickgirl',
-                'Lilli Rocheforte', 'Street Fighter X Tekken'],
+                'Autofellatio', 'Dickgirl On Dickgirl', 'Dickgirl On Male', 'Prostate Massage'],
         "censor_id": 2,
         "language": "English",
         "status_id": 1,
@@ -97,7 +96,7 @@ manual_nhentai = {
                       'Asuka Kazama', 'Chun-Li'],
         'note': ("Full titles on nhentai.net: English '(Futaket 8) [Arsenothelus "
                  "(Rebis, Chinbotsu)] Zecchou Trans Poison (Street Fighter X Tekken) "
-                 "[English] [Pineapples R&#039; Us + Doujin-Moe.us]' Foreign '(ふたけっと8) "
+                 "[English] [Pineapples R' Us + Doujin-Moe.us]' Foreign '(ふたけっと8) "
                  "[アルセノテリス (Rebis＆沈没)] 絶頂トランスポイズン "
                  "(ストリートファイター×鉄拳) [英訳]'")
         }

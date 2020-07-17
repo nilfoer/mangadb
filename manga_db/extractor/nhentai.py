@@ -15,7 +15,7 @@ class NhentaiExtractor(BaseMangaExtractor):
     URL_PATTERN_RE = re.compile(r"^(?:https?://)?(?:www\.)?nhentai\.net/g/(\d+)/?")
     ID_ONPAGE_RE = re.compile(r"nhentai\.net/g/(\d+)/?")
     # grp 1 is prob contained magazine?/vol? grp 2 is title
-    TITLE_RE = re.compile(r"^(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
+    TITLE_RE = re.compile(r"^(?:\[.+?\])? ?(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
     INFO_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/"
     API_URL_FORMAT = "https://nhentai.net/api/gallery/{id_onpage}"
     THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.{img_ext}"

@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from manga_db.webGUI import create_app
 from manga_db.ext_info import ExternalInfo
 from manga_db.webGUI.mdb import t_local
+from manga_db.webGUI.json_custom import to_serializable
 from utils import all_book_info, gen_hash_from_file
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -381,9 +382,9 @@ def test_show_info(app_setup):
         assert b"COLLECTION: </span>Dolls" in resp.data
 
         # save since only one collection otherwise have to add more detail to selector
-        coll_items = soup.select(".books-collection-grid .book-grid-item-inner")
+        coll_items = soup.select(".books-collection-grid .book-grid-item")
         # book that is displayed correctly marked
-        assert "current" in coll_items[0].parent["class"]
+        assert "current" in coll_items[0]["class"]
         assert coll_items[0].select_one(".overlay-title").text.strip() == (
                 "Dolls -Yoshino Izumi Hen- | Dolls -Yoshino Izumi's"
                 " Story- Ch. 2 / ドールズ -芳乃泉編- Ch. 2")
@@ -600,6 +601,20 @@ def test_upload_cover(app_setup):
                                                r_dic["cover_path"].rsplit("/", 1)[-1]))
 
 
+tsu_extr_data = {
+        'title_eng': 'Sono Shiroki Utsuwa ni Odei o Sosogu', 'title_foreign': 'その白き器に汚泥を注ぐ',
+        'uploader': 'MrOverlord12', 'upload_date': datetime.date(2018, 10, 13), 'pages': 20,
+        'rating': 4.13, 'ratings': 39, 'favorites': 420, 'my_rating': None, 'category': ['Manga'],
+        'collection': None, 'groups': None, 'artist': ['Taniguchi-san'], 'parody': None,
+        'character': None,
+        'tag': ['Ahegao', 'Body Swap', 'Bondage', 'Dark Skin', 'Defloration', 'Elf', 'Filming',
+                'Futa on Female', 'Futanari', 'Gender Bender', 'Large Breasts', 'Nakadashi'],
+        'censor_id': 2,
+        'url': 'http://www.tsumino.com/Book/Info/43460/sono-shiroki-utsuwa-ni-odei-o-sosogu',
+        'id_onpage': 43460, 'language': 'English', 'status_id': 1, 'imported_from': 1
+        }
+
+
 def test_import_book(app_setup, monkeypatch):
     tmpdir, app, client = app_setup
     setup_authenticated_sess(app, client)
@@ -695,6 +710,7 @@ def test_import_book(app_setup, monkeypatch):
         fn = "tsumino_43460_sono-shiroki-utsuwa.html"
         with open(os.path.join(tests_files_dir, fn), "r", encoding="UTF-8") as f:
             html = f.read()
+        monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: html)
         monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: cover_url)
         with client.session_transaction() as sess:
             sess["_csrf_token"] = "token123"
@@ -702,6 +718,19 @@ def test_import_book(app_setup, monkeypatch):
         resp = client.post(
                     url_for("main.import_book"),
                     data={"ext_url": url, "_csrf_token": "token123"},
+                    follow_redirects=True)
+        r_html = resp.data.decode("utf-8")
+        # check for add external or new book prompt
+        assert "Title of book to import matches with the title of this book!" in r_html
+
+        # make the acutal call to import as external info
+        with client.session_transaction() as sess:
+            sess["_csrf_token"] = "token123"
+        resp = client.post(
+                    url_for("main.import_book"),
+                    data={"ext_url": url, "_csrf_token": "token123",
+                          "extr_data_json": json.dumps(tsu_extr_data, default=to_serializable),
+                          "thumb_url": cover_url, "action": "add_ext"},
                     follow_redirects=True)
         r_html = resp.data.decode("utf-8")
         assert f"Added external link at &#39;{url}" in r_html
