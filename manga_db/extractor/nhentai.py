@@ -13,13 +13,14 @@ class NhentaiExtractor(BaseMangaExtractor):
     site_name = "nhentai.net"
     site_id = 2
     URL_PATTERN_RE = re.compile(r"^(?:https?://)?(?:www\.)?nhentai\.net/g/(\d+)/?")
-    ID_ONPAGE_RE = re.compile(r"nhentai\.net/g/(\d+)/?")
+    URL_FORMAT = "https://nhentai.net/g/{id_onpage}/"
+    READ_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/1/"
+
     # grp 1 is prob contained magazine?/vol? grp 2 is title
     TITLE_RE = re.compile(r"^(?:\[.+?\])? ?(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
     INFO_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/"
     API_URL_FORMAT = "https://nhentai.net/api/gallery/{id_onpage}"
     THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.{img_ext}"
-    READ_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/1/"
     KW_LOOKP_RE_FORMAT = r"(?:\[|\(){keyword}[^)\]\n]*(?:\]|\))"
 
     def __init__(self, url):
@@ -37,8 +38,12 @@ class NhentaiExtractor(BaseMangaExtractor):
             return f"NhentaiExtractor('{self.url}')"
 
     @classmethod
-    def read_url_from_id_onpage(cls, id_onpage):
-        return cls.READ_URL_FORMAT.format(id_onpage=id_onpage)
+    def url_from_ext_info(cls, ext_info):
+        return cls.URL_FORMAT.format(id_onpage=ext_info.id_onpage)
+
+    @classmethod
+    def read_url_from_ext_info(cls, ext_info):
+        return cls.READ_URL_FORMAT.format(id_onpage=ext_info.id_onpage)
 
     def build_cover_url(self):
         img_type = self.json["images"]["cover"]["t"]
@@ -200,7 +205,7 @@ class NhentaiExtractor(BaseMangaExtractor):
     @classmethod
     def book_id_from_url(cls, url):
         try:
-            return int(re.search(cls.ID_ONPAGE_RE, url).group(1))
+            return int(re.search(cls.URL_PATTERN_RE, url).group(1))
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

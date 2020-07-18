@@ -4,15 +4,19 @@ import logging
 import datetime
 import pytest
 
-from utils import setup_mdb_dir, all_book_info
+from utils import setup_mdb_dir, all_book_info, load_db_from_sql_file
 from manga_db.manga_db import MangaDB
 
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def test_mdb_readonly(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_mdb_readonly(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
+    sql_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    mdb_file = os.path.join(tmpdir, "manga_db.sqlite")
+    memdb = load_db_from_sql_file(sql_file, mdb_file)
+    memdb.close()
     mdb = MangaDB(tmpdir, mdb_file, read_only=True)
     with pytest.raises(sqlite3.OperationalError) as e:
         mdb.db_con.execute("INSERT INTO Tag(name) VALUES ('adkada')")
@@ -20,7 +24,11 @@ def test_mdb_readonly(setup_mdb_dir):
 
 
 def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
-    tmpdir, mdb_file = setup_mdb_dir
+    tmpdir = setup_mdb_dir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     tests_files_dir = os.path.join(TESTS_DIR, "mangadb_test_files")
     mdb = MangaDB(tmpdir, mdb_file)
 
@@ -41,7 +49,7 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     os.makedirs(os.path.join(tmpdir, "thumbs"))
 
     os.chdir(tmpdir)
-    url = "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken"
+    url = "http://www.tsumino.com/entry/43492"
     fn = "tsumino_43492_mirai-tantei-nankin-jiken"
     with open(os.path.join(tests_files_dir, fn + ".html"), "r", encoding="UTF-8") as f:
         html = f.read()
@@ -72,9 +80,7 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     assert book.ext_infos[0].id == 19
     assert not outdated_on_ei_id
 
-    # use mount with uri to mount in read-only mode
-    db_con = sqlite3.connect('file:../all_test_files/manga_db_to_import.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
+    db_con = load_db_from_sql_file('../all_test_files/manga_db_to_import.sqlite.sql', ":memory:", True)
     # select same book from db where its already imported and checked
     expected = all_book_info(db_con, 21, include_id=False)
 
@@ -83,16 +89,14 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     for i, v in enumerate(actual):
         if i == 16:
             assert v == "to-read;to-download"
-            continue
         elif i == 7:
             # last_change
             assert v == datetime.date.today()
-            continue
-        elif i == 28:
+        elif i == 27:  # -1 since url removed
             # last_update
             assert v == datetime.date.today()
-            continue
-        assert v == expected[i]
+        else:
+            assert v == expected[i]
 
     caplog.set_level(logging.DEBUG)
     # clear logging records
@@ -140,10 +144,10 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
         assert mdb._validate_indentifiers_types(ids) is expected
 
     assert ([b.id for b in list(mdb.get_books(
-            {"url": "http://www.tsumino.com/Book/Info/43551/kinoko-matsuri-mushroom-festival"}))]
+            {"url": "https://www.tsumino.com/entry/43551"}))]
             == [2])
     assert ([b.id for b in list(mdb.get_books(
-            {"url": "http://www.tsumino.com/Book/Info/43506/gyaru-ijime"}))]
+            {"url": "http://www.tsumino.com/entry/43506"}))]
             == [8])
     assert ([b.id for b in list(mdb.get_books({"id_onpage": 43460, "imported_from": 1}))]
             == [11])

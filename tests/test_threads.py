@@ -4,7 +4,7 @@ import logging
 import pytest
 import sqlite3
 
-from utils import setup_mdb_dir, import_json, gen_hash_from_file
+from utils import setup_mdb_dir, import_json, gen_hash_from_file, load_db_from_sql_file
 from manga_db.threads import import_multiple
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -30,7 +30,7 @@ def new_get_cover(self):
 # run python -m pytest -m "not slow" to deselect slow tests
 @pytest.mark.slow
 def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
-    tmpdir, mdb_file = setup_mdb_dir
+    tmpdir = setup_mdb_dir
 
     os.chdir(tmpdir)
     # test having import_multiple write to diff dir than cwd
@@ -38,11 +38,12 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     subdir = ''.join(random.choices(list("abcdefghijklmnopqrstuvwxyz"), k=10))
     tmpdir = os.path.join(tmpdir, subdir)
     os.makedirs(tmpdir)
-    mdb_file_new = os.path.join(tmpdir, "manga_db.sqlite")
+
+    mdb_file = os.path.join(tmpdir, "manga_db.sqlite")
     # we modified all_test_files db file -> copy new one to tmpdir
-    mdb_file = os.path.join(TESTS_DIR, "threads_test_files", "manga_db_base.sqlite")
-    shutil.copy2(mdb_file, mdb_file_new)
-    mdb_file = mdb_file_new
+    sql_file = os.path.join(TESTS_DIR, "threads_test_files", "manga_db_base.sqlite.sql")
+    load_db_from_sql_file(sql_file, mdb_file).close()
+
     # have to change get_html to retrieve file from disk instead
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", new_get_html)
     # patch get_cover to point to thumb on disk
@@ -56,16 +57,17 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
                                      f"Couldn't find manga_db.sqlite in {exp_pa}")]
     import_multiple(tmpdir, url_links)
     con_res = sqlite3.connect(mdb_file, detect_types=sqlite3.PARSE_DECLTYPES)
-    con_expected = sqlite3.connect(os.path.join(TESTS_DIR, "threads_test_files",
-                                                "manga_db_expected.sqlite"),
-                                   detect_types=sqlite3.PARSE_DECLTYPES)
+    con_expected = load_db_from_sql_file(os.path.join(TESTS_DIR, "threads_test_files",
+                                                      "manga_db_expected.sqlite.sql"),
+                                         ":memory:")
+
     # order isnt predictable since order depends on how fast html is retrieved
     assert all_table_cells(con_res) == all_table_cells(con_expected)
 
     con_res.row_factory = sqlite3.Row
     # select new books and check that the cover that was saved under that id
     # matches the acutal cover that belongs to the book
-    c = con_res.execute("""SELECT b.id, ei.id_onpage, ei.url
+    c = con_res.execute("""SELECT b.id, ei.id_onpage
                            FROM Books b, ExternalInfo ei
                            WHERE b.id = ei.book_id
                            AND b.id > 17""")
@@ -93,10 +95,15 @@ def all_table_cells(db_con):
             SELECT Books.title_eng, Books.title_foreign, Books.language_id, Books.pages,
                    Books.status_id, Books.my_rating, Books.note, Books.favorite,
                 (
-                    SELECT group_concat(Tag.name, ';')
-                    FROM BookTag bt, Tag
-                    WHERE  Books.id = bt.book_id
-                    AND Tag.id = bt.tag_id
+                    -- use sub select where we order the tags first so the group_concat is
+                    -- is sorted
+                    SELECT group_concat(tag_name, ';') FROM (
+                        SELECT Tag.name as tag_name
+                        FROM BookTag bt, Tag
+                        WHERE  Books.id = bt.book_id
+                        AND Tag.id = bt.tag_id
+                        ORDER BY Tag.name ASC
+                    )
                 ) AS tags,
                 (
                     SELECT group_concat(Artist.name, ';')
@@ -140,7 +147,8 @@ def all_table_cells(db_con):
                     WHERE  Books.id = bt.book_id
                     AND Parody.id = bt.Parody_id
                 ) AS parodies,
-            ei.url, ei.id_onpage, ei.imported_from, ei.upload_date, ei.uploader, ei.censor_id,
+            -- ei.url,
+            ei.id_onpage, ei.imported_from, ei.upload_date, ei.uploader, ei.censor_id,
             ei.rating, ei.ratings, ei.favorites, ei.downloaded, ei.outdated
             FROM Books
             -- returns one row for each external info, due to outer joins also returns

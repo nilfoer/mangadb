@@ -5,12 +5,14 @@ logger = logging.getLogger(__name__)
 
 
 class BaseMangaExtractor:
-    site_name = ""
     headers = {
         'User-Agent':
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
-    URL_PATTERN_RE = ""
+
+    # these need to be re-defined by sub-classes!!
+    site_name = ""
+    site_id = 0
 
     def __init__(self, url):
         self.url = url
@@ -31,7 +33,11 @@ class BaseMangaExtractor:
         raise NotImplementedError
 
     @classmethod
-    def read_url_from_id_onpage(cls, id_onpage):
+    def url_from_ext_info(cls, ext_info):
+        raise NotImplementedError
+
+    @classmethod
+    def read_url_from_ext_info(cls, ext_info):
         raise NotImplementedError
 
     # contrary to @staticmethod classmethod has a reference to the class as first parameter

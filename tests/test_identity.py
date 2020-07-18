@@ -1,6 +1,7 @@
+import os.path
 import pytest
 
-from utils import setup_mdb_dir
+from utils import setup_mdb_dir, load_db_from_sql_file, TESTS_DIR
 from manga_db.db.id_map import IndentityMap
 from manga_db.db.loading import load_instance
 from manga_db.manga_db import MangaDB
@@ -62,8 +63,12 @@ def get_book_row(mdb, _id):
     return row if row else None
 
 
-def test_load_instance(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_load_instance(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
 
     b_man = Book(mdb, title_eng="Testbook", language_id=1, pages=11, status_id=1,

@@ -34,12 +34,6 @@ main_bp = Blueprint("main", __name__)
 URL_RE = re.compile(r"(?:https?://)?(?:\w+\.)?(\w+\.\w+)/")
 
 
-def init_app(app):
-    def read_url(site_id, id_onpage):
-        return extractor.find_by_site_id(site_id).read_url_from_id_onpage(id_onpage)
-    app.jinja_env.globals['read_url'] = read_url
-
-
 # create route for thumbs/static data that isnt in static, can be used in template with
 # /thumbs/path/filename or with url_for(main.thumb_static, filename='filename')
 # Custom static data
@@ -122,7 +116,7 @@ def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None,
             current_app.logger.error("Cant show outdated id %d not found in books ext_infos",
                                      show_outdated)
         else:
-            outdated = ei.get_outdated_links_same_pageid()
+            outdated = ei.get_outdated_extinfo_same_pageid()
 
     return render_template(
         'show_info.html',

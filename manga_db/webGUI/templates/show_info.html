@@ -14,8 +14,8 @@
         <li class="title">Outdated links</li>
         {% for o in outdated %}
         <li class="info">
-            <a class="underline" href="{{ url_for('main.show_info', book_id=o.id) }}">Book</a> / 
-            <a class="underline" href="{{ o.url }}">Outdated Link</a> ( {{ o.url }} )
+            <a class="underline" href="{{ url_for('main.show_info', book_id=o[0]) }}">Book</a> / 
+            <a class="underline" href="{{ o[1].url }}">Outdated Link</a> ( {{ o[1].url }} )
         </li>
         {% endfor %}
         <li class="info">View all outdated books <a class="underline" 
@@ -524,7 +524,7 @@ info.txt
 </div> {# ext-info-container #}
 	<div class="ext-info-btn-container row no-margin">
         <div class="btn-group dropright">
-		<a href={{ read_url(ext_info.imported_from, ext_info.id_onpage) }} id="btnReadOnline"
+		<a href={{ ext_info.read_url }} id="btnReadOnline"
         class="button button-stack ext-info-read-button">
         <i class="fas fa-book-reader"> </i>
 		Read Online

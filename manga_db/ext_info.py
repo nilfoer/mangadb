@@ -5,7 +5,7 @@ from .db.row import DBRow
 from .db.column import Column
 from .db.constants import ColumnValue
 from .constants import CENSOR_IDS
-from .extractor import SUPPORTED_SITES
+from .extractor import SUPPORTED_SITES, find_by_site_id
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,6 @@ class ExternalInfo(DBRow):
 
     id = Column(int, primary_key=True)
     book_id = Column(int, nullable=False)
-    url = Column(str, nullable=False)
     id_onpage = Column(int, nullable=False)
     imported_from = Column(int, nullable=False)
     upload_date = Column(datetime.date, nullable=False)
@@ -50,7 +49,6 @@ class ExternalInfo(DBRow):
         super().__init__(manga_db, in_db, **kwargs)
         self.book = book
         self.id = id
-        self.url = url
         self.id_onpage = id_onpage
         self.imported_from = imported_from
         self.upload_date = upload_date
@@ -62,6 +60,8 @@ class ExternalInfo(DBRow):
         self.downloaded = downloaded
         self.last_update = last_update
         self.outdated = outdated
+
+        self._extr_cls = find_by_site_id(imported_from)
 
         if self.last_update is None:
             self.set_updated()
@@ -88,6 +88,14 @@ class ExternalInfo(DBRow):
     @property
     def site(self):
         return SUPPORTED_SITES[self.imported_from]
+
+    @property
+    def url(self):
+        return self._extr_cls.url_from_ext_info(self)
+
+    @property
+    def read_url(self):
+        return self._extr_cls.read_url_from_ext_info(self)
 
     def update_from_dict(self, dic):
         for col in self.COLUMNS:
@@ -156,7 +164,7 @@ class ExternalInfo(DBRow):
         # check if id_onpage,imported_from is already in db and warn
         # since it prob means that there is a new version available on the site
         c = self.manga_db.db_con.execute("""
-                SELECT ei.id, ei.url
+                SELECT ei.id, ei.id_onpage
                 FROM ExternalInfo ei
                 WHERE ei.id_onpage = ?
                 AND ei.imported_from = ?""", (self.id_onpage, self.imported_from))
@@ -166,7 +174,7 @@ class ExternalInfo(DBRow):
                            "(%d, %d) were already in DB which means it's/their "
                            "link(s) are outdated! Probably means a new version is "
                            "available!:\n%s", self.id_onpage, self.imported_from,
-                           "\n".join((o[1] for o in outdated)))
+                           "\n".join((str(o[1]) for o in outdated)))
         else:
             outdated = None
 
@@ -260,9 +268,9 @@ class ExternalInfo(DBRow):
 
         logger.info("Removed external info with id %d and url %s", self.id, self.url)
 
-    def get_outdated_links_same_pageid(self):
+    def get_outdated_extinfo_same_pageid(self):
         c = self.manga_db.db_con.execute("""
-                SELECT Books.id, ei.url
+                SELECT Books.id, ei.id
                 FROM Books, ExternalInfo ei
                 WHERE ei.book_id = Books.id
                 AND ei.id_onpage = ?
@@ -270,7 +278,10 @@ class ExternalInfo(DBRow):
                 AND ei.outdated = 1
                 """, (self.id_onpage, self.imported_from))
         rows = c.fetchall()
-        return rows if rows else None
+        bookid_extinfo = []
+        for r in rows:
+            bookid_extinfo.append((r[0], self.manga_db.get_ext_info(r[1])))
+        return bookid_extinfo if bookid_extinfo else None
 
     def __repr__(self):
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()

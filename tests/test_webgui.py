@@ -15,7 +15,7 @@ from manga_db.webGUI import create_app
 from manga_db.ext_info import ExternalInfo
 from manga_db.webGUI.mdb import t_local
 from manga_db.webGUI.json_custom import to_serializable
-from utils import all_book_info, gen_hash_from_file
+from utils import all_book_info, gen_hash_from_file, load_db_from_sql_file
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -41,8 +41,10 @@ def app_setup():
         os.makedirs(tmpdir)
         break
 
-    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite")
-    shutil.copy(mdb_file, tmpdir)
+    sql_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    mdb_file = os.path.join(tmpdir, "manga_db.sqlite")
+    con = load_db_from_sql_file(sql_file, mdb_file)
+    con.close()
 
     # setup flask app for testing
     app = create_app(
@@ -610,7 +612,7 @@ tsu_extr_data = {
         'tag': ['Ahegao', 'Body Swap', 'Bondage', 'Dark Skin', 'Defloration', 'Elf', 'Filming',
                 'Futa on Female', 'Futanari', 'Gender Bender', 'Large Breasts', 'Nakadashi'],
         'censor_id': 2,
-        'url': 'http://www.tsumino.com/Book/Info/43460/sono-shiroki-utsuwa-ni-odei-o-sosogu',
+        'url': 'https://www.tsumino.com/entry/43460',
         'id_onpage': 43460, 'language': 'English', 'status_id': 1, 'imported_from': 1
         }
 
@@ -620,7 +622,7 @@ def test_import_book(app_setup, monkeypatch):
     setup_authenticated_sess(app, client)
     tests_files_dir = os.path.join(TESTS_DIR, "webgui_test_files")
 
-    url = "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken"
+    url = "https://www.tsumino.com/entry/43492"
     fn = "tsumino_43492_mirai-tantei-nankin-jiken"
     with open(os.path.join(tests_files_dir, fn + ".html"), "r", encoding="UTF-8") as f:
         html = f.read()
@@ -664,13 +666,14 @@ def test_import_book(app_setup, monkeypatch):
                 "27f076be80593fb1ff27f09a5a557c55c8a98e80f88d91ceff8b533")
 
         row_expected = (
-            'Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, None, None,
+            'Future Detective: The House Confinement Incident | Mirai Tantei Nankin Jiken',
+            '未来探偵軟禁事件', 1, 31, 1, None, None,
             datetime.date.today(), 0, ('Femdom;Handjob;Large Breasts;Nakadashi;Straight Shota;'
-            'Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;Elder Sister;'
-            'Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug'), 'Kakuzatou', 'Doujinshi',
-            None, None, 'Kakuzato-ichi', None, None, ('http://www.tsumino.com/Book/Info/43492/'
-            'mirai-tantei-nankin-jiken'), 43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy',
-            2, 4.46, 175, 1703, 0, datetime.date.today(), 0
+            'Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;'
+            'Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug;Comedy;Imouto;Sex Toys'),
+            'Kakuzatou', 'Doujinshi',
+            None, None, 'Kakuzato-ichi', None, None, 43492, 1, datetime.date(2018, 10, 13),
+            'Scarlet Spy', 2, 4.49, 324, 3430, 0, datetime.date.today(), 0
             )
         # compare book
         b = kwargs_show_add["book"]
@@ -691,22 +694,22 @@ def test_import_book(app_setup, monkeypatch):
         assert b.collection == []
         assert b.groups == [row_expected[14]]
         assert b.list == []
-        assert b.parody == []
+        assert b.parody == ['Original']
 
         # check ext info from json since its rebuilt from that
         ei = json.loads(kwargs_show_add["extr_data"])
-        assert ei["url"] == row_expected[17]
-        assert ei["id_onpage"] == row_expected[18]
-        assert ei["imported_from"] == row_expected[19]
-        assert ei["upload_date"] == str(row_expected[20])
-        assert ei["uploader"] == row_expected[21]
-        assert ei["censor_id"] == row_expected[22]
-        assert ei["rating"] == row_expected[23]
-        assert ei["ratings"] == row_expected[24]
-        assert ei["favorites"] == row_expected[25]
+        # assert ei["url"] == row_expected[17]
+        assert ei["id_onpage"] == row_expected[17]
+        assert ei["imported_from"] == row_expected[18]
+        assert ei["upload_date"] == str(row_expected[19])
+        assert ei["uploader"] == row_expected[20]
+        assert ei["censor_id"] == row_expected[21]
+        assert ei["rating"] == row_expected[22]
+        assert ei["ratings"] == row_expected[23]
+        assert ei["favorites"] == row_expected[24]
 
         # book alrdy in DB -> add extinfo
-        url = "http://www.tsumino.com/Book/Info/43460/sono-shiroki-utsuwa-ni-odei-o-sosogu"
+        url = "https://www.tsumino.com/entry/43460"
         fn = "tsumino_43460_sono-shiroki-utsuwa.html"
         with open(os.path.join(tests_files_dir, fn), "r", encoding="UTF-8") as f:
             html = f.read()
@@ -741,7 +744,8 @@ def test_import_book(app_setup, monkeypatch):
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
                                  detect_types=sqlite3.PARSE_DECLTYPES)
 
-        ei_rows = db_con.execute("SELECT book_id, url, id_onpage, imported_from, upload_date, "
+        # @Hack url select replaced with 0
+        ei_rows = db_con.execute("SELECT book_id, 0, id_onpage, imported_from, upload_date, "
                                  "uploader, censor_id, rating, ratings, favorites, downloaded, "
                                  "last_update, outdated "
                                  "FROM ExternalInfo WHERE book_id = 11").fetchall()
@@ -800,7 +804,7 @@ def test_add_book(app_setup):
                         "test", datetime.date.today(), 0, None, 'Kakuzatou', 'Doujinshi',
                         "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
                         "Testpar1;Testpar2",
-                        'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
+                        # 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
                         43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175,
                         1703, 0, datetime.date.today(), 0)
 
@@ -835,8 +839,7 @@ def test_add_ext_info(app_setup, monkeypatch):
     tmpdir, app, client = app_setup
     setup_authenticated_sess(app, client)
     tests_files_dir = os.path.join(TESTS_DIR, "webgui_test_files")
-    url = ("http://www.tsumino.com/Book/Info/43516/martina-onee-chan-no-seikatsu-big-sis-"
-           "martina-s-sex-life")
+    url = "https://www.tsumino.com/entry/43516"
     fn = "tsumino_43516_martina-onee-chan-no-seikatsu.html"
     with open(os.path.join(tests_files_dir, fn), "r", encoding="UTF-8") as f:
         html = f.read()
@@ -880,7 +883,8 @@ def test_add_ext_info(app_setup, monkeypatch):
         assert b"External link was added as id 19" in resp.data
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
                                  detect_types=sqlite3.PARSE_DECLTYPES)
-        ei_rows = db_con.execute("""SELECT url, id_onpage, imported_from, upload_date,
+        # @Hack url select replaced with 0
+        ei_rows = db_con.execute("""SELECT 0, id_onpage, imported_from, upload_date,
                                            uploader, censor_id, rating, ratings, favorites,
                                            downloaded, last_update, outdated
                                     FROM ExternalInfo WHERE book_id = 6""").fetchall()
@@ -930,7 +934,8 @@ def test_update_book_ext_info(app_setup, monkeypatch):
         # set to downloaded so it gets reset when we get re-dl warning
         with db_con:
             db_con.execute("UPDATE ExternalInfo SET downloaded = 1 WHERE id = 6")
-        ei_row_before = db_con.execute("""SELECT url, id_onpage, imported_from,
+        # @Hack url select replaced with 0
+        ei_row_before = db_con.execute("""SELECT 0, id_onpage, imported_from,
                                           outdated, downloaded
                                         FROM ExternalInfo WHERE book_id = 6""").fetchone()
         assert ei_row_before[4] == 1
@@ -984,7 +989,8 @@ def test_update_book_ext_info(app_setup, monkeypatch):
         # re-dl warning displayed
         assert "WARNING" in r_html
         assert "Please re-download" in r_html
-        ei_rows = db_con.execute("""SELECT url, id_onpage, imported_from, outdated,
+        # @Hack url select replaced with 0
+        ei_rows = db_con.execute("""SELECT 0, id_onpage, imported_from, outdated,
                                            downloaded, uploader, censor_id, upload_date,
                                            rating, ratings, favorites, last_update
                                     FROM ExternalInfo WHERE book_id = 6""").fetchall()

@@ -1,5 +1,5 @@
 import os
-from utils import setup_mdb_dir, TESTS_DIR
+from utils import setup_mdb_dir, TESTS_DIR, load_db_from_sql_file
 
 from manga_db.manga_db import MangaDB
 from manga_db.db.search import (
@@ -36,8 +36,12 @@ def test_validate_order_by():
         assert validate_order_by_str(s) == expected
 
 
-def test_search_book_by_title(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_search_book_by_title(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
     args_first_len = [
             (("atsu", "Books.id DESC", -1, None), 6, 2),
@@ -57,8 +61,11 @@ def test_search_book_by_title(setup_mdb_dir):
             assert len(rows) == nr
 
 
-def test_keyset_pagination():
-    db_file = os.path.join(TESTS_DIR, "db_test_files", "manga_db.sqlite")
+def test_keyset_pagination(monkeypatch):
+    db_file = os.path.join(TESTS_DIR, "db_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(db_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(os.path.dirname(db_file), db_file, read_only=True)
 
     args_expected = [
@@ -411,8 +418,12 @@ def test_keyset_pagination_statement():
         assert vals == exp_v
 
 
-def test_search_normal_mult_assoc(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_search_normal_mult_assoc(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
     # db_con, normal_col_values, int_col_values_dict, ex_col_values_dict,
     # order_by="Books.id DESC", limit=-1,  # no row limit when limit is neg. nr

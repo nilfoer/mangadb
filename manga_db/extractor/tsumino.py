@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 class TsuminoExtractor(BaseMangaExtractor):
     site_name = "tsumino.com"
     site_id = 1
-    URL_PATTERN_RE = re.compile(r"^(https?://)?(www\.)?tsumino\.com/(Book|Read|Download)/"
-                                r"(Info|View|Index)/(\d+)/?([\w-]+)?")
-    ID_ONPAGE_RE = re.compile(r"tsumino\.com/(Book|Read|Download)/(Info|View|Index)/(\d+)")
+    URL_PATTERN_RE = re.compile(r"^(?:https?:\/\/)?(?:www\.)?tsumino\.com\/"
+                                r"(?:entry|Read\/Index)\/(\d+)\/?")
     TITLE_RE = re.compile(r"^(.+) \/ (.+)")
-    READ_URL_FORMAT = "http://www.tsumino.com/Read/View/{id_onpage}"
+    URL_FORMAT = "https://www.tsumino.com/entry/{id_onpage}"
+    READ_URL_FORMAT = "https://www.tsumino.com/Read/Index/{id_onpage}"
     RATING_FULL_RE = re.compile(r"(\d\.\d{1,2}|\d) \((\d+) users / (\d+) favs\)")
     metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
             "title": "Title", "uploader": "Uploader", "upload_date": "Uploaded",
@@ -31,7 +31,7 @@ class TsuminoExtractor(BaseMangaExtractor):
     def __init__(self, url):
         super().__init__(url.strip("-"))
         self.id_onpage = TsuminoExtractor.book_id_from_url(url)
-        self.thumb_url = f"http://www.tsumino.com/Image/Thumb/{self.id_onpage}"
+        self.thumb_url = f"https://content.tsumino.com/thumbs/{self.id_onpage}/1"
         self.html = None
         self.metadata = None
 
@@ -43,8 +43,12 @@ class TsuminoExtractor(BaseMangaExtractor):
             return f"TsuminoExtractor('{self.url}')"
 
     @classmethod
-    def read_url_from_id_onpage(cls, id_onpage):
-        return cls.READ_URL_FORMAT.format(id_onpage=id_onpage)
+    def url_from_ext_info(cls, ext_info):
+        return cls.URL_FORMAT.format(id_onpage=ext_info.id_onpage)
+
+    @classmethod
+    def read_url_from_ext_info(cls, ext_info):
+        return cls.READ_URL_FORMAT.format(id_onpage=ext_info.id_onpage)
 
     @classmethod
     def split_title(cls, value):
@@ -161,7 +165,7 @@ class TsuminoExtractor(BaseMangaExtractor):
     @classmethod
     def book_id_from_url(cls, url):
         try:
-            return int(re.search(cls.ID_ONPAGE_RE, url).group(3))
+            return int(re.search(cls.URL_PATTERN_RE, url).group(1))
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

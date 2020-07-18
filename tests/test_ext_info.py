@@ -4,7 +4,7 @@ import datetime
 import logging
 import pytest
 
-from utils import setup_mdb_dir, setup_tmpdir_param
+from utils import setup_mdb_dir, setup_tmpdir_param, load_db_from_sql_file
 from manga_db.db.loading import load_instance
 from manga_db.manga_db import MangaDB
 from manga_db.ext_info import ExternalInfo
@@ -31,9 +31,12 @@ def get_extinfo(mdb, id_):
 def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     tmpdir = setup_tmpdir_param
     tests_files_dir = os.path.join(TESTS_DIR, "ext_info_test_files")
-    shutil.copy(os.path.join(TESTS_DIR, "all_test_files", "manga_db_to_import.sqlite"),
-                os.path.join(tmpdir, "manga_db.sqlite"))
-    mdb = MangaDB(tmpdir, os.path.join(tmpdir, "manga_db.sqlite"))
+    sql_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db_to_import.sqlite.sql")
+    mdb_file = ":memory:"
+    memdb = load_db_from_sql_file(sql_file, mdb_file, True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
+    mdb = MangaDB(tmpdir, mdb_file)
 
     os.chdir(tmpdir)
     fn = "tsumino_43492_mirai-tantei-nankin-jiken"
@@ -55,8 +58,8 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     status, book = ext_info.update_from_url(force=True)
     assert status == "updated"
     assert ext_info.uploader == "Scarlet Spy2"
-    assert ext_info.ratings == 180
-    assert ext_info.favorites == 1705
+    assert ext_info.ratings == 324
+    assert ext_info.favorites == 3430
     assert ext_info.censorship == "Uncensored"
     assert ext_info.upload_date == datetime.date(2018, 10, 15)
     assert ext_info.last_update == datetime.date.today()
@@ -80,7 +83,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     # last_update only updates when we update_from_url
     b13 = DummyBook(13, "Venus Nights")
     data = dict(
-            book_id=None, url="http://tsumino.com/Book/Info/112233/test-url",
+            book_id=None,  # url="http://tsumino.com/Book/Info/112233/test-url",
             id_onpage=112233, imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=None, last_update=datetime.date(2018, 5, 9), outdated=None
@@ -106,7 +109,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     b15 = DummyBook(15, "Kangofu-san ni Kintama Sakusei Saremashita / "
                         "看護婦さんにキンタマ搾精されました")
     data = dict(
-            book_id=15, url="http://tsumino.com/Book/Info/112233/test-url",
+            book_id=15,   # url="http://tsumino.com/Book/Info/112233/test-url",
             id_onpage=112233, imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=1
@@ -135,7 +138,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
 
     b13 = DummyBook(None, "Venus Nights")
     data = dict(
-            book_id=13, url="http://tsumino.com/Book/Info/112233/test-url",
+            book_id=13,   # url="http://tsumino.com/Book/Info/112233/test-url",
             id_onpage=43460, imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=1
@@ -158,8 +161,9 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     # ei.id, ei.url
     # 11 http://www.tsumino.com/Book/Info/43460/sono-shiroki-utsuwa-ni-odei-o-sosogu
     assert outdated[0][0] == 11
-    assert outdated[0][1] == ("http://www.tsumino.com/Book/Info/43460/sono-shiroki-"
-                              "utsuwa-ni-odei-o-sosogu")
+    assert outdated[0][1] == 43460
+    # assert outdated[0][1] == ("http://www.tsumino.com/Book/Info/43460/sono-shiroki-"
+    #                           "utsuwa-ni-odei-o-sosogu")
     ei_row = get_ei_row(mdb, ei_id)
     for k in data:
         assert ei_row[k] == data[k]
@@ -169,7 +173,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     b20 = DummyBook(20, "The Super Horny Workplace / "
                         "エロすぎる会社日常にセックスが溶け込んだ世界")
     data = dict(
-            book_id=20, url="http://tsumino.com/Book/Info/9999/test-url",
+            book_id=20,   # url="http://tsumino.com/Book/Info/9999/test-url",
             id_onpage=9999, imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=175, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=0
@@ -235,7 +239,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     new_ei.save()
     new_ei.set_updated()
     new_ei.favorites = 777
-    new_ei.url = "http://changed.com/url"
+    # new_ei.url = "http://changed.com/url"
     new_ei.downloaded = 1
     ei_id, _ = new_ei.save()
     assert not new_ei._committed_state
@@ -245,9 +249,9 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
             assert ei_row[k] == datetime.date.today()
         elif k == "favorites":
             assert ei_row[k] == 777
-        elif k == "url":
-            assert new_ei.url == "http://changed.com/url"
-            assert ei_row[k] == "http://changed.com/url"
+        # elif k == "url":
+        #     assert new_ei.url == "http://changed.com/url"
+        #     assert ei_row[k] == "http://changed.com/url"
         elif k == "downloaded":
             assert ei_row[k] == 1
         else:
@@ -255,8 +259,13 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
 
 
 # set_dl_id
-def test_set_dl_id(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_set_dl_id(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
+    sql_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db_to_import.sqlite.sql")
+    mdb_file = ":memory:"
+    memdb = load_db_from_sql_file(sql_file, mdb_file, True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
     ExternalInfo.set_downloaded_id(mdb, 12, 1)
     dled = mdb.db_con.execute("SELECT downloaded FROM ExternalInfo WHERE id = 12").fetchone()

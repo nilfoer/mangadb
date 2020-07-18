@@ -4,6 +4,7 @@ import shutil
 import json
 import pickle
 import hashlib
+import sqlite3
 
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -41,6 +42,19 @@ def export_pickle(obj, filename):
     with open(filename, 'wb') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def db_from_sql(sql, db_path, row_fac=False):
+    db_con = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
+    if row_fac:
+        db_con.row_factory = sqlite3.Row
+    db_con.executescript(sql)  # sql script commits changes
+    return db_con
+
+
+def load_db_from_sql_file(sql_fn, db_path, row_fac=False):
+    sql = read_file(sql_fn)
+    return db_from_sql(sql, db_path, row_fac=row_fac)
 
 
 @pytest.fixture
@@ -88,10 +102,7 @@ def setup_mdb_dir():
         os.makedirs(tmpdir)
         break
 
-    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite")
-    shutil.copy(mdb_file, tmpdir)
-
-    return tmpdir, os.path.join(tmpdir, "manga_db.sqlite")
+    return tmpdir
 
 
 @pytest.fixture
@@ -219,7 +230,8 @@ def all_book_info(db_con, book_id=None, include_id=True):
                     AND Parody.id = bt.Parody_id
                 ) AS parodies,
             {'ei.id AS eid, ei.book_id,' if include_id else ''}
-            ei.url, ei.id_onpage, ei.imported_from, ei.upload_date, ei.uploader, ei.censor_id,
+            -- ei.url,
+            ei.id_onpage, ei.imported_from, ei.upload_date, ei.uploader, ei.censor_id,
             ei.rating, ei.ratings, ei.favorites, ei.downloaded, ei.last_update, ei.outdated
             FROM Books
             -- returns one row for each external info, due to outer joins also returns

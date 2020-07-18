@@ -4,7 +4,7 @@ import logging
 import sqlite3
 import pytest
 
-from utils import setup_mdb_dir, all_book_info
+from utils import setup_mdb_dir, all_book_info, load_db_from_sql_file, TESTS_DIR
 from manga_db.manga_db import MangaDB
 from manga_db.manga import Book
 from manga_db.ext_info import ExternalInfo
@@ -17,26 +17,34 @@ def test_build_title(title_eng, title_foreign, expected):
     assert Book.build_title(title_eng, title_foreign) == expected
 
 
-def test_fetch_extinfo(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_fetch_extinfo(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
+
     b = Book(mdb, in_db=False, id=16)
     assert b.ext_infos == []
-    # use mount with uri to mount in read-only mode
-    db_con = sqlite3.connect('file:../all_test_files/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
+
+    db_con = memdb
     ei_rows_man = db_con.execute("SELECT * FROM ExternalInfo WHERE id IN (16, 18)").fetchall()
     ei1 = ExternalInfo(mdb, b, **ei_rows_man[0])
     ei2 = ExternalInfo(mdb, b, **ei_rows_man[1])
     assert b._fetch_external_infos() == [ei1, ei2]
 
 
-def test_fetch_assoc_col(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_fetch_assoc_col(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
+
     b = Book(mdb, in_db=False, id=14)
     tags = ["Ahegao", "Anal", "Collar", "Large Breasts", "Maid", "Mind Break",
             "Mind Control",  "Nakadashi", "Office Lady",  "Pantyhose",  "Rape", "Stockings",
@@ -46,15 +54,18 @@ def test_fetch_assoc_col(setup_mdb_dir):
     assert b._fetch_associated_column("artist") == ["Fan no Hitori"]
 
 
-def test_upd_assoc_col(setup_mdb_dir):
+def test_upd_assoc_col(monkeypatch, setup_mdb_dir):
     # update_assoc_columns/get_assoc_cols
-    tmpdir, mdb_file = setup_mdb_dir
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
+
     mdb = MangaDB(tmpdir, mdb_file)
-    # use mount with uri to mount in read-only mode
-    db_con = sqlite3.connect('file:../all_test_files/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
+    db_con = memdb
+
     # pass last_change kwarg so it doesnt get auto set and counts as change
     b = Book(mdb, in_db=False, id=12, last_change=datetime.date.today())
     ei_row = db_con.execute("SELECT * FROM ExternalInfo WHERE id = 12").fetchone()
@@ -131,10 +142,15 @@ def test_upd_assoc_col(setup_mdb_dir):
     assert b.ext_infos == [ei1, ei2]
 
 
-def test_diff(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_diff(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
+
     # not testing change_str
     b1_data = dict(
             id=None,
@@ -197,16 +213,16 @@ def test_diff(setup_mdb_dir):
     assert changes == changes_expected
 
 
-def test_add_rem_assoc(setup_mdb_dir):
+def test_add_rem_assoc(monkeypatch, setup_mdb_dir):
     # _add/_remove assoc col
-    tmpdir, mdb_file = setup_mdb_dir
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
-    # use mount with uri to mount in read-only mode
-    uri_tmpdir = tmpdir.replace("\\", "/")
-    db_con = sqlite3.connect(f'file:{uri_tmpdir}/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
+    db_con = memdb
 
     b = mdb.get_book(5)
     tag_before = b.tag.copy()
@@ -233,16 +249,16 @@ def test_add_rem_assoc(setup_mdb_dir):
     assert tag[0].split(";") == tag_before
 
 
-def test_static_db_methods(setup_mdb_dir):
+def test_static_db_methods(monkeypatch, setup_mdb_dir):
     # static db methods
-    tmpdir, mdb_file = setup_mdb_dir
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
-    # use mount with uri to mount in read-only mode
-    uri_tmpdir = tmpdir.replace("\\", "/")
-    db_con = sqlite3.connect(f'file:{uri_tmpdir}/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
+    db_con = memdb
 
     tag_before = "Large Breasts;Nakadashi;Blowjob;Threesome;Bikini;Group Sex;Swimsuit".split(";")
     tag_change = ["Test1", "Test2", "Blabla"]
@@ -316,20 +332,20 @@ def test_static_db_methods(setup_mdb_dir):
     assert b.my_rating == 4.25
 
 
-def test_remove_book(setup_mdb_dir):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_remove_book(monkeypatch, setup_mdb_dir):
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
     import shutil
     # copy cover
     os.makedirs(os.path.join(tmpdir, "thumbs"))
     cover_path = os.path.join(tmpdir, "thumbs", "16")
     shutil.copy(os.path.join(tmpdir, os.pardir, "book_test_files", "16"), cover_path)
-    # use mount with uri to mount in read-only mode
-    uri_tmpdir = tmpdir.replace("\\", "/")
-    db_con = sqlite3.connect(f'file:{uri_tmpdir}/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
+    db_con = memdb
 
     # book removed and all ext infos
     b = mdb.get_book(16)
@@ -347,15 +363,14 @@ def test_remove_book(setup_mdb_dir):
     assert not os.path.exists(cover_path)
 
 
-def test_remove_extinfo(setup_mdb_dir, caplog):
-    tmpdir, mdb_file = setup_mdb_dir
+def test_remove_extinfo(monkeypatch, setup_mdb_dir, caplog):
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
-    # use mount with uri to mount in read-only mode
-    uri_tmpdir = tmpdir.replace("\\", "/")
-    db_con = sqlite3.connect(f'file:{uri_tmpdir}/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
 
     b = mdb.get_book(16)
     caplog.clear()
@@ -363,8 +378,7 @@ def test_remove_extinfo(setup_mdb_dir, caplog):
     assert caplog.record_tuples == [
             ("manga_db.manga", logging.ERROR, "No external info with id 99 found!")
             ]
-    assert b.remove_ext_info(18) == ("http://www.tsumino.com/Book/Info/43453/"
-                                     "afji-ajks-duplicate-id_onpage")
+    assert b.remove_ext_info(18) == "https://www.tsumino.com/entry/43454"
     assert len(b.ext_infos) == 1
     assert b.ext_infos[0].id == 16
 
@@ -378,17 +392,17 @@ def test_remove_extinfo(setup_mdb_dir, caplog):
             ]
 
 
-def test_save_book(setup_mdb_dir, caplog):
+def test_save_book(monkeypatch, setup_mdb_dir, caplog):
     # save: _add _update
     #     incl! _update_assoc_cols ->         "
-    tmpdir, mdb_file = setup_mdb_dir
+    tmpdir = setup_mdb_dir
     os.chdir(tmpdir)
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    memdb = load_db_from_sql_file(mdb_file, ":memory:", True)
+    monkeypatch.setattr("manga_db.manga_db.MangaDB._load_or_create_sql_db",
+                        lambda x, y, z: (memdb, None))
     mdb = MangaDB(tmpdir, mdb_file)
-    # use mount with uri to mount in read-only mode
-    uri_tmpdir = tmpdir.replace("\\", "/")
-    db_con = sqlite3.connect(f'file:{uri_tmpdir}/manga_db.sqlite?mode=ro',
-                             uri=True, detect_types=sqlite3.PARSE_DECLTYPES)
-    db_con.row_factory = sqlite3.Row
+    db_con = memdb
 
     # _add
     ei_data = dict(

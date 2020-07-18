@@ -11,18 +11,18 @@ from utils import build_testsdir_furl
 
 
 manual_tsumino = {
-        "url": "http://www.tsumino.com/Book/Info/43357/negimatic-paradise-05-05",
+        "url": "https://www.tsumino.com/entry/43357",
         "pages": 23,
         "id_onpage": 43357,
-        "rating": 4.8,
-        "ratings": 5,
-        "favorites": 137,
+        "rating": 4.57,
+        "ratings": 7,
+        "favorites": 211,
         "uploader": "nekoanime15",
         "upload_date": datetime.datetime.strptime("2018-10-07", "%Y-%m-%d").date(),
         "title_eng": "Negimatic Paradise! 05'",
         "title_foreign": "ネギまちっく天国05'",
-        "tag": ["Cosplay", "Large Breasts", "Mind Control", "Nakadashi", "Sleeping",
-                "Straight Shota", "Sweating", "Teacher", "Wings"],
+        "tag": ["Cosplay", "Large Breasts", "Mind Control", "Multi-Part", "Nakadashi", "Rape",
+                "Sleeping", "Straight Shota", "Sweating", "Teacher", "Wings"],
         "censor_id": 2,
         "language": "English",
         "status_id": 1,
@@ -38,13 +38,14 @@ manual_tsumino = {
 
 
 def test_extr_tsu(monkeypatch, caplog):
-    url = "http://www.tsumino.com/Book/Info/43357/negimatic-paradise-05-05-"
+    url = "https://www.tsumino.com/entry/43357"
     t = TsuminoExtractor(url)
-    t.html = TsuminoExtractor.get_html(build_testsdir_furl("extr_files/tsumino_43357_negimatic-paradise-05-05.html"))
+    t.html = TsuminoExtractor.get_html(
+            build_testsdir_furl("extr_files/tsumino_43357_negimatic-paradise-05-05.html"))
     res = t.get_metadata()
 
     assert res == manual_tsumino
-    assert t.get_cover() == "http://www.tsumino.com/Image/Thumb/43357"
+    assert t.get_cover() == "https://content.tsumino.com/thumbs/43357/1"
 
     # test no data receieved
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
@@ -56,17 +57,16 @@ def test_extr_tsu(monkeypatch, caplog):
     assert caplog.record_tuples == [
             ("manga_db.extractor.tsumino", logging.WARNING,
              # url without last dash
-             f"Extraction failed! HTML was empty for url '{url[:-1]}'"),
+             f"Extraction failed! HTML was empty for url '{url}'"),
             ]
 
 
 def test_extr_tsu_bookidfromurl():
     urls = {
-            "http://www.tsumino.com/Book/Info/43357": 43357,
-            "http://www.tsumino.com/Read/View/43357": 43357,
-            "http://www.tsumino.com/Download/Index/43357": 43357,
-            "http://www.tsumino.com/Book/Info/43360/saimin-idol-happy-clover-ga-chiriochiru-made-ch-1-1-": 43360,
-            "http://www.tsumino.com/Book/Info/43360/saimin-idol-happy-clover-ga-chiriochiru-made-ch-1-1": 43360
+            "http://www.tsumino.com/entry/43357": 43357,
+            "http://www.tsumino.com/entry/1337": 1337,
+            "http://www.tsumino.com/Read/Index/43357": 43357,
+            "http://www.tsumino.com/Read/Index/1337": 1337,
             }
     for u, i in urls.items():
         assert TsuminoExtractor.book_id_from_url(u) == i
