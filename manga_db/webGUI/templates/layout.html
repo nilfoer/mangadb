@@ -1,16 +1,14 @@
-<!doctype html>
+<!DOCTYPE html>
 {% if book %}
 <title>{{ book.title if book.title else 'New Book' + ' - MangaDB' }}</title>
 {% else %}
 <title>MangaDB</title>
 {% endif %}
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='fontawesome-all.min.css') }}">
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='bootstrap.min.css') }}">
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 {# src https://appelsiini.net/projects/lazyload or https://github.com/tuupola/jquery_lazyload/tree/2.x #}
 <script src="{{ url_for('static', filename='lazyload.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script type="text/javascript">
