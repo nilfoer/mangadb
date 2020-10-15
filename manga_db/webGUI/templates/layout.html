@@ -28,51 +28,171 @@
         }
     });
 </script>
-<nav class="navbar navbar-expand mdb-nav dark-color">
-    <a class="mdb-navbar-brand" href="/">MangaDB</a>
+<nav class="navbar" role="navigation" aria-label="main navigation">
+    <div class="navbar-brand">
+        <a class="navbar-item is-size-5-mobile has-text-weight-bold mdb-navbar-brand" href="/">MangaDB</a>
 
-    <form id="searchForm" action="{{ url_for('main.search_books') }}" method=get class="search-form">
-        <i class="fa fa-search" id="search-icon"></i>
-        <input type="text" id="searchBar" class="searchbar" name ="q" placeholder="Search" value="{{ search_field }}"/>
-        <input type="hidden" value="{{ order_col if order_col else 'id' }}" name="sort_col" />
-        <input type="hidden" value="{{ asc_desc if asc_desc else 'DESC' }}" name="order" />
-    </form>
-    <ul class="navbar-nav mr-auto" id="search-options">
-        <li class="nav-item" style="position:relative"> {# relative so dropdown is at correct loc #}
-        <a class="nav-link" href="#" role="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fas fa-sort"></i></a>
-        
-        <div class="dropdown-menu" id="sortColOptions" aria-labelledby="sortDropdown">
-            <a class="dropdown-item {{ 'active' if order_col == 'id' else '' }}" data-value="id" href="#">Id</a>
-            <a class="dropdown-item {{ 'active' if order_col == 'title_eng' else '' }}" data-value="title_eng" href="#">English Title</a>
-            <a class="dropdown-item {{ 'active' if order_col == 'title_foreign' else '' }}" data-value="title_foreign" href="#">Foreign Title</a>
-            <a class="dropdown-item {{ 'active' if order_col == 'pages' else '' }}" data-value="pages" href="#">Pages</a>
-            <a class="dropdown-item {{ 'active' if order_col == 'my_rating' else '' }}" data-value="my_rating" href="#">My Rating</a>
-            <a class="dropdown-item {{ 'active' if order_col == 'last_change' else '' }}" data-value="last_change" href="#">Last Change</a>
-      </div>
-      </li>
-      <li class="nav-item">
-          <a class="nav-link" href="#" id="orderLnk" data-value="{{ asc_desc if asc_desc else 'DESC' }}"><i class="fas fa-sort-amount-{{ 'down' if asc_desc == 'DESC' else 'up' }}"></i></a>
-      </li>
-      <li class="nav-item">
-          <a class="nav-link" href="#" id="refreshSearch"><i class="fas fa-sync-alt"></i></a>
-      </li>
-    </ul>
-    <div class="mdb-nav-right">
-        <a id="add-book-btn" href="{{ url_for('main.show_add_book') }}"><i class="fas fa-plus"></i></span>
-        {% if "authenticated" in session %}
-        <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i></a>
-        {% else %}
-        <a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i></a>
-        {% endif %}
+        {# navbar-burger has to be last item #}
+        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </a>
     </div>
+
+    <div class="navbar-menu">  {# only two direct children navbar-start and navbar-end #}
+        <div class="navbar-start">
+            <div class="navbar-item" id="searchbar-item">
+                <form id="searchForm" action="{{ url_for('main.search_books') }}" method=get class="" style="width: 100%;">
+                    <div class="control has-icons-left">
+                        <input type="text" id="searchBar" class="input is-rounded has-text-light searchbar" name ="q" placeholder="Search" value="{{ search_field }}"/>
+                        <span class="icon is-left">
+                            <i class="fa fa-search" id="search-icon"></i>
+                        </span>
+                    </div>
+                    <input type="hidden" value="{{ order_col if order_col else 'id' }}" name="sort_col" />
+                    <input type="hidden" value="{{ asc_desc if asc_desc else 'DESC' }}" name="order" />
+                </form>
+            </div>
+
+            {# navbar-dropdown that contains all search options #}
+            {# separate dropdown for sorting inside that #}
+            <div class="navbar-item has-dropdown is-hoverable">
+                <a class="navbar-link is-arrowless" id="search-opt-cog-icon">
+                    <span class="icon">
+                        <i class="fas fa-cog"></i>
+                    </span>
+                    {# always hidden on desktop #}
+                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
+                        Search options:
+                    </span>
+                </a>
+
+                <div class="navbar-dropdown">
+                    <div class="navbar-item dropdown">
+                        <div class="dropdown-trigger">
+                            <button class="button is-text" aria-haspopup="true" aria-controls="sortColOptions">
+                                <span class="icon">  {# recommended to wrap in span with fontawesome in bulma buttons #}
+                                    <i class="fas fa-sort"></i>
+                                </span>
+                                <span class="menu-description">
+                                    Sorting column
+                                </span>
+                            </button>
+                        </div>
+
+                        <div class="dropdown-menu" id="sortColOptions" role="menu">
+                            <div class="dropdown-content">
+                                <a class="dropdown-item {{ 'is-active' if order_col == 'id' else '' }}" data-value="id" href="#">Id</a>
+                                <a class="dropdown-item {{ 'is-active' if order_col == 'title_eng' else '' }}" data-value="title_eng" href="#">English Title</a>
+                                <a class="dropdown-item {{ 'is-active' if order_col == 'title_foreign' else '' }}" data-value="title_foreign" href="#">Foreign Title</a>
+                                <a class="dropdown-item {{ 'is-active' if order_col == 'pages' else '' }}" data-value="pages" href="#">Pages</a>
+                                <a class="dropdown-item {{ 'is-active' if order_col == 'my_rating' else '' }}" data-value="my_rating" href="#">My Rating</a>
+                                <a class="dropdown-item {{ 'is-active' if order_col == 'last_change' else '' }}" data-value="last_change" href="#">Last Change</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="navbar-item">
+                        <a class="button is-text" href="#" id="orderLnk" data-value="{{ asc_desc if asc_desc else 'DESC' }}">
+                            <span class="icon">
+                                <i class="fas fa-sort-amount-{{ 'down' if asc_desc == 'DESC' else 'up' }}"></i>
+                            </span>
+                            <span class="menu-description">
+                                Sort {{ 'Descending' if asc_desc == 'DESC' else 'Ascending' }}
+                            </span>
+                        </a>
+                    </div>
+                    <div class="navbar-item">
+                        <a class="button is-text" href="#" id="refreshSearch">
+                            <span class="icon">
+                                <i class="fas fa-sync-alt"></i>
+                            </span>
+                            <span class="menu-description">
+                                Refresh search
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div> {# navbar-start #}
+
+
+        <div class="navbar-end">
+            <div class="navbar-item">
+                <a class="button is-dark" id="add-book-btn" href="{{ url_for('main.show_add_book') }}">
+                    {# mx-0 needed since we otherwise get a margin because we are not the last #}
+                    {# child, menu-description is even though it's hidden but it still adds margins #}
+                    {# decided to go for js instead #}
+                    <span class="icon mx-0">
+                        <i class="fas fa-plus"></i>
+                    </span>
+                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop ml-3">
+                        Add new book
+                    </span>
+                </a>
+            </div>
+            <div class="navbar-item">
+                {% if "authenticated" in session %}
+                <a class="button is-dark" href="{{ url_for('auth.logout') }}">
+                    <span class="icon">
+                    <i class="fas fa-sign-out-alt"></i>
+                    </span>
+                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
+                        Sign Out
+                    </span>
+                </a>
+                {% else %}
+                <a class="button is-dark" href="{{ url_for('auth.login') }}">
+                    <span class="icon">
+                    <i class="fas fa-sign-in-alt"></i>
+                    </span>
+                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
+                        Sign In
+                    </span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+    </div> {# navbar-menu #}
+
     <script>
     $(document).ready(function() {
+        // Check for click events on the navbar burger icon
+        $(".navbar-burger").click(function() {
+            // Toggle the "is-active" class on both the "navbar-burger" and the "navbar-menu"
+            $(".navbar-burger").toggleClass("is-active");
+            $(".navbar-menu").toggleClass("is-active");
+
+            // toggle hidden description of items
+            // .menu-description .vis-toggle -> tag with .vis-toggle somwhere below .menu..
+            // .menu-description.vis-toggle -> tag with both classes
+            $(".navbar-menu .menu-description.vis-toggle").toggleClass("is-hidden");
+
+        });
+
+        // remove is-active when burger-menu is hidden with css media breakpoints
+        let mediaQuery = window.matchMedia("(min-width: 1024px)");  // desktop
+        mediaQuery.addListener((mq) => {
+            if (mq.matches) {
+                $(".navbar-burger").removeClass("is-active");
+                $(".navbar-menu").removeClass("is-active");
+
+                $(".navbar-menu .menu-description.vis-toggle").addClass("is-hidden");
+            }
+        }); // Attach listener function on state changes
+
+        $(".navbar-dropdown .dropdown").click(function(e) {
+            $(e.currentTarget).toggleClass("is-active");
+        });
+
         function setSortCol(e) {
             let new_sort_col = $(e.currentTarget).data("value");
             $("input[name=sort_col]").val(new_sort_col);
 
-            $("#sortColOptions .dropdown-item.active").removeClass("active");
-            $(e.currentTarget).addClass("active");
+            $("#sortColOptions .dropdown-item.is-active").removeClass("is-active");
+            $(e.currentTarget).addClass("is-active");
             
             e.preventDefault();
             return
@@ -87,10 +207,12 @@
             let new_order = "";
             if (current_order === "DESC") {
                 new_order = "ASC";
-                order_div.html('<i class="fas fa-sort-amount-up"></i>');
+                order_div.find("span.icon").html('<i class="fas fa-sort-amount-up"></i>');
+                order_div.find("span.menu-description").html('Sort: Ascending');
             } else {
                 new_order = "DESC";
-                order_div.html('<i class="fas fa-sort-amount-down"></i>');
+                order_div.find("span.icon").html('<i class="fas fa-sort-amount-down"></i>');
+                order_div.find("span.menu-description").html('Sort: Descending');
             }
             $("input[name=order]").val(new_order);
             // data-value update isnt shown in chrome debugger but it works correctly
@@ -114,7 +236,7 @@
     });
     </script>
 </nav>
-<div class=page>
+<div class="page container my-5">
 	{% with messages = get_flashed_messages(with_categories=true) %}
 		{% if messages %}
 		    <div class="flash dark-color">
