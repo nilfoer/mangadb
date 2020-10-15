@@ -10,6 +10,11 @@
        url('..static/webfonts/open-sans-v15-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 }
 
+// 1. Import bulma initial variables
+@import "../bulma-0.9.1/sass/utilities/initial-variables";  // $primary etc.
+@import "../bulma-0.9.1/sass/utilities/functions";  // for findLightColor findDarkColor findColorInvert etc.
+
+// 2. Set your own initial variables
 $grey-darker-mdb: #191919;
 $grey-dark-mdb: hsl(0, 0%, 14%);// same as $black-ter//#2d2d2d;
 // $purple: #a233a5;
@@ -19,32 +24,49 @@ $blue: #1498ff;
 // $red: #e42323;
 // $green: #31c131;
 
+// 3. Set the derived variables
 // Update Bulma's global variables
 $family-sans-serif: "Open Sans", sans-serif;
 //$grey-dark: $brown;
 //$grey-light: $beige-light;
 $primary: $blue;
-$link: #fff;
-$text: #fff;
 //$widescreen-enabled: true;
 //$fullhd-enabled: true;
 $scheme-main: $grey-dark-mdb;
 $scheme-invert: #fff;
-$scheme-main-bis: $grey-dark-mdb;
+$scheme-main-bis: lighten($scheme-main, 15%);
 $scheme-invert-bis: hsl(0, 0%, 96%);
-$scheme-main-ter: hsl(0, 0%, 21%);
+$scheme-main-ter: lighten($scheme-main-bis, 15%);
 $scheme-invert-ter: hsl(0, 0%, 86%);
+
+$text: #fff;
+$link: #fff;
+$link-invert: $link;
+$link-hover: $link;//lighten($primary, 15%);
+//$link-hover-border: $primary;
 
 // Update some of Bulma's component variables
 $body-background-color: $grey-darker-mdb;
-//$background: $grey-dark-mdb; // e.g. for hover
+$background: $scheme-main-ter; // e.g. for hover
 $control-border-width: 2px;
 // $input-border-color: transparent;
 // $input-shadow: none;
+$input-placeholder-color: $scheme-invert-ter;
 
 $navbar-height: 2.5rem;
 $navbar-padding-vertical: 0.75rem;
 $navbar-padding-horizontal: 1.5rem;
+$navbar-item-hover-color: $text;
+$navbar-item-hover-background-color: $scheme-main-bis;
+$navbar-dropdown-item-hover-color: $text;
+$navbar-dropdown-item-hover-background-color: $scheme-main-bis;
+$navbar-dropdown-item-active-color: $primary;
+$navbar-dropdown-item-active-background-color: $scheme-main;
+
+$dropdown-item-hover-color: $text;
+$dropdown-item-hover-background-color: $scheme-main-ter;
+$dropdown-item-active-color: $primary;
+$dropdown-item-active-background-color: $scheme-main;
 
 body {
     //font-family: 'Open Sans',sans-serif!important;
@@ -55,6 +77,24 @@ body {
     text-align: left;
 }
 
+// 4. Setup your Custom Colors
+// $linkedin: #0077b5;
+// $linkedin-invert: findColorInvert($linkedin);
+// $twitter: #55acee;
+// $twitter-invert: findColorInvert($twitter);
+// $github: #333;
+// $github-invert: findColorInvert($github);
+
+// 5. Add new color variables to the color map.
+@import "../bulma-0.9.1/sass/utilities/derived-variables";
+// $addColors: (
+//   "twitter":($twitter, $twitter-invert),
+//   "linkedin": ($linkedin, $linkedin-invert),
+//   "github": ($github, $github-invert)
+// );
+// $colors: map-merge($colors, $addColors);
+
+// 6. Import the rest of Bulma
 // To override any of these variables ($primary etc.), just set them before importing Bulma.
 // imports everything: @import "../bulma-0.9.1/bulma.sass";
 @import "../bulma-0.9.1/bulma.sass";
@@ -137,15 +177,47 @@ body {
 }
 // for search options icon being closer to search bar when not in burger menu
 #search-opt-cog-icon {
-    padding-left: 0.25rem;
+    //padding-left: 0.25rem;
 }
 .navbar-menu.is-active #search-opt-cog-icon {
-    padding-left: 0.75rem;
+    //padding-left: 0.75rem;
 }
 
 // big font increases navbar size and burger symbol won't be centered vertically anymore
 .navbar-burger {
     height: auto;
+}
+.is-nav-button {
+    background-color: transparent;
+    border: none !important;
+    color: $text;
+    cursor: pointer;
+    justify-content: center;
+    padding-bottom: calc(0.5em - 2px);
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-top: calc(0.5em - 2px);
+    text-align: center;
+    white-space: nowrap;
+    //border-color: transparent;
+    text-decoration: none;
+}
+.button.is-nav-button:focus:not(:active), .button.is-nav-button.is-focused:not(:active) {
+    box-shadow: none;//0 0 0 0.125em rgba(255, 255, 255, 0.25);
+    background-color: $scheme-main-ter;  // recently clicked nav-button
+}
+.button.is-nav-button:focus, .button.is-nav-button.is-focused {
+    border-color: transparent;
+    color: $text;
+}
+.button.is-nav-button:hover, .button.is-nav-button.is-hovered {
+    border: none;
+    color: $text;
+    background-color: $scheme-main-bis;
+}
+.button.is-nav-button:active, .button.is-nav-button.is-active {
+    border-color: $scheme-invert-bis;
+    color: $text;
 }
 
 // .img-responsive {
@@ -176,26 +248,26 @@ body {
 //         width: 75%;
 //     }
 // }
-// .page-nav {
-//     position: fixed;
-//     top: 0%;
-//     height: 100%;
-//     display: flex;
-//     align-items: center;
-//     padding: 0 0.3em;
-//     font-size: 4em;
-//     font-weight: bold;
-// }
-// .page-nav:hover {
-//     color: #f34c4c;
-//     background-color: #7575750f;
-// }
-// #page-next {
-//     right: 0;
-// }
-// #page-prev {
-//     left: 0;
-// }
+.page-nav {
+    position: fixed;
+    top: 0%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 0.3em;
+    font-size: 4em;
+    font-weight: bold;
+}
+.page-nav:hover {
+    color: #f34c4c;
+    background-color: #7575750f;
+}
+#page-next {
+    right: 0;
+}
+#page-prev {
+    left: 0;
+}
 // .button-leftmost {
 //     margin-left: 0;
 // }

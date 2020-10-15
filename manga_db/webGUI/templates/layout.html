@@ -71,7 +71,7 @@
                 <div class="navbar-dropdown">
                     <div class="navbar-item dropdown">
                         <div class="dropdown-trigger">
-                            <button class="button is-text" aria-haspopup="true" aria-controls="sortColOptions">
+                            <button class="button is-nav-button" aria-haspopup="true" aria-controls="sortColOptions">
                                 <span class="icon">  {# recommended to wrap in span with fontawesome in bulma buttons #}
                                     <i class="fas fa-sort"></i>
                                 </span>
@@ -94,7 +94,7 @@
                     </div>
 
                     <div class="navbar-item">
-                        <a class="button is-text" href="#" id="orderLnk" data-value="{{ asc_desc if asc_desc else 'DESC' }}">
+                        <a class="button is-nav-button" href="#" id="orderLnk" data-value="{{ asc_desc if asc_desc else 'DESC' }}">
                             <span class="icon">
                                 <i class="fas fa-sort-amount-{{ 'down' if asc_desc == 'DESC' else 'up' }}"></i>
                             </span>
@@ -104,7 +104,7 @@
                         </a>
                     </div>
                     <div class="navbar-item">
-                        <a class="button is-text" href="#" id="refreshSearch">
+                        <a class="button is-nav-button" href="#" id="refreshSearch">
                             <span class="icon">
                                 <i class="fas fa-sync-alt"></i>
                             </span>
@@ -119,39 +119,53 @@
 
 
         <div class="navbar-end">
-            <div class="navbar-item">
-                <a class="button is-dark" id="add-book-btn" href="{{ url_for('main.show_add_book') }}">
-                    {# mx-0 needed since we otherwise get a margin because we are not the last #}
-                    {# child, menu-description is even though it's hidden but it still adds margins #}
-                    {# decided to go for js instead #}
-                    <span class="icon mx-0">
-                        <i class="fas fa-plus"></i>
-                    </span>
-                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop ml-3">
-                        Add new book
-                    </span>
-                </a>
-            </div>
-            <div class="navbar-item">
-                {% if "authenticated" in session %}
-                <a class="button is-dark" href="{{ url_for('auth.logout') }}">
+            <div class="navbar-item has-dropdown is-hoverable">
+                <a class="navbar-link is-arrowless">
                     <span class="icon">
-                    <i class="fas fa-sign-out-alt"></i>
+                        <i class="fas fa-toolbox"></i>
                     </span>
+                    {# always hidden on desktop #}
                     <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
-                        Sign Out
+                        Actions:
                     </span>
                 </a>
-                {% else %}
-                <a class="button is-dark" href="{{ url_for('auth.login') }}">
-                    <span class="icon">
-                    <i class="fas fa-sign-in-alt"></i>
-                    </span>
-                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
-                        Sign In
-                    </span>
-                </a>
-                {% endif %}
+
+                <div class="navbar-dropdown is-right">
+                    <div class="navbar-item">
+                        <a class="button is-nav-button" id="add-book-btn" href="{{ url_for('main.show_add_book') }}">
+                            {# mx-0 needed since we otherwise get a margin because we are not the last #}
+                            {# child, menu-description is even though it's hidden but it still adds margins #}
+                            {# decided to go for js instead #}
+                            <span class="icon">
+                                <i class="fas fa-plus"></i>
+                            </span>
+                            <span class="menu-description">
+                                Add new book
+                            </span>
+                        </a>
+                    </div>
+                    <div class="navbar-item">
+                        {% if "authenticated" in session %}
+                        <a class="button is-nav-button" href="{{ url_for('auth.logout') }}">
+                            <span class="icon">
+                            <i class="fas fa-sign-out-alt"></i>
+                            </span>
+                            <span class="menu-description">
+                                Sign Out
+                            </span>
+                        </a>
+                        {% else %}
+                        <a class="button is-nav-button" href="{{ url_for('auth.login') }}">
+                            <span class="icon">
+                            <i class="fas fa-sign-in-alt"></i>
+                            </span>
+                            <span class="menu-description">
+                                Sign In
+                            </span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -164,12 +178,6 @@
             // Toggle the "is-active" class on both the "navbar-burger" and the "navbar-menu"
             $(".navbar-burger").toggleClass("is-active");
             $(".navbar-menu").toggleClass("is-active");
-
-            // toggle hidden description of items
-            // .menu-description .vis-toggle -> tag with .vis-toggle somwhere below .menu..
-            // .menu-description.vis-toggle -> tag with both classes
-            $(".navbar-menu .menu-description.vis-toggle").toggleClass("is-hidden");
-
         });
 
         // remove is-active when burger-menu is hidden with css media breakpoints
@@ -178,8 +186,6 @@
             if (mq.matches) {
                 $(".navbar-burger").removeClass("is-active");
                 $(".navbar-menu").removeClass("is-active");
-
-                $(".navbar-menu .menu-description.vis-toggle").addClass("is-hidden");
             }
         }); // Attach listener function on state changes
 
