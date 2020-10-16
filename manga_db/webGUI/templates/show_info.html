@@ -82,380 +82,435 @@
 {% endif %}
 {% endblock %}
 {% block book_info %}
-<div class="row no-margin">
-<div class="book-cover-container col-md-4 col-sm-12">
-	<img alt="{{ book.title }}" class="book-cover
-	img-responsive" src={{ url_for('main.thumb_static',
-	filename=book.id) }}>
-</div>
-<div class="col-md-8 col-sm-12 no-padding book-info-wrap">
-<div class="row no-margin">
-	<div class="book-title">{{ book.title_eng or book.title_foreign }}</div>
-</div>
-<div class="book-info-container">
-<div class="book-row">
-<div class="book-field-title">English Title</div>
-<div class="book-field-data" id="EnglishTitle">
-	{{ book.title_eng }}
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">Foreign Title</div>
-<div class="book-field-data" id="ForeignTitle">
-	{{ book.title_foreign }}
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">Pages</div>
-<div class="book-field-data" id="Pages">
-	{{ book.pages }}
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">Reading Status</div>
-<div class="book-field-data" id="ReadingStatus">
-    {% if book.read_status is not none %}
-	{{ 'Finished' if book.read_status == 0 else book.read_status }}
-    {% else %}
-    Not Read
-    {% endif %}
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">Status</div>
-<div class="book-field-data" id="Status">
-	{{ book.status }}
-</div>
-</div>
-<div class="book-row" style="margin-bottom: 5px;">
-<div class="book-field-title">My Rating</div>
-<div class="book-field-data" id="MyRating">
-	{% for n in range(5) %}
-	{# check for my_rating being None and set all stars active as long as rating>n #}
-	{# my_rating is float so convert to float #}
-	{% if book.my_rating and (book.my_rating > n) %}
-	<a href={{ url_for('main.rate_book', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
-	{% else %}
-	<a href={{ url_for('main.rate_book', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
-	{% endif %}
-	{% endfor %}
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">Language</div>
-<div class="book-field-data" id="Language">
-	<a class="tag" href="{{ url_for('main.search_books', q='language:\"' + book.language + '\"') }}">
-	{{ book.language }}
-	</a>
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">Category</div>
-<div class="book-field-data" id="Category">
-{% for cat in book.category %}
-<a class="tag" href="#">
-	{{ cat }}
-</a>
-{% endfor %}
-</div>
-</div>
-{% if book.collection %}
-<div class="book-row">
-<div class="book-field-title">Collection</div>
-<div class="book-field-data" id="Collection">
-{% for collection in book.collection %}
-	<a class="tag" href="{{ url_for('main.search_books', q='collection:\"' + collection + '\"') }}">
-	{{ collection }}
-	</a>
-{% endfor %}
-</div>
-</div>
-{% endif %}
-{% if book.groups %}
-	<div class="book-row">
-	<div class="book-field-title">Group</div>
-	<div class="book-field-data" id="Group">
-		{% for group in book.groups %}
-			<a class="tag" href="{{ url_for('main.search_books', q='groups:\"' + group + '\"') }}">
-				{{ group }}
-			</a>
-		{% endfor %}
-	</div>
-	</div>
-{% endif %}
-{% if book.artist %}
-<div class="book-row">
-<div class="book-field-title">Artist</div>
-<div class="book-field-data" id="Artist">
-	{% for artist in book.artist %}
-		<a class="tag" href="{{ url_for('main.search_books', q='artist:\"' + artist + '\"') }}">
-			{{ artist }}
-		</a>
-	{% endfor %}
-</div>
-</div>
-{% endif %}
-{% if book.parody %}
-	<div class="book-row">
-	<div class="book-field-title">Parody</div>
-	<div class="book-field-data" id="Parody">
-	{% for parody in book.parody %}
-		<a class="tag" href="#">
-			{{ parody }}
-		</a>
-	{% endfor %}
-	</div>
-	</div>
-{% endif %}
-{% if book.character %}
-	<div class="book-row">
-	<div class="book-field-title">Character</div>
-	<div class="book-field-data" id="Character">
-		{% for char in book.character %}
-			<a class="tag" href="{{ url_for('main.search_books', q='character:\"' + char + '\"') }}">
-				{{ char }}
-			</a>
-		{% endfor %}
-	</div>
-	</div>
-{% endif %}
-<div class="book-row">
-<div class="book-field-title">Tag</div>
-<div class="book-field-data" id="Tag">
-	{% for tag in book.tag|sort() %}
-		{# use get with /search?tagstring= (done by url_for) to search for tag on click #}
-		<a class="tag" href="{{ url_for('main.search_books', q='tag:\"' + tag + '\"') }}">
-			{{ tag }}
-		</a>
-	{% endfor %}
-</div>
-</div>
-<div class="book-row">
-<div class="book-field-title">List</div>
-<div class="book-field-data" id="List">
-	{% for li in book.list %}
-	<div class="tag list-tag list-tag-border">
-                <a data-value="{{ li }}" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
-			{{ li }}
-  		</a>
-		<a class="mdb-list-remove" data-value="{{ li }}" href="#">
-				<i class="fas fa-times" style="vertical-align: middle;"></i>
-			</a>
-	</div>
-	{% endfor %}
-	<div id="list-dropdown-container">
-	<a class="tag mdb-drop-btn list-tag-border" onclick="show_dropdown()">
-		<i class="fas fa-plus mdb-drop-btn" id="mdb-list-add-btn"></i>
-	</a>
-	<div id="list-dropdown" class="mdb-dropdown-content">
-		{% for li in lists %}
-			{% if li not in book.list %}
-			<a class="mdb-list-add" data-value="{{ li }}">{{ li }}</a>
-			{% endif %}
-		{% endfor %}
-	</div>
-	</div>
-	<script>
-		// dropdown script
-		/* When the user clicks on the button, 
-		toggle between hiding and showing the dropdown content */
-		function show_dropdown() {
-		    document.getElementById("list-dropdown").classList.toggle("mdb-show");
-		}
+<div class="columns">
+    <div class="column is-two-fifths">
+        <figure class="image">
+            <img alt="{{ book.title }}" class="book-cover
+            img-responsive" src={{ url_for('main.thumb_static',
+            filename=book.id) }}>
+        </figure>
+    </div>
+    <div class="column is-three-fifths">
+        <div class="col-md-8 col-sm-12 no-padding book-info-wrap">
+            <div class="my-3">
+                <h1 class="title is-3">{{ book.title_eng or book.title_foreign }}</h1>
+                {% if book.title_foreign %}
+                <h2 style="color: #919191;" class="subtitle is-5">
+                    {{ book.title_foreign }}
+                </h2>
+                {% endif %}
+            </div>
+            <table class="book-info-table book-info-container">
+                <tbody>
+                    <tr>
+                        <th>English Title</th>
+                        <td id="EnglishTitle">
+                            {{ book.title_eng }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Foreign Title</th>
+                        <td id="ForeignTitle">
+                            {{ book.title_foreign }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Pages</th>
+                        <td id="Pages">
+                            {{ book.pages }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Reading Status</th>
+                        <td id="ReadingStatus">
+                            {% if book.read_status is not none %}
+                            {{ 'Finished' if book.read_status == 0 else book.read_status }}
+                            {% else %}
+                            Not Read
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <td id="Status">
+                            {{ book.status }}
+                        </td>
+                    </tr>
+                    <tr style="margin-bottom: 5px;">
+                        <th>My Rating</th>
+                        <td id="MyRating">
+                            {% for n in range(5) %}
+                            {# check for my_rating being None and set all stars active as long as rating>n #}
+                            {# my_rating is float so convert to float #}
+                            {% if book.my_rating and (book.my_rating > n) %}
+                            <a href={{ url_for('main.rate_book', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-active"></i></a>
+                            {% else %}
+                            <a href={{ url_for('main.rate_book', book_id=book.id, rating=n+1.0) }} title={{ n + 1 }}><i class="fa fa-star star-inactive"></i></a>
+                            {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Language</th>
+                        <td id="Language">
+                            <a class="tag is-rounded" href="{{ url_for('main.search_books', q='language:\"' + book.language + '\"') }}">
+                                {{ book.language }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Category</th>
+                        <td id="Category">
+                            {% for cat in book.category %}
+                            <a class="tag is-rounded" href="#">
+                                {{ cat }}
+                            </a>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% if book.collection %}
+                    <tr>
+                        <th>Collection</th>
+                        <td id="Collection">
+                            <div class="tags">
+                            {% for collection in book.collection %}
+                            <a class="tag is-rounded" href="{{ url_for('main.search_books', q='collection:\"' + collection + '\"') }}">
+                                {{ collection }}
+                            </a>
+                            {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if book.groups %}
+                    <tr>
+                        <th>Group</th>
+                        <td id="Group">
+                            <div class="tags">
+                            {% for group in book.groups %}
+                            <a class="tag is-rounded" href="{{ url_for('main.search_books', q='groups:\"' + group + '\"') }}">
+                                {{ group }}
+                            </a>
+                            {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if book.artist %}
+                    <tr>
+                        <th>Artist</th>
+                        <td id="Artist">
+                            <div class="tags">
+                            {% for artist in book.artist %}
+                            <a class="tag is-rounded" href="{{ url_for('main.search_books', q='artist:\"' + artist + '\"') }}">
+                                {{ artist }}
+                            </a>
+                            {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if book.parody %}
+                    <tr>
+                        <th>Parody</th>
+                        <td id="Parody">
+                            <div class="tags">
+                            {% for parody in book.parody %}
+                            <a class="tag is-rounded" href="#">
+                                {{ parody }}
+                            </a>
+                            {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if book.character %}
+                    <tr>
+                        <th>Character</th>
+                        <td id="Character">
+                            <div class="tags">
+                            {% for char in book.character %}
+                            <a class="tag is-rounded" href="{{ url_for('main.search_books', q='character:\"' + char + '\"') }}">
+                                {{ char }}
+                            </a>
+                            {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Tag</th>
+                        <td id="Tag">
+                            <div class="tags">
+                                {% for tag in book.tag|sort() %}
+                                {# use get with /search?tagstring= (done by url_for) to search for tag on click #}
+                                <a class="tag is-rounded" href="{{ url_for('main.search_books', q='tag:\"' + tag + '\"') }}">
+                                    {{ tag }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>List</th>
+                        <td id="List">
+                            <div class="tags">
+                                {% for li in book.list %}
+                                <div class="tag is-rounded list-tag list-tag-border">
+                                    <a data-value="{{ li }}" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
+                                        {{ li }}
+                                    </a>
+                                    <button class="delete is-small is-dark mdb-list-remove" data-value="{{ li }}" href="#"/>
+                                </div>
+                                {% endfor %}
+                                <div class="dropdown is-hoverable">
+                                    <div class="dropdown-trigger">
+                                        <a class="tag is-rounded is-small green-color" aria-haspopup="true" aria-controls="list-dropdown-container">
+                                            <span class="icon is-small">
+                                                <i class="fas fa-plus" aria-hidden="true"></i>
+                                            </span>
+                                        </a>
+                                    </div>
+                                    <div class="dropdown-menu" id="list-dropdown-container" role="menu">
+                                        <div id="list-dropdown" class="dropdown-content">
+                                            {% for li in lists %}
+                                            {% if li not in book.list %}
+                                            <a class="dropdown-item mdb-list-add" data-value="{{ li }}">{{ li }}</a>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-		// Close the dropdown menu if the user clicks outside of it
-		window.onclick = function(event) {
-		  if (!event.target.matches('.mdb-drop-btn')) {
+<!--                                 <a class="tag is-rounded mdb-drop-btn list-tag-border" onclick="show_dropdown()"> -->
+<!--                                     <i class="fas fa-plus mdb-drop-btn" id="mdb-list-add-btn"></i> -->
+<!--                                 </a> -->
+                            <script>
+                                // dropdown script
+                                /* When the user clicks on the button, 
+                                toggle between hiding and showing the dropdown content */
+    function show_dropdown() {
+        document.getElementById("list-dropdown").classList.toggle("mdb-show");
+    }
 
-		    var dropdowns = document.getElementsByClassName("mdb-dropdown-content");
-		    var i;
-		    for (i = 0; i < dropdowns.length; i++) {
-		      var openDropdown = dropdowns[i];
-		      if (openDropdown.classList.contains('mdb-show')) {
-			openDropdown.classList.remove('mdb-show');
-		      }
-		    }
-		  }
-		}
-	</script>
-	<script>
-		// list add/remove script
-		$(document).ready(function() {
+    // Close the dropdown menu if the user clicks outside of it
+    window.onclick = function(event) {
+        if (!event.target.matches('.mdb-drop-btn')) {
 
-            // otherwise jquery will add brackets to key of ajax data of type array
-            // $.ajaxSetup({traditional: true});
-			// add click event for all elements with .mdb-list-add class
-			$('.mdb-list-add').click(function(event) {
-                let before = []
-                // this refers to the DOM element. To use jQuery functionality on this element you
-                // need to wrap it in a jQuery object, ie: $(this)
-                $('div.list-tag > a:first-child').each(function(index, value) {
-                    // normal js $(this).data("value") would be jquery
-                    before.push(this.dataset.value);
-                });
-				$.ajax({
-					data : {
-						// get target of click event and retrieve data
-						// attribute -value
-						'name' : $(event.target).data('value'),
-                        'before': before
-					},
-					type : 'POST',
-					url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='add') }}",
-					// let jquery know that flask is returning json data
-					// (data in func below)
-					dataType: "json"
-				})
-				.done(function(data) { // when prev function is done
+            var dropdowns = document.getElementsByClassName("mdb-dropdown-content");
+            var i;
+            for (i = 0; i < dropdowns.length; i++) {
+                var openDropdown = dropdowns[i];
+                if (openDropdown.classList.contains('mdb-show')) {
+                    openDropdown.classList.remove('mdb-show');
+                }
+            }
+        }
+    }
+                            </script>
+                            <script>
+                                // list add/remove script
+                                $(document).ready(function() {
 
-					if (data.error) {
-						console.log(data.error);
-					}
-					else {
-						var html_string =[
-						'<div class="tag list-tag list-tag-border"><a data-value="',
-						data.added, '" href="',
-						data.search_tag_url,
-						'">', data.added,
-						'</a><a class="mdb-list-remove" data-value="',
-						data.added,
-						'" href="#"><i class="fas fa-times" style="vertical-align: middle;"></i></a></div>'].join("");
-						// add HTMLString to element with id List
-                        // use appendTo so we get reference back and add func to click event
-                        // since Event handlers are bound only to the currently selected elements;
-                        // they must exist on the page at the time your code makes the call
-                        let new_tag = $(html_string).appendTo('#List');
-                        // $(selector) returns collection of matched elems -> select first (and
-                        // only)
-                        // new_tag[0].children[1] is normal js use $() to be able to use jquery
-                        // .click binding
-                        $(new_tag[0].children[1]).click(handle_list_remove);
+                                    // otherwise jquery will add brackets to key of ajax data of type array
+                                    // $.ajaxSetup({traditional: true});
+                                    // add click event for all elements with .mdb-list-add class
+                                    $('.mdb-list-add').click(function(event) {
+                                        let before = []
+                                        // this refers to the DOM element. To use jQuery functionality on this element you
+                                        // need to wrap it in a jQuery object, ie: $(this)
+                                        $('div.list-tag > a:first-child').each(function(index, value) {
+                                            // normal js $(this).data("value") would be jquery
+                                            before.push(this.dataset.value);
+                                        });
+                                        $.ajax({
+                                            data : {
+                                                // get target of click event and retrieve data
+                                                // attribute -value
+                                                'name' : $(event.target).data('value'),
+                                                'before': before
+                                            },
+                                            type : 'POST',
+                                            url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='add') }}",
+                                            // let jquery know that flask is returning json data
+                                            // (data in func below)
+                                            dataType: "json"
+                                        })
+                                            .done(function(data) { // when prev function is done
 
-						// select all mdb-list-add options
-						$('#list-dropdown-container .mdb-dropdown-content .mdb-list-add')
-						// get the one that was added and remove it
-						.filter(function () {
-							return $(this).data("value") == data.added;
-						}).remove();
+                                                if (data.error) {
+                                                    console.log(data.error);
+                                                }
+                                                else {
+                                                    var html_string =[
+                                                        '<div class="tag is-rounded list-tag list-tag-border"><a data-value="',
+                                                        data.added, '" href="',
+                                                        data.search_tag_url,
+                                                        '">', data.added,
+                                                        '</a><a class="mdb-list-remove" data-value="',
+                                                        data.added,
+                                                        '" href="#"><i class="fas fa-times" style="vertical-align: middle;"></i></a></div>'].join("");
+                                                    // add HTMLString to element with id List
+                                                    // use appendTo so we get reference back and add func to click event
+                                                    // since Event handlers are bound only to the currently selected elements;
+                                                    // they must exist on the page at the time your code makes the call
+                                                    let new_tag = $(html_string).appendTo('#List');
+                                                    // $(selector) returns collection of matched elems -> select first (and
+                                                        // only)
+                                                    // new_tag[0].children[1] is normal js use $() to be able to use jquery
+                                                    // .click binding
+                                                    $(new_tag[0].children[1]).click(handle_list_remove);
 
-						// get dropdown container and append it so the add
-						// button is at the end again
-						$('#List').append($('#list-dropdown-container'));
-					}
+                                                    // select all mdb-list-add options
+                                                    $('#list-dropdown-container .mdb-dropdown-content .mdb-list-add')
+                                                    // get the one that was added and remove it
+                                                        .filter(function () {
+                                                            return $(this).data("value") == data.added;
+                                                        }).remove();
 
-				});
+                                                    // get dropdown container and append it so the add
+                                                    // button is at the end again
+                                                    $('#List').append($('#list-dropdown-container'));
+                                                }
 
-				event.preventDefault();
+                                            });
 
-			});
+                                        event.preventDefault();
 
-			// add click event for all elements with .mdb-list-add class
-			$('.mdb-list-remove').click(handle_list_remove);
+                                    });
 
-            function handle_list_remove(event) {
-                let before = []
-                // this refers to the DOM element. To use jQuery functionality on this element you
-                // need to wrap it in a jQuery object, ie: $(this)
-                $('div.list-tag > a:first-child').each(function(index, value) {
-                    // normal js $(this).data("value") would be jquery
-                    before.push(this.dataset.value);
-                });
-				// e.target is what triggers the event dispatcher to trigger and
-				// e.currentTarget is what you assigned your listener to
-				// here:
-				// target: w.fn.init [i.fas.fa-times]
-				// currentTarget: w.fn.init [a.mdb-list-remove]
-				$.ajax({
-					data : {
-						// get target of click event and retrieve data
-						// attribute -value
-						name : $(event.currentTarget).data('value'),
-                        'before': before
-					},
-					type : 'POST',
-					url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='remove') }}",
-					// let jquery know that flask is returning json data
-					// (data in func below)
-					dataType: "json"
-				})
-				.done(function(data) { // when prev function is done
+                                    // add click event for all elements with .mdb-list-add class
+                                    $('.mdb-list-remove').click(handle_list_remove);
 
-					if (data.error) {
-						console.log(data.error);
-					}
-					else {
-						// go through all a tags in vv
-						$('#List > div.tag.list-tag.list-tag-border > a').each(function() {
+                                    function handle_list_remove(event) {
+                                        let before = []
+                                        // this refers to the DOM element. To use jQuery functionality on this element you
+                                        // need to wrap it in a jQuery object, ie: $(this)
+                                        $('div.list-tag > a:first-child').each(function(index, value) {
+                                            // normal js $(this).data("value") would be jquery
+                                            before.push(this.dataset.value);
+                                        });
+                                        // e.target is what triggers the event dispatcher to trigger and
+                                        // e.currentTarget is what you assigned your listener to
+                                        // here:
+                                        // target: w.fn.init [i.fas.fa-times]
+                                        // currentTarget: w.fn.init [a.mdb-list-remove]
+                                        $.ajax({
+                                            data : {
+                                                // get target of click event and retrieve data
+                                                // attribute -value
+                                                name : $(event.currentTarget).data('value'),
+                                                'before': before
+                                            },
+                                            type : 'POST',
+                                            url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='remove') }}",
+                                            // let jquery know that flask is returning json data
+                                            // (data in func below)
+                                            dataType: "json"
+                                        })
+                                            .done(function(data) { // when prev function is done
 
-							// if data-value attrib matches removed
-							// remove its parent
-							if($(this).data('value') == data.removed) {
-								$(this.parentNode).remove();
-							}
-						
-						});
+                                                if (data.error) {
+                                                    console.log(data.error);
+                                                }
+                                                else {
+                                                    // go through all a tags in vv
+                                                    $('#List > div.tag.list-tag.list-tag-border > a').each(function() {
 
-						var add_option = '<a class="mdb-list-add" data-value="' + data.removed + '">' + data.removed + '</a>';
-						// add removed list back to dropdown
-						$('#list-dropdown-container .mdb-dropdown-content')
-						.append(add_option);
-					}
+                                                        // if data-value attrib matches removed
+                                                        // remove its parent
+                                                        if($(this).data('value') == data.removed) {
+                                                            $(this.parentNode).remove();
+                                                        }
 
-				});
+                                                    });
 
-				event.preventDefault();
+                                                    var add_option = '<a class="mdb-list-add" data-value="' + data.removed + '">' + data.removed + '</a>';
+                                                    // add removed list back to dropdown
+                                                    $('#list-dropdown-container .mdb-dropdown-content')
+                                                        .append(add_option);
+                                                }
 
-			}
+                                            });
 
-		});
-	</script>
-</div>
-</div>
-{% if book.note %}
-<div class="book-row">
-<div class="book-field-title">Note</div>
-<div class="book-field-data" id="Note">
-	{% for line in book.note.splitlines() %}
-		{{ line }}<br />
-	{% endfor %}
-</div>
-</div>
-{% endif %}
-<div class="book-row" style="margin-bottom: .5rem;">
-<div class="book-field-title">Last Change</div>
-<div class="book-field-data" id="LastChange">
-	{{ book.last_change }}
-</div>
-</div>
-</div> {# book info container #}
-<div class="book-buttons">
-{% if book.favorite %}
-<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFav" class="button button-stack pink-color button-leftmost"><i class="fa fa-heart"></i> Favorite</a>
-{% else %}
-<a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFav" class="button button-stack button-leftmost"><i class="fa fa-plus"></i> Add to Favorites</a>
-{% endif %}
+                                        event.preventDefault();
 
-<a href="{{ url_for('main.get_info_txt', book_id=book.id) }}" class="button button-stack blue-color">
-<i class="fas fa-file-alt"></i>
-info.txt
-</a>
+                                    }
 
-<a href={{ url_for('main.show_edit_book', book_id=book.id) }} class="button button-stack red-color"><i class="fas fa-edit"></i> Edit</a>
+                                });
+                            </script>
+                        </td>
+                    </tr>
+                    {% if book.note %}
+                    <tr>
+                        <th>Note</th>
+                        <td id="Note">
+                            {% for line in book.note.splitlines() %}
+                            {{ line }}<br />
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr style="margin-bottom: .5rem;">
+                        <th>Last Change</th>
+                        <td id="LastChange">
+                            {{ book.last_change }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table> {# book info container #}
+            <div class="buttons">
+                {% if book.favorite %}
+                <a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=0) }} id="btnFav" class="button pink-color">
+                    <span class="icon">
+                        <i class="fa fa-heart"></i>
+                    </span>
+                    <span>Favorite</span>
+                </a>
+                {% else %}
+                <a href={{ url_for('main.set_favorite', book_id=book.id, fav_intbool=1) }} id="btnFav" class="button">
+                    <span class="icon">
+                        <i class="fa fa-plus"></i>
+                    </span>
+                    <span>Add to Favorites</span>
+                </a>
+                {% endif %}
 
-<form class="button-stack" action="{{ url_for('main.remove_book', book_id=book.id) }}" method=post>
-    <button class="button red-color" type="submit" onclick="return confirm('Are you sure you want to permantly remove this Book?');">
-        <i class="fas fa-trash-alt"></i>
-        Remove Book
-    </button>
-    {{ csrf_token_field() }}
-</form>
+                <a href="{{ url_for('main.get_info_txt', book_id=book.id) }}" class="button blue-color">
+                    <span class="icon">
+                        <i class="fas fa-file-alt"></i>
+                    </span>
+                    <span>info.txt</span>
+                </a>
 
-<a href="/" id="backToIndex" class="button button-stack"><i class="fa fa-home"></i> Index</a>
-</div>
-</div> {# book-info-wrap #}
-</div>
+                <a href={{ url_for('main.show_edit_book', book_id=book.id) }} class="button red-color">
+                    <span class="icon">
+                        <i class="fas fa-edit"></i>
+                    </span>
+                    <span>Edit</span>
+                </a>
 
-</div> {# row end #}
+                <form class="button-stack" action="{{ url_for('main.remove_book', book_id=book.id) }}" method=post>
+                    <button class="button red-color" type="submit" onclick="return confirm('Are you sure you want to permantly remove this Book?');">
+                        <span class="icon">
+                            <i class="fas fa-trash-alt"></i>
+                        </span>
+                        <span>Remove Book</span>
+                    </button>
+                    {{ csrf_token_field() }}
+                </form>
+
+                <a href="/" id="backToIndex" class="button">
+                    <span class="icon">
+                        <i class="fa fa-home"></i>
+                    </span>
+                    <span>Index</span>
+                </a>
+            </div> {# buttons #}
+        </div> {# book-info-wrap #}
+    </div> {# column #}
+</div> {# columns #}
 <div style="margin: 2rem 0;"></div>
 {% if book.ext_infos %}
 <div class="row no-margin kw-headline">

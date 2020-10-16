@@ -9,70 +9,72 @@
     </form>
 </div>
 {% endif %}
-<div id="searchResult">
-{% if books %}
-    {% for book in books %}
-    <div class="book-grid-item
-                {% if book.read_status is not none %}
-                {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
-                {% endif %}">
-    <div class="book-grid-item-cover" title="Tags: {{ book.tag|sort()|join(', ') }}">
-    <div class="book-grid-item-inner">
-	    {% if book.favorite %}
-	    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
-	    {% endif %}
+<section class="section">
+    <div class="" id="searchResult">
+        {% if books %}
+        {% for book in books %}
+        <div class="book-grid-item
+        {% if book.read_status is not none %}
+        {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
+        {% endif %}">
+            <div class="book-grid-item-cover" title="Tags: {{ book.tag|sort()|join(', ') }}">
+                <div class="book-grid-item-inner">
+                    {% if book.favorite %}
+                    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
+                    {% endif %}
 
-	    {# To reduce the amount of request you can use data uri images as the placeholder. #}
-    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
-    url_for('main.thumb_static', filename=book.id) }} class="lazyload">
-    <div class="overlay">
-        <div class="overlay-data">
-            <div class="overlay-artist">
-                {% for artist in book.artist %}
-                    [{{ artist }}]
-                {% endfor %}
+                    {# To reduce the amount of request you can use data uri images as the placeholder. #}
+                    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
+                    url_for('main.thumb_static', filename=book.id) }} class="lazyload">
+                    <div class="overlay">
+                        <div class="overlay-data">
+                            <div class="overlay-artist">
+                                {% for artist in book.artist %}
+                                [{{ artist }}]
+                                {% endfor %}
+                            </div>
+                            <div class="overlay-title">
+                                {{ book.title_eng or book.title_foreign }}
+                            </div>
+                            <div class="overlay-pages">
+                                {{ book.pages }} pages
+                            </div>
+                            {% if book.my_rating %}
+                            <div class="overlay-rate blue-fcolor">
+                                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
+                                {% for _ in range( book.my_rating|round|int() ) %}
+                                {# &#9733; would also works but looks better with Fontawesome #}
+                                <span class="fa fa-star"></span>
+                                {% endfor %}
+                            </div>
+                            {% elif book.ext_infos and book.avg_ext_rating %}
+                            <div class="overlay-rate">
+                                {% for _ in range( book.avg_ext_rating|round|int() ) %}
+                                <span class="fa fa-star"></span>
+                                {% endfor %}
+                            </div>
+                            <span style="font-size: small;">(avg external rating)</span>
+                            {% endif %}
+                        </div>
+                        <a href={{ url_for('main.show_info', book_id=book.id) }}  class="overlay-button">
+                            SHOW
+                        </a>
+                    </div>
+
+                </div> {# book-grid-item-inner #}
+            </div> {# book-grid-item-cover #}
+            <div class="book-grid-item-title">
+                <a href={{ url_for('main.show_info', book_id=book.id) }}>{{ book.title_eng }}</a>
             </div>
-            <div class="overlay-title">
-                {{ book.title_eng or book.title_foreign }}
-            </div>
-            <div class="overlay-pages">
-                {{ book.pages }} pages
-            </div>
-            {% if book.my_rating %}
-                <div class="overlay-rate blue-fcolor">
-                    {# To cast to a string in an expression, you use x|string() instead of str(x) #}
-                    {% for _ in range( book.my_rating|round|int() ) %}
-                    {# &#9733; would also works but looks better with Fontawesome #}
-                    <span class="fa fa-star"></span>
-                    {% endfor %}
-                </div>
-            {% elif book.ext_infos and book.avg_ext_rating %}
-                <div class="overlay-rate">
-                    {% for _ in range( book.avg_ext_rating|round|int() ) %}
-                    <span class="fa fa-star"></span>
-                    {% endfor %}
-                </div>
-                <span style="font-size: small;">(avg external rating)</span>
-            {% endif %}
-        </div>
-	<a href={{ url_for('main.show_info', book_id=book.id) }}  class="overlay-button">
-                        SHOW
-        </a>
+        </div> {# book-grid-item #}
+
+        {% endfor %}
+
+        {% else %}
+        <em>Unbelievable.  No entries here so far</em>
+        {% endif %}
     </div>
-
-    </div> {# book-grid-item-inner #}
-    </div> {# book-grid-item-cover #}
-    <div class="book-grid-item-title">
-            <a href={{ url_for('main.show_info', book_id=book.id) }}>{{ book.title_eng }}</a>
-    </div>
-    </div> {# book-grid-item #}
-    
-  {% endfor %}
-
-{% else %}
-<em>Unbelievable.  No entries here so far</em>
-{% endif %}
-</div>
+</section>
 
 {% if last %}
 {% if search_field %}

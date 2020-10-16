@@ -1,13 +1,13 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<div class="container-fluid">
+<div class="container">
 {% block additional_messages %}{% endblock %}
 {% if book %}
-<div class="show-book-container">
+<section class="section">
 {% block book_info %}
 {% endblock %}
-</div> {# book-page-container #}
+</section>
 {% else %}
 <div class="book-title">{{ error_msg }}</div>
 {% if import_url %}

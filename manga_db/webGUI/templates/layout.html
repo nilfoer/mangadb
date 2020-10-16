@@ -9,6 +9,7 @@
 {# src https://appelsiini.net/projects/lazyload or https://github.com/tuupola/jquery_lazyload/tree/2.x #}
 <script src="{{ url_for('static', filename='lazyload.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
+<script src="{{ url_for('static', filename='mdb.js') }}"></script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script type="text/javascript">
@@ -63,7 +64,7 @@
                         <i class="fas fa-cog"></i>
                     </span>
                     {# always hidden on desktop #}
-                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
+                    <span class="menu-description vis-toggle is-hidden">
                         Search options:
                     </span>
                 </a>
@@ -124,8 +125,7 @@
                     <span class="icon">
                         <i class="fas fa-toolbox"></i>
                     </span>
-                    {# always hidden on desktop #}
-                    <span class="menu-description vis-toggle is-hidden is-hidden-desktop">
+                    <span class="menu-description vis-toggle is-hidden">
                         Actions:
                     </span>
                 </a>
@@ -168,81 +168,9 @@
                 </div>
             </div>
         </div>
-
     </div> {# navbar-menu #}
-
-    <script>
-    $(document).ready(function() {
-        // Check for click events on the navbar burger icon
-        $(".navbar-burger").click(function() {
-            // Toggle the "is-active" class on both the "navbar-burger" and the "navbar-menu"
-            $(".navbar-burger").toggleClass("is-active");
-            $(".navbar-menu").toggleClass("is-active");
-        });
-
-        // remove is-active when burger-menu is hidden with css media breakpoints
-        let mediaQuery = window.matchMedia("(min-width: 1024px)");  // desktop
-        mediaQuery.addListener((mq) => {
-            if (mq.matches) {
-                $(".navbar-burger").removeClass("is-active");
-                $(".navbar-menu").removeClass("is-active");
-            }
-        }); // Attach listener function on state changes
-
-        $(".navbar-dropdown .dropdown").click(function(e) {
-            $(e.currentTarget).toggleClass("is-active");
-        });
-
-        function setSortCol(e) {
-            let new_sort_col = $(e.currentTarget).data("value");
-            $("input[name=sort_col]").val(new_sort_col);
-
-            $("#sortColOptions .dropdown-item.is-active").removeClass("is-active");
-            $(e.currentTarget).addClass("is-active");
-            
-            e.preventDefault();
-            return
-        }
-    
-        $("#sortColOptions .dropdown-item").click(setSortCol);
-
-        function changeOrder(e) {
-            let order_div = $(e.currentTarget);
-            let current_order = order_div.data("value");
-            console.log(order_div, current_order);
-            let new_order = "";
-            if (current_order === "DESC") {
-                new_order = "ASC";
-                order_div.find("span.icon").html('<i class="fas fa-sort-amount-up"></i>');
-                order_div.find("span.menu-description").html('Sort: Ascending');
-            } else {
-                new_order = "DESC";
-                order_div.find("span.icon").html('<i class="fas fa-sort-amount-down"></i>');
-                order_div.find("span.menu-description").html('Sort: Descending');
-            }
-            $("input[name=order]").val(new_order);
-            // data-value update isnt shown in chrome debugger but it works correctly
-            console.log("after:", new_order, order_div);
-            order_div.data("value", new_order);
-
-            e.preventDefault();
-            return
-        }
-
-        $("#orderLnk").click(changeOrder);
-        /* An arrow function expression has a shorter syntax compared to
-        function expressions and lexically binds the this value (does not bind
-        its own this, arguments, super, or new.target). Arrow functions are
-        always anonymous. */
-        $("#refreshSearch").click((e) => {
-            e.preventDefault();
-            $("#searchForm").submit()
-            return
-        });
-    });
-    </script>
 </nav>
-<div class="page container my-5">
+<div class="container">
 	{% with messages = get_flashed_messages(with_categories=true) %}
 		{% if messages %}
 		    <div class="flash dark-color">
