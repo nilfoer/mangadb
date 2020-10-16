@@ -1,14 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<div class="container">
 {% block additional_messages %}{% endblock %}
 {% if book %}
-<section class="section">
 {% block book_info %}
 {% endblock %}
-</section>
 {% else %}
+<section class="section">
 <div class="book-title">{{ error_msg }}</div>
 {% if import_url %}
 <form method=post action="{{ url_for('main.import_book') }}">
@@ -19,8 +17,8 @@
     Import Book
 </button>
 </form>
+</section>
 {% endif %}
 {% endif %}
-</div>
 
 {% endblock %}

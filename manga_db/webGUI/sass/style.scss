@@ -148,16 +148,13 @@ body {
 // h1              { border-bottom: 2px solid #eee; margin-bottom: 1em;}
 // h2              { font-size: 1.2em; }
 // h3              { color: #22a7f0; }
-// hr { 
-//     display: block;
-//     margin-top: .5rem;
-//     margin-bottom: .5rem;
-//     margin-left: auto;
-//     margin-right: auto;
-//     border-style: inset;
-//     border-width: 1px;
-//     border-color: #fff;
-// }
+hr { 
+    display: block;
+    margin: .5rem auto;
+    border-style: inset;
+    border-width: 1px;
+    border-color: #fff;
+}
 
 // // needed so navbar-item is-expanded can grow for wide search bar
 // // works but only really with 100% width of child
@@ -384,48 +381,48 @@ body {
 // /* Show the dropdown menu (use JS to add this class to the .dropdown-content container when the user clicks on the dropdown button) */
 // .mdb-show {display:block;}
 
-// .kw-headline hr {
-//     display: block;
-//     margin-top: 0;
-//     margin-bottom: .5rem;
-//     margin-left: auto;
-//     margin-right: auto;
-//     border-style: inset;
-//     border-width: 1px;
-//     border-color: #fff;
-// }
-// .kw-headline span {
-//     margin-left: .25rem;
-//     font-size: 1.25rem;
-//     letter-spacing: 1.5px;
-// }
+.kw-headline hr {
+    display: block;
+    margin-top: 0;
+    margin-bottom: .5rem;
+    margin-left: auto;
+    margin-right: auto;
+    border-style: inset;
+    border-width: 1px;
+    border-color: #fff;
+}
+.kw-headline span {
+    margin-left: .25rem;
+    font-size: 1.25rem;
+    letter-spacing: 1.5px;
+}
 // .ext-info-row {
 //     margin-bottom: 1.5rem;
 // }
-// .ext-info-container {
-//     float: left;
-//     width: 100%;
-//     padding-left: .25rem;
-// }
-// .ext-info-container hr {
-//     display: block;
-//     margin-top: .2rem;
-//     margin-bottom: .2rem;
-//     margin-left: auto;
-//     margin-right: auto;
-//     border-style: inset;
-//     border-width: 1px;
-//     border-color: #2196f3;
-// }
+.ext-info-container {
+    float: left;
+    width: 100%;
+    padding-left: .25rem;
+}
+.ext-info-container hr {
+    display: block;
+    margin-top: .2rem;
+    margin-bottom: .2rem;
+    margin-left: auto;
+    margin-right: auto;
+    border-style: inset;
+    border-width: 1px;
+    border-color: #2196f3;
+}
 // .ext-info-inner {
 //     font-size: .9rem;
 //     font-weight: 400;
 // }
-// .ext-info-title {
-//     font-size: 1.1rem;
-//     font-family: 'Open Sans',sans-serif;
-//     color: #fff;
-// }
+.ext-info-title {
+    font-size: 1.1rem;
+    font-family: 'Open Sans',sans-serif;
+    color: #fff;
+}
 // .ext-info-line {
 //     display: table-row;
 // }
