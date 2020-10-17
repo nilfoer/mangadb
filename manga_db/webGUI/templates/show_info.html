@@ -83,7 +83,7 @@
 {% endblock %}
 {% block book_info %}
 <section class="section">
-<div class="container">
+<div class="container block">
     <div class="columns">
         <div class="column is-two-fifths">
             <figure class="image">
@@ -94,7 +94,7 @@
         </div>
         <div class="column is-three-fifths">
             <div class="col-md-8 col-sm-12 no-padding book-info-wrap">
-                <div class="my-3">
+                <div class="mb-3">
                     <h1 class="title is-3">{{ book.title_eng or book.title_foreign }}</h1>
                     {% if book.title_foreign %}
                     <h2 style="color: #919191;" class="subtitle is-5">
@@ -488,22 +488,26 @@
     </div> {# columns #}
 </div>
 {% if book.ext_infos %}
-<div class="container">
-    <div class="kw-headline">
-        <span>EXTERNAL</span>
-        <hr>
+<div class="container block">
+    <div class="columns mb-0">
+        <div class="column">
+            <div class="kw-headline">
+                <span>EXTERNAL</span>
+            </div>
+            <hr>
+        </div>
     </div>
     {% for ext_info in book.ext_infos %}
     {# loop.index is 1-based -> use loop.index0 for 0-based #}
-    {% if (loop.index0 % 2) == 0 %}
+    {% if (loop.index0 % 3) == 0 %}
     <div class="ext-info-row columns">
     {% endif %}
-        <div class="ext-info-container column is-4">
-            <div class="ext-info-title" style="display:inline-block;">
+        <div class="ext-info-container column is-one-third">
+            <div class="ext-info-title ml-1">
                 <a href="{{ ext_info.url }}">External Link on {{ ext_info.site|capitalize() }}{{ ' (outdated)' if ext_info.outdated else '' }}</a>
             </div>
             <hr>
-            <div class="ext-info-inner" style="border-spacing: 3px;">
+            <div class="ext-info-inner">
                 <table class="book-info-table book-info-container">
                     <tbody>
                         <tr>
@@ -551,70 +555,63 @@
                     </tbody>
                 </table>
             </div>
-            <div class="field has-addons is-grouped">
-                <p class="control">
+            <div class="ext-info-btn-container mt-1">
                     <a href={{ ext_info.read_url }} id="btnReadOnline"
-                                                    class="button ext-info-read-button">
+                                                    class="button addon-button ext-info-read-button">
                         <span class="icon is-small">
                             <i class="fas fa-book-reader"> </i>
                         </span>
                         <span>Read Online</span>
                     </a>
-                </p>
-                <p class="control">
-                {# TODO attach dropdown to readonline button or use sep button? #}
-                    <!-- <div class="button ext-info-btn-container"> -->
-                        <div class="dropdown is-hoverable">
-                            <div class="dropdown-trigger">
-                                <button class="button" aria-haspopup="true"
-                                    aria-controls="ext-info-opts{{ loop.index0 }}">
-                                    <!-- <span>Dropdown button</span> -->
+                    <div class="dropdown is-hoverable addon-button">
+                        <div class="dropdown-trigger">
+                            <button class="button button-border-sep" aria-haspopup="true"
+                                aria-controls="ext-info-opts{{ loop.index0 }}">
+                                <!-- <span>Dropdown button</span> -->
+                                <span class="icon is-small">
+                                    <i class="fas fa-angle-down" aria-hidden="true"></i>
+                                </span>
+                            </button>
+                        </div>
+                        <div class="dropdown-menu" id="ext-info-opts{{ loop.index0 }}" role="menu">
+                            <div class="dropdown-content">
+                                <a class="dropdown-item"
+                                   href="{{ url_for('main.set_downloaded', book_id=book.id, ext_info_id=ext_info.id, intbool=0 if ext_info.downloaded else 1) }}">
                                     <span class="icon is-small">
-                                        <i class="fas fa-angle-down" aria-hidden="true"></i>
+                                        <i class="fas fa-download"> </i>
                                     </span>
-                                </button>
-                            </div>
-                            <div class="dropdown-menu" id="ext-info-opts{{ loop.index0 }}" role="menu">
-                                <div class="dropdown-content">
-                                    <a class="dropdown-item"
-                                       href="{{ url_for('main.set_downloaded', book_id=book.id, ext_info_id=ext_info.id, intbool=0 if ext_info.downloaded else 1) }}">
-                                        <span class="icon is-small">
-                                            <i class="fas fa-download"> </i>
-                                        </span>
-                                        <span>Toggle Downloaded</span>
-                                    </a>
-                                    <a class="dropdown-item" type="submit">
-                                        <span class="icon is-small">
-                                            <i class="fas fa-sync-alt"></i>
-                                        </span>
-                                        <span>Update</span>
-                                        <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
-                                        ext_info_id=ext_info.id) }}" method=post
-                                        id="updateExtInfo{{ loop.index0 }}">
-                                            {{ csrf_token_field() }}
-                                        </form>
-                                    </a>
+                                    <span>Toggle Downloaded</span>
+                                </a>
+                                <a class="dropdown-item" type="submit">
+                                    <span class="icon is-small">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </span>
+                                    <span>Update</span>
+                                    <form action="{{ url_for('main.update_book_ext_info', book_id=book.id,
+                                    ext_info_id=ext_info.id) }}" method=post
+                                    id="updateExtInfo{{ loop.index0 }}">
+                                        {{ csrf_token_field() }}
+                                    </form>
+                                </a>
 
-                                    <div class="dropdown-divider"></div>
+                                <div class="dropdown-divider"></div>
 
-                                    <a class="dropdown-item" onclick="return confirm('Are you sure you want to remove this external link from this Book?');">
-                                        <span class="icon is-small">
-                                            <i class="fas fa-minus-circle"></i>
-                                        </span>
-                                        <span>Remove</span>
-                                        <form action="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}" method=post>
-                                            {{ csrf_token_field() }}
-                                        </form>
-                                    </a>
-                                </div>
+                                <a class="dropdown-item" onclick="return confirm('Are you sure you want to remove this external link from this Book?');">
+                                    <span class="icon is-small">
+                                        <i class="fas fa-minus-circle"></i>
+                                    </span>
+                                    <span>Remove</span>
+                                    <form action="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}" method=post>
+                                        {{ csrf_token_field() }}
+                                    </form>
+                                </a>
                             </div>
                         </div>
-                    <!-- </div> -->
-                </p>
+                    </div>
             </div>
         </div> {# ext-info-container #}
         {# loop.index0 -> 0-indexed; loop.index 1-indexed #}
-        {% if (loop.index % 2) == 0 %}
+        {% if (loop.index % 3) == 0 %}
     </div> {# row end #}
     {% elif (loop.index == book.ext_infos|length) %}
     {# last item close row if it wasnt b4 #}
@@ -624,80 +621,93 @@
 </div>
 {% endif %} {# if ext.book_infos #}
 
-<div style="margin: 1em 0;"></div>
-<div class="container">
-        <form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post id="ext-info-add" >
-            {{ csrf_token_field() }}
-            <input type=hidden name=book_title value="{{ book.title }}">
-            <i class="fas fa-plus" id="add-ext-info-icon"></i>
-            {# due to icon above input field gets shifted by icon size unless we modify pos to absolute or sth but then flex wouldnt work #}
-            <input type="text" name="url" id="add-ext-info-inp" class="text-input" style="width: 75%;">
-            <button id="add-ext-info-btn" class="button" type="submit">Add</button>
-        </form>
+<div class="container block">
+    <form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post id="ext-info-add" >
+        <input type=hidden name=book_title value="{{ book.title }}">
+        {{ csrf_token_field() }}
+        <label class="label has-text-white">Add external information</label>
+        <div class="field has-addons">
+            <div class="control has-icons-left">
+                <input class="input is-primary has-text-white" type="text" id="add-ext-info-inp" placeholder="Insert URL of this book on an external site e.g. https://nhentai.net/g/325903406/">
+                <span class="icon is-small is-left">
+                    <i class="fas fa-plus"></i>
+                </span>
+                <p class="help">Informations of external links will be extracted and added here so you can track their download status, censorship etc.</p>
+            </div>
+            <div class="control">
+                <button id="add-ext-info-btn" class="button is-primary" type="submit">Add Info</button>
+            </div>
+        </div>
+    </form>
 </div>
 {% if collections %}
-<div id="bookCollections">
+<div class="container block" id="bookCollections">
     {% for collection_name, c_books in collections %}
-    <div class="row no-margin kw-headline" style="margin-top: 2rem;">
-        <div class="col no-padding">
-            <span>COLLECTION: </span>{{ collection_name }}
-            <hr>
+    <div class="block">
+        <div class="columns mb-0">
+            <div class="column">
+                <div class="kw-headline">
+                    <span>COLLECTION: </span>{{ collection_name }}
+                </div>
+                <hr>
+            </div>
         </div>
+        <div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
+            {% for c_book in c_books %}
+            <div class="book-grid-item 
+            {% if book.read_status is not none %}
+            {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
+            {% endif %} {{ 'current' if c_book.id == book.id else '' }}">
+                <div class="book-grid-item-cover">
+                    <div class="book-grid-item-inner">
+                        {% if c_book.favorite %}
+                        <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
+                        {% endif %}
+
+                        {# To reduce the amount of request you can use data uri images as the placeholder. #}
+                        <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
+                             url_for('main.thumb_static', filename=c_book.id) }} class="lazyload">
+                        <div class="overlay">
+                            <div class="overlay-data">
+                                <div class="overlay-title">
+                                    {{ c_book.title }}
+                                </div>
+                                <div class="overlay-pages">
+                                    {{ c_book.pages }} pages
+                                </div>
+                                {% if c_book.my_rating %}
+                                <div class="overlay-rate blue-fcolor">
+                                    {# To cast to a string in an expression, you use x|string() instead of str(x) #}
+                                    {% for _ in range( c_book.my_rating|round|int() ) %}
+                                    {# &#9733; would also works but looks better with Fontawesome #}
+                                    <span class="fa fa-star"></span>
+                                    {% endfor %}
+                                </div>
+                                {% elif c_book.avg_ext_rating is not none %}
+                                <div class="overlay-rate">
+                                    {% for _ in range( c_book.avg_ext_rating|round|int() ) %}
+                                    <span class="fa fa-star"></span>
+                                    {% endfor %}
+                                </div>
+                                <span style="font-size: small;">(avg external rating)</span>
+                                {% endif %}
+                            </div>
+                            <a href={{ url_for('main.show_info', book_id=c_book.id) }}  class="overlay-button">
+                                SHOW
+                            </a>
+                        </div> {# overlay #}
+                    </div> {# book-grid-item-inner #}
+                </div> {# book-grid-item-cover #}
+                <div class="book-grid-item-title">
+                    <span>
+                        <a href={{ url_for('main.show_info', book_id=c_book.id) }}>{{ c_book.title_eng }}</a>
+                    </span>
+                </div> {# book-grid-item-title #}
+
+            </div> {# book-grid-item #}
+            {% endfor %}
+        </div> {# book-collection-grid #}
     </div>
-    <div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
-        {% for c_book in c_books %}
-        <div class="book-grid-item 
-        {% if book.read_status is not none %}
-        {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
-        {% endif %} {{ 'current' if c_book.id == book.id else '' }}">
-            <div class="book-grid-item-cover">
-                <div class="book-grid-item-inner">
-                    {% if c_book.favorite %}
-                    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
-                    {% endif %}
-
-                    {# To reduce the amount of request you can use data uri images as the placeholder. #}
-                    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
-                         url_for('main.thumb_static', filename=c_book.id) }} class="lazyload">
-                    <div class="overlay">
-                        <div class="overlay-data">
-                            <div class="overlay-title">
-                                {{ c_book.title }}
-                            </div>
-                            <div class="overlay-pages">
-                                {{ c_book.pages }} pages
-                            </div>
-                            {% if c_book.my_rating %}
-                            <div class="overlay-rate blue-fcolor">
-                                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
-                                {% for _ in range( c_book.my_rating|round|int() ) %}
-                                {# &#9733; would also works but looks better with Fontawesome #}
-                                <span class="fa fa-star"></span>
-                                {% endfor %}
-                            </div>
-                            {% elif c_book.avg_ext_rating is not none %}
-                            <div class="overlay-rate">
-                                {% for _ in range( c_book.avg_ext_rating|round|int() ) %}
-                                <span class="fa fa-star"></span>
-                                {% endfor %}
-                            </div>
-                            <span style="font-size: small;">(avg external rating)</span>
-                            {% endif %}
-                        </div>
-                        <a href={{ url_for('main.show_info', book_id=c_book.id) }}  class="overlay-button">
-                            SHOW
-                        </a>
-                    </div> {# overlay #}
-                </div> {# book-grid-item-inner #}
-            </div> {# book-grid-item-cover #}
-            <div class="book-grid-item-title">
-                <span class="title">{{ c_book.title_eng }}</span>
-            </div> {# book-grid-item-title #}
-
-        </div> {# book-grid-item #}
-        {% endfor %}
-    </div> {# book-collection-grid #}
-    <div class="row no-margin" style="margin-bottom: 1rem;"></div>
     {% endfor %}
 </div> {# bookCollections #}
 {% endif %}

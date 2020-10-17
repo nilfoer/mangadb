@@ -53,6 +53,8 @@ $control-border-width: 2px;
 // $input-border-color: transparent;
 // $input-shadow: none;
 $input-placeholder-color: $scheme-invert-ter;
+$input-background-color: $grey-darker-mdb;
+$input-color: $scheme-invert-bis;
 
 $navbar-height: 2.5rem;
 $navbar-padding-vertical: 0.75rem;
@@ -316,10 +318,6 @@ hr {
 // 	bottom: 1px;
 // 	margin: 0 3px 0 0;
 // }
-// ul.flash-messages li label {
-// 	font-weight: normal;
-// 	margin-bottom: 0px;
-// }
 // .mdb-list-remove {
 //     display: inline-block;
 //     position: absolute;
@@ -399,11 +397,11 @@ hr {
 // .ext-info-row {
 //     margin-bottom: 1.5rem;
 // }
-.ext-info-container {
-    float: left;
-    width: 100%;
-    padding-left: .25rem;
-}
+// .ext-info-container {
+//     float: left;
+//     width: 100%;
+//     padding-left: .25rem;
+// }
 .ext-info-container hr {
     display: block;
     margin-top: .2rem;
@@ -420,8 +418,6 @@ hr {
 // }
 .ext-info-title {
     font-size: 1.1rem;
-    font-family: 'Open Sans',sans-serif;
-    color: #fff;
 }
 // .ext-info-line {
 //     display: table-row;
@@ -478,29 +474,31 @@ hr {
 //         display: table;
 //         border-collapse: separate;
 // }
-// ul.flash-messages {
-//    list-style: none;
-//    margin-left: 0;
-//    padding-left: 1em;
-// }
-// li.info {
-//     font-size: 1em;
-//     font-family: 'Open Sans',sans-serif;
-//     color: #fff;
-// }
-// li.title {
-//     font-size: 18px;
-//     font-family: 'Open Sans',sans-serif;
-//     color: #fff;
-//     margin-bottom: 0.5em 0;
-// }
-// li.warning {
-// 	font-size: 20px;
-// 	color: #f67764; /* #f67764 */
-// }
-// ul.flash-messages a.underline {
-//     text-decoration: underline;
-// }
+ul.flash-messages {
+   list-style: none;
+   margin-left: 0;
+   padding-left: 1em;
+   color: hsl(0, 0, 23%);
+
+    li label {
+        font-weight: normal;
+        margin-bottom: 0px;
+    }
+    li.info {
+    }
+    li.title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5em 0;
+    }
+    li.warning {
+        font-weight: bold;
+        color: $danger; /* #f67764 */
+    }
+    a.underline {
+        text-decoration: underline;
+    }
+}
 
 // .star-inactive {
 //     color: #fff !important;
@@ -658,7 +656,7 @@ hr {
  * col-md-2 col-sm-4 col-xs-6 no-padding to book-grid-item's div classes
  * or i could use grid and alter the nr of cols it hast based on viewport size
  * with grid-template-columns: auto auto .. nr_of_cols*auto (auto for auto size) */
-#searchResult {
+.book-grid {
     display: grid;
     grid-template-columns: repeat(2, auto);
     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
@@ -696,28 +694,28 @@ hr {
 }
 // TODO either use old container with 75% width >=1200px or re-do these for bulma container
 @media only screen and (min-width: 700px) {
-    #searchResult {
+    .book-grid {
         grid-template-columns: repeat(3, auto);
     }
 }
 @media only screen and (min-width: 900px) {
     /* we switch to 100% width of page < 1200px so 4 cols works for a wider range */
-    #searchResult {
+    .book-grid {
         grid-template-columns: repeat(4, auto);
     }
 }
 @media only screen and (min-width: 1500px) {
-    #searchResult {
+    .book-grid {
         grid-template-columns: repeat(5, auto);
     }
 }
 @media only screen and (min-width: 1750px) {
-    #searchResult {
+    .book-grid {
         grid-template-columns: repeat(6, auto);
     }
 }
 @media only screen and (min-width: 2000px) {
-    #searchResult {
+    .book-grid {
         grid-template-columns: repeat(7, auto);
     }
 }
@@ -877,12 +875,13 @@ hr {
 .book-grid-item.reading .book-grid-item-title:after {
     border-color: #ffe000!important;
 }
-.book-grid-item-title > span {
+// <a> tag is an inline element, you can only apply ellipsis to a block element
+.book-grid-item-title > span, .book-grid-item-title > a {
     text-align: center;
     overflow: hidden;
-    white-space: normal; /* nowrap */
+    white-space: normal; /* ellipsis only works with: nowrap, and then you need max-width/height */
     text-overflow: ellipsis;
-    display: block;
+    display: inline-block;  // needs to be block or inline-block for overflow hidden
     max-height: 40px; /* 2*line-height of book-grid-item-title ? */
     /* padding: 5px 0; */
     margin: 5px 0;
@@ -934,32 +933,48 @@ hr {
 .book-grid-item-cover:hover .ribbon.fav {
     display: none;
 }
-.show-book-container {
+.addon-button {
+    margin-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
-.book-cover-container {
-    padding-left: 0;
-    padding-right: .75rem;
-}
-@media only screen and (min-width: 768px) {
-    .book-cover-container {
-        margin: 0;
-        padding-top: 5px;
+// another button following
+.addon-button + .addon-button {
+    margin-left: -.4rem;
+    .button {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
     }
 }
-.book-cover {
-    width: 100%;
-    display: block;
-    max-width: 100%;
-    height: auto;
-    border-radius: 10px;
+.button-border-sep {
+    border-left: 2px solid $button-hover-border-color;
 }
-.book-title {
-    font-size: 1.6rem;
-    font-weight: 600;
-}
-.show-book-container .book-title {
-    margin-bottom: .75rem;
-}
+// .show-book-container {
+// }
+// .book-cover-container {
+//     padding-left: 0;
+//     padding-right: .75rem;
+// }
+// @media only screen and (min-width: 768px) {
+//     .book-cover-container {
+//         margin: 0;
+//         padding-top: 5px;
+//     }
+// }
+// .book-cover {
+//     width: 100%;
+//     display: block;
+//     max-width: 100%;
+//     height: auto;
+//     border-radius: 10px;
+// }
+// .book-title {
+//     font-size: 1.6rem;
+//     font-weight: 600;
+// }
+// .show-book-container .book-title {
+//     margin-bottom: .75rem;
+// }
 
 // .button {
 //     background-color: #2d2d2d;
@@ -1083,44 +1098,44 @@ hr {
 //     border-width: 1px;
 //     border-color: #2196f3;
 // }
-// .books-collection-grid {
-//     display: grid;
-//     grid-template-columns: auto;
-//     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
-//     align-items: stretch; /* Aligns grid items along the block (column) axis */
-//     justify-content: flex-start; /* align the whole grid inside the container */
-//     align-content: start; /* vertically align the whole grid inside the container */
-// }
-// .books-collection-grid .book-grid-item {
-//     margin: .2rem;
-//     min-width: 150px;
-//     /* vw, vh are units depending on viewport-size 1 unit is 1% of vw,vh..
-//      * vmin/vmax = 1vw/vh whichever is smaller/bigger */
-//     /* max-width: 17vw; */
-//     max-width: 250px;
-// }
-// /* Device-width refers to the display's resolution (eg. the 1024 from
-//  * 1024x768), while width refers to the width of the browser itself */
-// @media only screen and (min-width: 300px) {
-//     .books-collection-grid {
-//         grid-template-columns: repeat(2, auto);
-//     }
-// }
-// @media only screen and (min-width: 700px) {
-//     .books-collection-grid {
-//         grid-template-columns: repeat(3, auto);
-//     }
-// }
-// @media only screen and (min-width: 900px) {
-//     .books-collection-grid {
-//         grid-template-columns: repeat(4, auto);
-//     }
-// }
-// @media only screen and (min-width: 1500px) {
-//     .books-collection-grid {
-//         grid-template-columns: repeat(5, auto);
-//     }
-// }
+.books-collection-grid {
+    display: grid;
+    grid-template-columns: auto;
+    justify-items: stretch; /* Aligns grid items along the inline (row) axis */
+    align-items: stretch; /* Aligns grid items along the block (column) axis */
+    justify-content: flex-start; /* align the whole grid inside the container */
+    align-content: start; /* vertically align the whole grid inside the container */
+}
+.books-collection-grid .book-grid-item {
+    margin: .2rem;
+    min-width: 150px;
+    /* vw, vh are units depending on viewport-size 1 unit is 1% of vw,vh..
+     * vmin/vmax = 1vw/vh whichever is smaller/bigger */
+    /* max-width: 17vw; */
+    max-width: 250px;
+}
+/* Device-width refers to the display's resolution (eg. the 1024 from
+ * 1024x768), while width refers to the width of the browser itself */
+@media only screen and (min-width: 300px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(2, auto);
+    }
+}
+@media only screen and (min-width: 700px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(3, auto);
+    }
+}
+@media only screen and (min-width: 900px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(4, auto);
+    }
+}
+@media only screen and (min-width: 1500px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(5, auto);
+    }
+}
 
 // .entries img    { width: 100% }
 // .entries li h2  { margin-left: -1em; }
@@ -1131,4 +1146,4 @@ hr {
 //                   color: #fff !important;
 //                   font-family: 'Open Sans',sans-serif;
 //                   font-size: 14px; }
-// .error          { background: #f0d6d6; padding: 0.5em; }
+.error          { background: #f0d6d6; padding: 0.5em; }

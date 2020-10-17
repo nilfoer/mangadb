@@ -170,19 +170,39 @@
         </div>
     </div> {# navbar-menu #}
 </nav>
-	{% with messages = get_flashed_messages(with_categories=true) %}
-		{% if messages %}
-<div class="container">
-		    <div class="flash dark-color">
-			<ul class="flash-messages">
-			{% for category, message in messages %}
-			<li class="{{ category }}">{{ message }}</li>
-			{% endfor %}
-			</ul>
-		    </div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container mt-4">
+        <div class="columns is-multiline"> {# is-multiline -> able to add more cols than fit on one line #}
+            <div class="column is-one-third">
+                <div class="notification is-warning">
+                    <ul class="flash-messages">
+                        {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+<div class="container mt-4">
+    <div class="columns is-multiline"> {# is-multiline -> able to add more cols than fit on one line #}
+        <div class="column is-one-third">
+            <div class="notification is-warning">
+                <ul class="flash-messages">
+                    <li class="warning">Title of external link and book's title don't match!</li>
+                    <li class="info">URL: https://nhentai.net/g/332572/</li>
+                    <li>External link was added as id 2808</li>
+                    <li>Primar lorem ipsum dolor sit amet, consectetur
+  adipiscing elit lorem ipsum dolor. <strong>Pellentesque risus mi</strong>, tempus quis placerat ut, porta nec nulla. Vestibulum rhoncus ac ex sit amet fringilla. Nullam gravida purus diam, et dictum <a>felis venenatis</a> efficitur. Sit amet,
+  consectetur adipiscing elit</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
-		{% endif %}
-	{% endwith %}
+{% endwith %}
 {% block body %}{% endblock %}
 {# only started working once placed at end of website or at least after imgs? #}
 <script type="text/javascript">lazyload();</script>
