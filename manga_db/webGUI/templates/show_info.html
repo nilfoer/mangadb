@@ -24,40 +24,95 @@
 </div>
 {% endif %}
 {% if book_upd_changes %}
-<div class="row dark-color" style="margin-bottom:2em;">
-	<div class="col-md-5">
-		<span class="book-title" style="font-size:1.8em;">Differences from Book at external link:</span>
-		<form action="{{ url_for('main.apply_upd_changes', book_id=book.id) }}" method=post>
-        {{ csrf_token_field() }}
-		<ul class="flash-messages">
-		{% for col, change in book_upd_changes['normal'].items() %}
-			{% if change %}
-			{# dont need for=".." when input is inside label tag #}
-			<li><label><input name="{{ col }}" class="mdb-checkboxes" type="checkbox" value="{{ change }}">{{ col }}: {{ change }}</label></li>
-			{% endif %}
-		{% endfor %}
-		<li style="margin: 3px 0 5px 0;">Green - Added / Red - Removed</li>
-		{% for col, change in book_upd_changes['added_removed'].items() %}
-		<li><label><input name ="{{ col }}" class="mdb-checkboxes" type="checkbox" value="{{
-                change[0]|join(';') if change[0] else '' }};;;{{ change[1]|join(';') if change[1]
-                else '' }}">{{ col }}: 
-				{% if change[0] %}
-					{% for added in change[0] %}
-					<a class="tag green-color">{{ added }}</a>
-					{% endfor %}
-				{% endif %}
-				{% if change[1] %}
-					{% for removed in change[1] %}
-					<a class="tag red-color">{{ removed }}</a>
-					{% endfor %}
-				{% endif %}
-			</label></li>
-		{% endfor %}
-		<li><button type="submit" id="updateBtn" class="button green-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-check"></i><span style="margin-left: 5px;">Apply changes</span></button></li>
-		</ul>
-	</form>
+<section class="section">
+    <div class="container">
+        <div class="columns">
+            <div class="column is-half">
+                <h1 class="title is-3">Differences from Book at external link:</h1>
+                <h2 class="subtitle is-5">
+                    Which changes should be saved?
+                </h2>
+                <p class="block">
+                    Check the box to apply the changes! Changes for fields with mutliple values are
+                    marked as
+                    <span class="green-fcolor">added</span>
+                    or
+                    <span class="red-fcolor">removed</span>:
+                </p>
+                <div class="block">
+                    <form action="{{ url_for('main.apply_upd_changes', book_id=book.id) }}" method=post>
+                        {{ csrf_token_field() }}
+                    <table class="book-info-table">
+                        <tbody>
+                            {% for col, change in book_upd_changes['normal'].items() %}
+                                {% if change %}
+                                <tr>
+                                <th>
+                                <div class="field">
+                                    <div class="control">
+                                        <label class="checkbox has-text-white">
+                                            <input name="{{ col }}" class="mdb-checkboxes" type="checkbox"
+                                             value="{{ change }}">
+                                            {{ col.capitalize() }} 
+                                        </label>
+                                    </div>
+                                </div>
+                                </th>
+                                <td>
+                                    {{ change }}
+                                </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                            {% for col, change in book_upd_changes['added_removed'].items() %}
+                                <tr>
+                                <th>
+                                <div class="field">
+                                    <div class="control">
+                                        <label class="checkbox has-text-white">
+                                            <input name ="{{ col }}"
+                                             class="checkbox mdb-checkboxes"
+                                             type="checkbox" value="{{ change[0]|join(';') if change[0] else '' }};;;{{ change[1]|join(';') if change[1] else '' }}">
+                                            {{ col.capitalize() }}
+                                        </label>
+                                    </div>
+                                </div>
+                                </th>
+                                <td>
+                                <div class="tags">
+                                    {% if change[0] %}
+                                        {% for added in change[0] %}
+                                        <a class="tag is-rounded green-color">{{ added }}</a>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if change[1] %}
+                                        {% for removed in change[1] %}
+                                        <a class="tag is-rounded red-color">{{ removed }}</a>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                                </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="field mt-5">
+                        <div class="control">
+                            <button type="submit" id="updateBtn"
+                                class="button green-color">
+                                <span class="icon">
+                                <i class="fas fa-check"></i>
+                                </span>
+                                <span>Apply changes</span>
+                            </button>
+                        </div>
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 	</div>
-</div>
+</section>
 {% endif %}
 {% if add_ei_or_new_book_prompt %}
 <div class="row dark-color" style="margin-bottom:2em;">
@@ -582,7 +637,9 @@
                                     </span>
                                     <span>Toggle Downloaded</span>
                                 </a>
-                                <a class="dropdown-item" type="submit">
+                                <a class="dropdown-item" type="submit",
+                                    href="#"
+                                    onclick="document.getElementById('updateExtInfo{{ loop.index0 }}').submit();">
                                     <span class="icon is-small">
                                         <i class="fas fa-sync-alt"></i>
                                     </span>
@@ -596,12 +653,15 @@
 
                                 <div class="dropdown-divider"></div>
 
-                                <a class="dropdown-item" onclick="return confirm('Are you sure you want to remove this external link from this Book?');">
+                                <a class="dropdown-item" href="#"
+                                                         onclick="if(confirm('Are you sure you want to remove this external link from this Book?')) { document.getElementById('removeExtInfo{{ loop.index0 }}').submit(); } else { return false; }">
                                     <span class="icon is-small">
                                         <i class="fas fa-minus-circle"></i>
                                     </span>
                                     <span>Remove</span>
-                                    <form action="{{ url_for('main.remove_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}" method=post>
+                                    <form id="removeExtInfo{{ loop.index0 }}"
+                                        action="{{ url_for('main.remove_ext_info',
+                                                   book_id=book.id, ext_info_id=ext_info.id) }}" method=post>
                                         {{ csrf_token_field() }}
                                     </form>
                                 </a>
@@ -625,10 +685,10 @@
     <form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post id="ext-info-add" >
         <input type=hidden name=book_title value="{{ book.title }}">
         {{ csrf_token_field() }}
-        <label class="label has-text-white">Add external information</label>
+        <label for="url" class="label has-text-white">Add external information</label>
         <div class="field has-addons">
             <div class="control has-icons-left">
-                <input class="input is-primary has-text-white" type="text" id="add-ext-info-inp" placeholder="Insert URL of this book on an external site e.g. https://nhentai.net/g/325903406/">
+                <input class="input is-primary has-text-white" type="text" name="url" id="add-ext-info-inp" placeholder="Insert URL of this book on an external site e.g. https://nhentai.net/g/325903406/">
                 <span class="icon is-small is-left">
                     <i class="fas fa-plus"></i>
                 </span>
