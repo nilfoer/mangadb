@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<html>
+<head>
+{% block head %}
 {% if book %}
 <title>{{ book.title if book.title else 'New Book' + ' - MangaDB' }}</title>
 {% else %}
@@ -29,6 +32,9 @@
         }
     });
 </script>
+{% endblock %}
+</head>
+<body>
 <nav class="navbar" role="navigation" aria-label="main navigation">
     <div class="navbar-brand">
         <a class="navbar-item is-size-5-mobile has-text-weight-bold mdb-navbar-brand" href="/">MangaDB</a>
@@ -195,3 +201,5 @@
         $(this).attr("src", "{{ url_for('static', filename='no-image.png') }}");
     });
 </script>
+</body>
+</html>

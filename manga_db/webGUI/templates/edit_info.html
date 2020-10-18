@@ -1,25 +1,58 @@
 {% extends "book.html" %}
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
+<script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
+{% endblock %}
 {% block book_info %}
-<div class="row no-margin">
-<div class="book-cover-container col-md-4 col-sm-12">
-{% if book.id is not none %}
-	<img alt="{{ book.title }}" class="book-cover
-	img-responsive" src={{ url_for('main.thumb_static',
-	filename=book.id) }}>
-{% else %}
-	<img alt="{{ book.title }}" class="book-cover img-responsive"
-		src={{ url_for('static', filename='no-image.png') if not cover_temp_name else
-        url_for('main.thumb_static', filename=cover_temp_name) }}>
-{% endif %}
-<form id=upload-cover action="{{ url_for('main.upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
-      <input id=cover-file type=file name=file style="background-color:#333;" required />
-      <input type=submit value="Upload Cover" style="margin:0.5em 0;background-color:#333;" />
-      <br/>Maximum file size is 512 KB
-      <br/>Note: Otimal width is 400px and optimal aspect ratio is 5:7
-      <br/>Image won't be cropped but if it differs too much from an aspect ratio of 5:7 it will
-      look distorted when displayed as thumbnail!
-    {{ csrf_token_field() }}
-</form>
+<section class="section">
+<div class="container block">
+    <div class="columns">
+        <div class="column is-two-fifths">
+            <figure class="image">
+                <img id="book-cover" alt="{{ book.title }}" 
+                {% if book.id is not none %}
+                    src={{ url_for('main.thumb_static', filename=book.id) }}
+                {% else %}
+                    src={{ url_for('static', filename='no-image.png') if not cover_temp_name else
+                           url_for('main.thumb_static', filename=cover_temp_name) }}
+                {% endif %}
+                >
+            </figure>
+            <form id=upload-cover action="{{ url_for('main.upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
+                <div class="field has-addons">
+                    <div class="control">
+                        <div class="file is-primary is-small has-name is-fullwidth">
+                            <label class="file-label">
+                                <input id="cover-file" class="file-input" type="file" name="file" required>
+                                <span class="file-cta">
+                                    <span class="file-icon">
+                                        <i class="fas fa-upload"></i>
+                                    </span>
+                                    <span class="file-label">
+                                        Choose a file…
+                                    </span>
+                                </span>
+                                <span class="file-name">
+                                    Screen Shot 2017-07-29 at 15.54.25.png
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="control">
+                        <input type="submit" class="button is-small is-success" value="Upload Cover" />
+                    </div>
+                </div>
+                <div class="field">
+                    <p class="help">Maximum file size is 512 KB</p>
+                    <p class="help">Note: Optimal width is 400px and optimal aspect ratio is 5:7</p>
+                    <p class="help">
+                    Image won't be cropped but if it differs too much from an aspect ratio of 5:7 it will
+                    look distorted when displayed as thumbnail!
+                    </p>
+                    {{ csrf_token_field() }}
+                </div>
+            </form>
 <script>
 $(document).ready(function() {
     $("#upload-cover").submit(function(event) {
@@ -59,7 +92,7 @@ $(document).ready(function() {
             else {
                 // browser caches img and if url doesnt change new img wont be displayed
                 // circumvent that by adding a variable to the img url
-                $(".book-cover").attr("src",
+                $("#book-cover").attr("src",
                     data.cover_path + "?timestamp=" + new Date().getTime());
                 {% if book.id is none %}
                 // get only filename vv
@@ -86,245 +119,262 @@ $(document).ready(function() {
     });
 });
 </script>
-</div>
-<div class="col-md-8 col-sm-12 no-padding book-info-wrap">
-	<div class="row no-margin">
-		<div class="book-title">{{ book.title if book.title else 'New Book' }}</div>
-	</div>
-<div class="book-info-container">
-<script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
-{% if book.id is not none %}
-<form id=edit-book-form action={{ url_for('main.edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
-{% else %}
-<form id=add-book-form action={{ url_for('main.add_book') }} method=post style="min-width:100%;width:100%;">
-{% if cover_temp_name %}
-<input type='hidden' id='cover_temp_name' name='cover_temp_name' value="{{ cover_temp_name }}"/>
-{% endif %}
-{% if extr_data %}
-<input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}""/>
-{% endif %}
-{% endif %}
-{{ csrf_token_field() }}
-<div class="book-line">
-<div class="edit-book-info">English Title</div>
-<div class="book-data" id="EnglishTitle" style="width:100%;">
-	<input type="text" class="selectize-input" name="title_eng" id="EnglishTitleInp"
-    {% if book.title_eng %}
-    value="{{ book.title_eng }}"
-    {% endif %}
-    />
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Foreign Title</div>
-<div class="book-data" id="ForeignTitle">
-	<input type="text" class="selectize-input" name="title_foreign" id="ForeignTitleInp"
-    {% if book.title_foreign %}
-    value="{{ book.title_foreign }}"
-    {% endif %}
-    />
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Pages</div>
-<div class="book-data" id="Pages">
-	<input required type="text" class="selectize-input" name="pages" id="PagesInp"
-    placeholder="Number of pages as a whole number"
-    {% if book.pages is not none %}
-        value="{{ book.pages }}"
-    {% endif %}
-    />
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Reading Status</div>
-<div class="book-data" id="ReadingStatus">
-	<input type="text" class="selectize-input" name="read_status" id="ReadingStatusInp"
-    placeholder="0 == finished reading, empty == not read!"
-    {% if book.read_status is not none %}
-        value="{{ book.read_status }}"
-    {% endif %}
-    />
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Status</div>
-<div class="book-data" id="Status">
-	<select required name="status_id" class="selectized select-single" placeholder="Select the publishing status...">
-		<option value="">Select the publishing status...</option>
-		{% for _id, name in available_options['status'] %}
-		<option value="{{ _id }}" {{'selected' if book.status_id == _id else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">My Rating</div>
-<div class="book-data" id="MyRating">
-	<input type="text" class="selectize-input" id="MyRatingInp" name="my_rating" value="{{ book.my_rating|float() if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Language</div>
-<div class="book-data" id="Language">
-	<select required name="language_id" class="selectized select-single-create" placeholder="Select the book's language...">
-		<option value="">Select the book's language...</option>
-		{% for _id, name in available_options['language'] %}
-		<option value="{{ _id }}" {{'selected' if book.language_id == _id else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Category</div>
-<div class="book-data" id="Category">
-	<select multiple name="category" multiple class="selectized select-multiple-create" placeholder="Add categories, delimiter is ';'">
-		<option value="">Add categories, delimiter is ';'</option>
-        {# big mistake before only iterated over available options which meant that if that option wasnt already used in the db it wouldnt be shown when importing the book from an extractor #}
-        {# @Hack since available options is a 2-tuple of id, name and the lists on the book are just the names we have to select the correct item of the tuple or leave the string #}
-		{% for item in available_options['category'] + book.category %}
-        {%  set name = item if item is string else item[1] %}
-		<option value="{{ name }}" {{'selected' if name in book.category else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Collection</div>
-<div class="book-data" id="Collection">
-	<select multiple name="collection" class="selectized select-multiple-create" placeholder="Add collections, delimiter is ';'">
-		<option value="">Add collections, delimiter is ';'</option>
-		{% for item in available_options['collection'] + book.collection %}
-        {%  set name = item if item is string else item[1] %}
-		<option value="{{ name }}" {{'selected' if name in book.collection else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Group</div>
-<div class="book-data" id="Group">
-	<select multiple name="groups" class="selectized select-multiple-create" placeholder="Add groups, delimiter is ';'">
-		<option value="">Add groups, delimiter is ';'</option>
-		{% for item in available_options['groups'] + book.groups %}
-        {%  set name = item if item is string else item[1] %}
-		<option value="{{ name }}" {{'selected' if name in book.groups else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Artist</div>
-<div class="book-data" id="Artist">
-	<select multiple name="artist" class="selectized select-multiple-create" placeholder="Add artists, delimiter is ';'">
-		<option value="">Add artists, delimiter is ';'</option>
-		{% for item in available_options['artist'] + book.artist %}
-        {%  set name = item if item is string else item[1] %}
-		<option value="{{ name }}" {{'selected' if name in book.artist else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Parody</div>
-<div class="book-data" id="Parody">
-	<select multiple name="parody" class="selectized select-multiple-create" placeholder="Add parodies, delimiter is ';'">
-		<option value="">Add parodies, delimiter is ';'</option>
-		{% for item in available_options['parody'] + book.parody %}
-        {%  set name = item if item is string else item[1] %}
-		<option value="{{ name }}" {{'selected' if name in book.parody else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Character</div>
-<div class="book-data" id="Character">
-	<select multiple  name="character" class="selectized select-multiple-create" placeholder="Add characters, delimiter is ';'">
-		<option value="">Add characters, delimiter is ';'</option>
-		{% for item in available_options['character'] + book.character %}
-        {%  set name = item if item is string else item[1] %}
-		<option value="{{ name }}" {{'selected' if name in book.character else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Tag</div>
-<div class="book-data" id="Tag">
-	<select multiple name="tag" class="selectized select-multiple-create" placeholder="Add tags, delimiter is ';'">
-		<option value="">Add tags, delimiter is ';'</option>
-		{% for name in (available_options['tag'] + book.tag)|sort() %}
-		<option value="{{ name }}" {{'selected' if name in book.tag else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">List</div>
-<div class="book-data" id="List">
-	<select multiple name="list" class="selectized select-multiple-create" placeholder="Add lists, delimiter is ';'">
-		<option value="">Add lists, delimiter is ';'</option>
-        {# can only be on book if its also in available options unless we support importing lists from external websites like e.g. tsumino #}
-		{% for _, name in available_options['list'] %}
-		<option value="{{ name }}" {{'selected' if name in book.list else ''}}>{{ name }}</option>
-		{% endfor %}
-	</select>
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info">Note</div>
-<div class="book-data" id="Note">
-	{# only supposed to be a small note so no textarea(multi-line) field #}
-	<input type="text" class="selectize-input" name="note" id="Note" value="{{ book.note if book.note else '' }}">
-	{# <textarea name="note" id="Note" cols="40" rows="5">{{ book.note if book.note else '' }}</textarea> #}
-</div>
-</div>
-<div class="book-line">
-<div class="edit-book-info"></div>
-<div class="book-data" id="">
-<button type="submit" id="updateBtn" class="button button-stack green-color button-leftmost"><i class="fas fa-check"></i><span style="margin-left: 5px;">Save</span></button>
-    <script>
-    $(document).ready(function() {
-        $("#updateBtn").click(function(event) {
-            let title_eng = $("#EnglishTitleInp").val();
-            let title_foreign = $("#ForeignTitleInp").val();
-            let page_val = $("#PagesInp").val();
-            console.log(page_val);
-            let read_status = $.trim($("#ReadingStatusInp").val());
-            let my_rating = $("#MyRatingInp").val();
-            let nr = parseFloat(my_rating);
+        </div>
+        <div class="column is-three-fifths">
+            <div class="mb-3">
+                <h1 class="title is-3">{{ book.title if book.title else 'New Book' }}</h1>
+                {% if book.title_foreign %}
+                <h2 style="color: #919191;" class="subtitle is-5">
+                    {{ book.title_foreign }}
+                </h2>
+                {% endif %}
+            </div>
+            {% if book.id is not none %}
+            <form id=edit-book-form action={{ url_for('main.edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
+            {% else %}
+            <form id=add-book-form action={{ url_for('main.add_book') }} method=post style="min-width:100%;width:100%;">
+            {% if cover_temp_name %}
+            <input type='hidden' id='cover_temp_name' name='cover_temp_name' value="{{ cover_temp_name }}"/>
+            {% endif %}
+            {% if extr_data %}
+            <input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}""/>
+            {% endif %}
+            {% endif %}
+            {{ csrf_token_field() }}
+            <table class="book-info-table has-one-fullwidth-td book-info-container">
+                <tbody>
+                    <tr>
+                        <th>English Title</th>
+                        <td id="EnglishTitle">
+                            <input type="text" class="selectize-input" name="title_eng" id="EnglishTitleInp"
+                            {% if book.title_eng %}
+                            value="{{ book.title_eng }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Foreign Title</th>
+                        <td id="ForeignTitle">
+                            <input type="text" class="selectize-input" name="title_foreign" id="ForeignTitleInp"
+                            {% if book.title_foreign %}
+                            value="{{ book.title_foreign }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Pages</th>
+                        <td id="Pages">
+                            <input required type="text" class="selectize-input" name="pages" id="PagesInp"
+                            placeholder="Number of pages as a whole number"
+                            {% if book.pages is not none %}
+                            value="{{ book.pages }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Reading Status</th>
+                        <td id="ReadingStatus">
+                            <input type="text" class="selectize-input" name="read_status" id="ReadingStatusInp"
+                            placeholder="0 == finished reading, empty == not read!"
+                            {% if book.read_status is not none %}
+                            value="{{ book.read_status }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <td id="Status">
+                            <select required name="status_id" class="selectized select-single" placeholder="Select the publishing status...">
+                                <option value="">Select the publishing status...</option>
+                                {% for _id, name in available_options['status'] %}
+                                <option value="{{ _id }}" {{'selected' if book.status_id == _id else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                            </td>
+                    </tr>
+                    <tr>
+                        <th>My Rating</th>
+                        <td id="MyRating">
+                            <input type="text" class="selectize-input" id="MyRatingInp" name="my_rating" value="{{ book.my_rating|float() if book.my_rating else '' }}" placeholder="Decimal rating from 0-5.0">
+                            </td>
+                    </tr>
+                    <tr>
+                        <th>Language</th>
+                        <td id="Language">
+                            <select required name="language_id" class="selectized select-single-create" placeholder="Select the book's language...">
+                                <option value="">Select the book's language...</option>
+                                {% for _id, name in available_options['language'] %}
+                                <option value="{{ _id }}" {{'selected' if book.language_id == _id else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                            </td>
+                    </tr>
+                    <tr>
+                        <th>Category</th>
+                        <td id="Category">
+                            <select multiple name="category" multiple class="selectized select-multiple-create" placeholder="Add categories, delimiter is ';'">
+                                <option value="">Add categories, delimiter is ';'</option>
+                                {# big mistake before only iterated over available options which meant that if that option wasnt already used in the db it wouldnt be shown when importing the book from an extractor #}
+                                {# @Hack since available options is a 2-tuple of id, name and the lists on the book are just the names we have to select the correct item of the tuple or leave the string #}
+                                {% for item in available_options['category'] + book.category %}
+                                {%  set name = item if item is string else item[1] %}
+                                <option value="{{ name }}" {{'selected' if name in book.category else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Collection</th>
+                        <td id="Collection">
+                            <select multiple name="collection" class="selectized select-multiple-create" placeholder="Add collections, delimiter is ';'">
+                                <option value="">Add collections, delimiter is ';'</option>
+                                {% for item in available_options['collection'] + book.collection %}
+                                {%  set name = item if item is string else item[1] %}
+                                <option value="{{ name }}" {{'selected' if name in book.collection else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Group</th>
+                        <td id="Group">
+                            <select multiple name="groups" class="selectized select-multiple-create" placeholder="Add groups, delimiter is ';'">
+                                <option value="">Add groups, delimiter is ';'</option>
+                                {% for item in available_options['groups'] + book.groups %}
+                                {%  set name = item if item is string else item[1] %}
+                                <option value="{{ name }}" {{'selected' if name in book.groups else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Artist</th>
+                        <td id="Artist">
+                            <select multiple name="artist" class="selectized select-multiple-create" placeholder="Add artists, delimiter is ';'">
+                                <option value="">Add artists, delimiter is ';'</option>
+                                {% for item in available_options['artist'] + book.artist %}
+                                {%  set name = item if item is string else item[1] %}
+                                <option value="{{ name }}" {{'selected' if name in book.artist else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Parody</th>
+                        <td id="Parody">
+                            <select multiple name="parody" class="selectized select-multiple-create" placeholder="Add parodies, delimiter is ';'">
+                                <option value="">Add parodies, delimiter is ';'</option>
+                                {% for item in available_options['parody'] + book.parody %}
+                                {%  set name = item if item is string else item[1] %}
+                                <option value="{{ name }}" {{'selected' if name in book.parody else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Character</th>
+                        <td id="Character">
+                            <select multiple  name="character" class="selectized select-multiple-create" placeholder="Add characters, delimiter is ';'">
+                                <option value="">Add characters, delimiter is ';'</option>
+                                {% for item in available_options['character'] + book.character %}
+                                {%  set name = item if item is string else item[1] %}
+                                <option value="{{ name }}" {{'selected' if name in book.character else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Tag</th>
+                        <td id="Tag">
+                            <select multiple name="tag" class="selectized select-multiple-create" placeholder="Add tags, delimiter is ';'">
+                                <option value="">Add tags, delimiter is ';'</option>
+                                {% for name in (available_options['tag'] + book.tag)|sort() %}
+                                <option value="{{ name }}" {{'selected' if name in book.tag else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>List</th>
+                        <td id="List">
+                            <select multiple name="list" class="selectized select-multiple-create" placeholder="Add lists, delimiter is ';'">
+                                <option value="">Add lists, delimiter is ';'</option>
+                                {# can only be on book if its also in available options unless we support importing lists from external websites like e.g. tsumino #}
+                                {% for _, name in available_options['list'] %}
+                                <option value="{{ name }}" {{'selected' if name in book.list else ''}}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Note</th>
+                        <td id="Note">
+                            {# only supposed to be a small note so no textarea(multi-line) field #}
+                            <input type="text" class="selectize-input" name="note" id="Note" value="{{ book.note if book.note else '' }}">
+                            {# <textarea name="note" id="Note" cols="40" rows="5">{{ book.note if book.note else '' }}</textarea> #}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <td id="">
+                            <div class="buttons">
+                                <button type="submit" id="updateBtn"
+                                    class="button green-color">
+                                    <span class="icon">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                    <span>Save</span>
+                                </button>
+<script>
+$(document).ready(function() {
+    $("#updateBtn").click(function(event) {
+        let title_eng = $("#EnglishTitleInp").val();
+        let title_foreign = $("#ForeignTitleInp").val();
+        let page_val = $("#PagesInp").val();
+        console.log(page_val);
+        let read_status = $.trim($("#ReadingStatusInp").val());
+        let my_rating = $("#MyRatingInp").val();
+        let nr = parseFloat(my_rating);
 
-            if (!title_eng && !title_foreign) {
-                alert("Either english or foreign title have to be supplied!");
-                event.preventDefault();
-                return false;
-            } else if (!Number.isInteger(+page_val)) {
-                // The value of the input element is returned, revert it into a number using + sign
-                // could also use modulo
-                alert("Pages is not a whole number!");
-                event.preventDefault();
-                return false;
-            } else if (read_status != "" && !Number.isInteger(+read_status)) {
-                alert("Reading status needs to be whole number!");
-                event.preventDefault();
-                return false;
-            } else if (Number.isNaN(+my_rating)) {
-                alert("My Rating is not a number!");
-                event.preventDefault();
-                return false;
-            } else if (nr < 0 || nr > 5) {
-                alert("My Rating has to be a number from 0 to 5!");
-                event.preventDefault();
-                return false;
-            } else {
-                return true;
-            }
-        });
+        if (!title_eng && !title_foreign) {
+            alert("Either english or foreign title have to be supplied!");
+            event.preventDefault();
+            return false;
+        } else if (!Number.isInteger(+page_val)) {
+            // The value of the input element is returned, revert it into a number using + sign
+            // could also use modulo
+            alert("Pages is not a whole number!");
+            event.preventDefault();
+            return false;
+        } else if (read_status != "" && !Number.isInteger(+read_status)) {
+            alert("Reading status needs to be whole number!");
+            event.preventDefault();
+            return false;
+        } else if (Number.isNaN(+my_rating)) {
+            alert("My Rating is not a number!");
+            event.preventDefault();
+            return false;
+        } else if (nr < 0 || nr > 5) {
+            alert("My Rating has to be a number from 0 to 5!");
+            event.preventDefault();
+            return false;
+        } else {
+            return true;
+        }
     });
-    </script>
-<a id="cancel-add-book" href={{ url_for('main.show_entries') }} class="button button-stack red-color"><i class="fas fa-ban"></i> Cancel</a>
+});
+</script>
+                                <a id="cancel-add-book" href={{ url_for('main.show_entries') }} class="button red-color">
+                                    <span class="icon">
+                                        <i class="fas fa-ban"></i>
+                                    </span>
+                                    <span>Cancel<span>
+                                </a>
+                            </div>
 {% if not book.id %}
     <script type="text/javascript">
     $(document).ready(function() {
@@ -364,8 +414,15 @@ $(document).ready(function() {
     });
     </script>
 {% endif %}
-</div>
-</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </form>
+        </div> {# column #}
+    </div> {# columns #}
+</div> {# container #}
+</section>
 <script>
 $('.select-single').selectize({
 	create: false,
@@ -397,8 +454,4 @@ $('.select-multiple-create').selectize({
     }
 });
 </script>
-</form>
-</div> {# book info container #}
-</div> {# book-info-wrap #}
-</div> {# row end #}
 {% endblock %}
