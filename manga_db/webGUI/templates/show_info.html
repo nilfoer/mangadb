@@ -1,35 +1,44 @@
 {% extends "book.html" %}
-{% block additional_messages %}
-{% if outdated %}
-<div class="row dark-color" style="margin-bottom:2em;">
-	<div class="col">
-    <ul class="flash-messages">
-        <li class="warning">External links from same site and with matching IDs found!</li>
-        <li class="info">This means that the external links probably don't point to the same book
-            (version) anymore! (Unless you added an external link that was already in the
-            database)</li>
-        <li class="info">A new version might have been uploaded so the best course of action is to
-            search for the book title on the page and see if you want to replace the old
-            version!</li>
-        <li class="title">Outdated links</li>
-        {% for o in outdated %}
-        <li class="info">
-            <a class="underline" href="{{ url_for('main.show_info', book_id=o[0]) }}">Book</a> / 
-            <a class="underline" href="{{ o[1].url }}">Outdated Link</a> ( {{ o[1].url }} )
-        </li>
-        {% endfor %}
-        <li class="info">View all outdated books <a class="underline" 
-                href="{{ url_for('main.show_outdated_links') }}">here!</a>
-</div>
-</div>
-{% endif %}
-{% if book_upd_changes %}
-<section class="section">
+{% block flash_messages %}
+{{ super() }}  {# render block of parent template #}
+{# TODO move these to their own template and then call render_template on them directly #}
+{% if add_ei_or_new_book_prompt or book_upd_changes or outdated %}
+{# could do this from python as well just using flash() but then we'd have to use #}
+{# use Markup object to prevent XSS attacks when using html with flash msgs #}
+<section class="section flash-messages">
     <div class="container">
+        {% if outdated %}
+            <div class="columns">
+                <div class="column is-full-width">
+                    <p class="title is-4">External links from same site and with matching IDs found!</p>
+                    <p class="info">This means that the external links probably don't point to the same book
+                        (version) anymore! (Unless you added an external link that was already in the
+                        database)</p>
+                    <p class="info">A new version might have been uploaded so the best course of action is to
+                        search for the book title on the page and see if you want to replace the old
+                        version!</p>
+                    <p class="title is-5 mt-3">Outdated links</p>
+                <!-- {# {% for o in outdated %} -->
+                <!-- <p class="info"> -->
+                <!--     <a class="underline" href="{{ url_for('main.show_info', book_id=o[0]) }}">Book</a> / --> 
+                <!--     <a class="underline" href="{{ o[1].url }}">Outdated Link</a> ( {{ o[1].url }} ) -->
+                <!-- </p> -->
+                    <!-- {% endfor %} #} -->
+                    <p class="info">
+                        <a class="underline" href="{{ url_for('main.show_info', book_id=23452) }}">Book</a> / 
+                        <a class="underline" href="#">Outdated Link</a> ( https://nehtna.net/g/s82342 )
+                    </p>
+                    <p class="info">View all outdated books <a class="underline" 
+                            href="{{ url_for('main.show_outdated_links') }}">here!</a>
+                    </p>
+            </div>
+        </div>
+        {% endif %}
+        {% if book_upd_changes %}
         <div class="columns">
-            <div class="column is-half">
-                <h1 class="title is-3">Differences from Book at external link:</h1>
-                <h2 class="subtitle is-5">
+            <div class="column is-full-widht">
+                <h1 class="title is-4">Differences from Book at external link:</h1>
+                <h2 class="subtitle is-6">
                     Which changes should be saved?
                 </h2>
                 <p class="block">
@@ -99,7 +108,7 @@
                     <div class="field mt-5">
                         <div class="control">
                             <button type="submit" id="updateBtn"
-                                class="button green-color">
+                                class="button dark-color">
                                 <span class="icon">
                                 <i class="fas fa-check"></i>
                                 </span>
@@ -111,29 +120,42 @@
                 </div>
             </div>
         </div>
+        {% endif %}  {# book_upd_changes #}
+        {% if add_ei_or_new_book_prompt %}
+        <div class="columns">
+            <div class="column is-full-widht">
+                <form action="{{ url_for('main.import_book') }}" method=post>
+                {{ csrf_token_field() }}
+                <p class="title is-4">Title of book to import matches with the title of this book!</p>
+                <p class="info block">
+                Should the <a href={{ add_ei_or_new_book_prompt[0] }}>URL</a> be added as an
+                external link to this book or should it be imported as a new book?
+                </p>
+                <p>
+                <div class="buttons">
+                    <button type="submit" name="action" value="add_ext" id="addExt" class="button blue-color">
+                        <span class="icon">
+                            <i class="fas fa-plus"></i>
+                        </span>
+                        <span>Add as external link!</span>
+                    </button>
+                    <button type="submit" name="action" value="add_new" id="addNew" class="button red-color">
+                        <span class="icon">
+                            <i class="fas fa-book"></i>
+                        </span>
+                        <span>Add as new book!</span>
+                    </button>
+                </div>
+                </p>
+                <input type="hidden" name="extr_data_json" value="{{ add_ei_or_new_book_prompt[1] }}" />
+                <input type="hidden" name="ext_url" value={{ add_ei_or_new_book_prompt[0] }} />
+                <input type="hidden" name="thumb_url" value={{ add_ei_or_new_book_prompt[2] }} />
+            </form>
+            </div>
+        </div>
+        {% endif %}
 	</div>
 </section>
-{% endif %}
-{% if add_ei_or_new_book_prompt %}
-<div class="row dark-color" style="margin-bottom:2em;">
-	<div class="col" style="padding: 1em 1em 0 1em">
-		<form action="{{ url_for('main.import_book') }}" method=post>
-        {{ csrf_token_field() }}
-        <h5>Title of book to import matches with the title of this book!</h5>
-		<ul class="flash-messages">
-        <li class="info">Should the <a href={{ add_ei_or_new_book_prompt[0] }}>URL</a> be added as an external link to this book or
-            should it be imported as a new book?</li>
-		<li>
-            <button type="submit" name="action" value="add_ext" id="addExt" class="button blue-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-plus"></i><span style="margin-left: 5px;">Add as external link!</span></button>
-		    <button type="submit" name="action" value="add_new" id="addNew" class="button red-color button-leftmost" style="margin-bottom: 3px;margin-top: 5px;"><i class="fas fa-book"></i><span style="margin-left: 5px;">Add as new book!</span></button>
-        </li>
-		</ul>
-        <input type="hidden" name="extr_data_json" value="{{ add_ei_or_new_book_prompt[1] }}" />
-        <input type="hidden" name="ext_url" value={{ add_ei_or_new_book_prompt[0] }} />
-        <input type="hidden" name="thumb_url" value={{ add_ei_or_new_book_prompt[2] }} />
-	</form>
-	</div>
-</div>
 {% endif %}
 {% endblock %}
 {% block book_info %}

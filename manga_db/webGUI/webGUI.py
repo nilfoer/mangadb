@@ -151,7 +151,7 @@ def import_book(url=None, force_new=False):
     else:
         extr_data, thumb_url = mdb.retrieve_book_data(url)
         if extr_data is None:
-            flash("Failed getting book!", "warning")
+            flash("Failed getting book!", "title warning")
             flash("Either there was something wrong with the url or the extraction failed!",
                   "info")
             flash(f"URL was: {url}")
@@ -235,19 +235,22 @@ def jump_to_book_by_url():
 
 @main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=("POST",))
 def update_book_ext_info(book_id, ext_info_id):
+    conv = {'normal': {'pages': 26}, 'added_removed': {'category': ({'Manga'}, set()), 'collection': (set(), {'Reishuu'}), 'groups': ({'MediBang!'}, set()), 'artist': ({'ElectricSheep', 'Yuuki Tsumugi'}, set()), 'parody': ({'Original'}, set()), 'character': (set(), {'Kimihito Kurusu', 'Usagi Tsukino / Sailor Moon', 'Pepperoni', 'Mahiru Koizumi'}), 'tag': ({'Office Lady', 'Bukkake', 'Large Breasts', 'Breast Sucking', 'Harem', 'Nakadashi', 'Megane', 'Gangbang', 'Exhibitionism', 'Anal', 'Pantyhose', 'Group Sex', 'Leg Lock', 'Blowjob', 'Decensored', 'Spitroast', 'Full Color', 'Huge Penis', 'Deepthroat', 'Cunnilingus', 'French Kissing', 'X-ray'}, set())}}
+    return show_info(book_id, book_upd_changes=conv)
+
     mdb = get_mdb()
     old_book = mdb.get_book(book_id)
     # could also pass in url using post or get
     ext_info = [ei for ei in old_book.ext_infos if ei.id == ext_info_id][0]
     status, new_book = ext_info.update_from_url()
     if status == "no_data":
-        flash("Updating failed!", "warning")
+        flash("Updating failed!", "title warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {ext_info.url}")
         flash("Check the logs for more details!", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
     elif status == "title_missmatch":
-        flash("Update failed!", "warning")
+        flash("Update failed!", "title warning")
         flash(f"Title of book at URL didn't match title '{old_book.title}'", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
 
@@ -469,6 +472,7 @@ def rate_book(book_id, rating):
         url_for("main.show_info", book_id=book_id))
 
 
+# TODO these set.. routes should use POST
 @main_bp.route("/book/<int:book_id>/ext_info/<int:ext_info_id>/set/downloaded/<int:intbool>")
 def set_downloaded(book_id, ext_info_id, intbool):
     ExternalInfo.set_downloaded_id(get_mdb(), ext_info_id, intbool)
@@ -501,11 +505,11 @@ def add_ext_info(book_id):
     # need title to ensure that external link matches book
     book_title = request.form.get("book_title", None, type=str)
     if not url or not book_title:
-        flash(f"URL empty!")
+        flash("URL empty!")
         return redirect(url_for("main.show_info", book_id=book_id))
     extr_data, _ = MangaDB.retrieve_book_data(url)
     if extr_data is None:
-        flash("Adding external link failed!", "warning")
+        flash("Adding external link failed!", "title warning")
         flash("Either there was something wrong with the url or the extraction failed!", "info")
         flash(f"URL was: {url}")
         flash("Check the logs for more details!", "info")
@@ -514,7 +518,7 @@ def add_ext_info(book_id):
     book, ext_info = mdb.book_from_data(extr_data)
     if book.title != book_title:
         # just warn if titles dont match, its ultimately the users decision
-        flash("Title of external link and book's title don't match!", "warning")
+        flash("Title of external link and book's title doesn't match!", "title warning")
         flash(f"URL: {url}", "info")
 
     # @Temporary getting book to be able to save ext_info and adding ext_info manually to ext_infos

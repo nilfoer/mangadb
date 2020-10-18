@@ -22,7 +22,9 @@ $pink: #ff2871;
 $blue: #1498ff; //custom
 // $dark: #2d2d2d;
 $red: #e42323; //custom
-$mdb-green: #31c131; //custom
+$mdb-green: #209520; //#31c131;
+$green: $mdb-green;
+$mdb-warning: #f05252;
 
 // 3. Set the derived variables
 // Update Bulma's global variables
@@ -39,8 +41,9 @@ $scheme-invert-bis: hsl(0, 0%, 96%);
 $scheme-main-ter: lighten($scheme-main-bis, 15%);
 $scheme-invert-ter: hsl(0, 0%, 86%);
 
-$text: #fff;
-$link: #fff;
+$text: $scheme-invert-bis;
+$text-strong: #7bc5ff;
+$link: $scheme-invert;
 $link-invert: $link;
 $link-hover: $link;//lighten($primary, 15%);
 //$link-hover-border: $primary;
@@ -475,27 +478,35 @@ hr {
 //         display: table;
 //         border-collapse: separate;
 // }
-ul.flash-messages {
+.flash-messages {
    list-style: none;
-   margin-left: 0;
-   padding-left: 1em;
-   color: hsl(0, 0, 23%);
+   //margin-left: 0;
+   padding-bottom: 1rem;
+   color: $scheme-invert-ter;
 
-    li label {
+    // overwrite bulma css message since flask's flash uses message as category by default
+    .message {
+        background-color: transparent;
+        border: none;
+        font-size: 1rem;
+    }
+
+    p label {
         font-weight: normal;
         margin-bottom: 0px;
     }
-    li.info {
+    p.info {
     }
-    li.title {
-        font-size: 1.5rem;
+    p.title {
+        //font-size: 1.5rem;
         font-weight: bold;
-        margin-bottom: 0.5em 0;
+        //margin-bottom: 0.5em 0;
     }
-    li.warning {
+    p.warning {
         font-weight: bold;
-        color: $danger; /* #f67764 */
+        color: $mdb-warning; /* #f67764 */
     }
+
     a.underline {
         text-decoration: underline;
     }
