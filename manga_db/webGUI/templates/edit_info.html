@@ -14,47 +14,64 @@
                 {% if book.id is not none %}
                     src={{ url_for('main.thumb_static', filename=book.id) }}
                 {% else %}
-                    src={{ url_for('static', filename='no-image.png') if not cover_temp_name else
-                           url_for('main.thumb_static', filename=cover_temp_name) }}
+                    src={{ url_for('static', filename='no-image.png') if not cover_uploaded else
+                           url_for('main.thumb_static', filename='temp_cover') }}
                 {% endif %}
                 >
             </figure>
             <form id=upload-cover action="{{ url_for('main.upload_cover', book_id=book.id if book.id else 0) }}" method=post enctype=multipart/form-data style="margin-top:1em;">
                 <div class="field has-addons">
                     <div class="control">
-                        <div class="file is-primary is-small has-name is-fullwidth">
+                        <div class="file is-light is-small has-name">
                             <label class="file-label">
                                 <input id="cover-file" class="file-input" type="file" name="file" required>
                                 <span class="file-cta">
                                     <span class="file-icon">
-                                        <i class="fas fa-upload"></i>
+                                        <i class="fas fa-folder-open"></i>
                                     </span>
-                                    <span class="file-label">
-                                        Choose a file…
-                                    </span>
+                                    <!-- <span class="file-label"> -->
+                                    <!--     Browse -->
+                                    <!-- </span> -->
                                 </span>
                                 <span class="file-name">
-                                    Screen Shot 2017-07-29 at 15.54.25.png
+                                    No file chosen...
                                 </span>
                             </label>
                         </div>
                     </div>
                     <div class="control">
-                        <input type="submit" class="button is-small is-success" value="Upload Cover" />
+                        <button type="submit" class="button is-small is-primary">
+                            <span class="icon">
+                                <i class="fas fa-upload"></i>
+                            </span>
+                            <span>Upload Cover</span>
+                        </button>
                     </div>
                 </div>
                 <div class="field">
                     <p class="help">Maximum file size is 512 KB</p>
                     <p class="help">Note: Optimal width is 400px and optimal aspect ratio is 5:7</p>
-                    <p class="help">
+                    <p class="help block">
                     Image won't be cropped but if it differs too much from an aspect ratio of 5:7 it will
                     look distorted when displayed as thumbnail!
+                    </p>
+                    <p class="has-text-warning">
+                    New cover will only be changed if the 'Save' button is pressed!
                     </p>
                     {{ csrf_token_field() }}
                 </div>
             </form>
 <script>
 $(document).ready(function() {
+    // update file name change manually since we're not using the default one
+    const fileInput = document.querySelector('#cover-file');
+    fileInput.onchange = () => {
+        if (fileInput.files.length > 0) {
+            const fileName = document.querySelector('#upload-cover .file-name');
+            fileName.textContent = fileInput.files[0].name;
+        }
+    }
+
     $("#upload-cover").submit(function(event) {
         event.preventDefault();
         //grab all form data  
@@ -62,16 +79,6 @@ $(document).ready(function() {
         var form_data = new FormData(this);//.serialize();
         // add files of input type file to form_data
         form_data.append('file', $('#cover-file')[0].files[0]);
-
-        let hidden_temp = $('#cover_temp_name');
-        // check if another cover was uploaded b4
-        if (hidden_temp.length) {
-            // hidden_temp.get() (like [0]) gets the DOM element, if you want a jQuery object
-            // use .eq(0) or .first()
-            // with [0] id have to use .value instead of val()
-            // val(): Get the current value of the first element in the set of matched elements.
-            form_data.append("old_cover_temp_name", hidden_temp.val());
-        }
 
         $.ajax({
                // whole mistake was forgetting " around url
@@ -94,23 +101,14 @@ $(document).ready(function() {
                 // circumvent that by adding a variable to the img url
                 $("#book-cover").attr("src",
                     data.cover_path + "?timestamp=" + new Date().getTime());
-                {% if book.id is none %}
-                // get only filename vv
-                var temp_name = data.cover_path.split("/")
-                // get last element
-                temp_name = temp_name[temp_name.length-1]
+                // arrow func doesn't have "this" ref
+                let cover_uploaded = $("#cover_uploaded");
 
-                if (hidden_temp.length) {
-                    // change value attr if there was a hidden field for temp name b4
-                    // val(value) sets value on all matched
-                    hidden_temp.val(temp_name);
-                } else {
-                    // add temp name of cover (no id yet) as hidden field so we can rename it
-                    var hidden_temp_name = "<input type='hidden' id='cover_temp_name' name='cover_temp_name' value='" +
-                        temp_name + "'/>"
-                    $("#add-book-form").prepend(hidden_temp_name)
+                if (!cover_uploaded.length)
+                {
+                    $("#edit-book-form, #add-book-form").prepend(
+                        "<input type='hidden' id='cover_uploaded' name='cover_uploaded' value='1' />");
                 }
-                {% endif %}
            }
         });
         // to prevent default also
@@ -133,11 +131,11 @@ $(document).ready(function() {
             <form id=edit-book-form action={{ url_for('main.edit_book', book_id=book.id) }} method=post style="min-width:100%;width:100%;">
             {% else %}
             <form id=add-book-form action={{ url_for('main.add_book') }} method=post style="min-width:100%;width:100%;">
-            {% if cover_temp_name %}
-            <input type='hidden' id='cover_temp_name' name='cover_temp_name' value="{{ cover_temp_name }}"/>
+            {% if cover_uploaded %}
+            <input type='hidden' id='cover_uploaded' name='cover_uploaded' value='1' />
             {% endif %}
             {% if extr_data %}
-            <input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}""/>
+            <input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}" />
             {% endif %}
             {% endif %}
             {{ csrf_token_field() }}
@@ -368,52 +366,54 @@ $(document).ready(function() {
     });
 });
 </script>
-                                <a id="cancel-add-book" href={{ url_for('main.show_entries') }} class="button red-color">
+                                <a id="cancel-change-book"
+                                    href={{ url_for('main.show_entries') if not book.id else
+                                            url_for('main.show_info', book_id=book.id) }}
+                                    class="button red-color">
                                     <span class="icon">
                                         <i class="fas fa-ban"></i>
                                     </span>
                                     <span>Cancel<span>
                                 </a>
                             </div>
-{% if not book.id %}
-    <script type="text/javascript">
-    $(document).ready(function() {
-        $("#cancel-add-book").click(function(event) {
-            event.preventDefault();
-            let req_url = "{{ url_for('main.cancel_add_book') }}";
-            let redirect_func = function() {
-                                    // location.href = "..." would work like a link -> saved
-                                    // in history etc.
-                                    // location.replace() just replaces the current doc
-                                    window.location.href = "{{ url_for('main.show_entries') }}";
-                                }
-            let cover_temp_name = $('#cover_temp_name');
+<script type="text/javascript">
+$(document).ready(function() {
+    $("#cancel-change-book").click(function(event) {
+        event.preventDefault();
+        let req_url = "{{ url_for('main.cancel_add_book') }}";
+        let redirect_url = event.currentTarget.href;
+        let redirect_func = function() {
+                                // location.href = "..." would work like a link -> saved
+                                // in history etc.
+                                // location.replace() just replaces the current doc
+                                window.location.href = redirect_url;
+                            }
+        let cover_uploaded = $('#cover_uploaded');
 
-            let data = "";
-            if (cover_temp_name.length) {
-                data = cover_temp_name.val();
-            } else {
-                data = "";
-            }
+        let data = "";
+        if (cover_uploaded.length) {
+            data = cover_uploaded.val();
+        } else {
+            data = "";
+        }
 
-            // $.post(url, data, success, dataType) usees default contentType:
-            // 'application/x-www-form-urlencoded; charset=UTF-8'
-            $.ajax({
-                type: "POST",
-                url: req_url,
-                contentType: "text/plain; charset=UTF-8",
-                data: data,
-                success: redirect_func,
-                // type were expecting back
-                // if none is specified, jQuery will try to infer it based on the MIME type
-                dataType: null
-            });
-        // to also prevent default
-        return false;
+        // $.post(url, data, success, dataType) usees default contentType:
+        // 'application/x-www-form-urlencoded; charset=UTF-8'
+        $.ajax({
+            type: "POST",
+            url: req_url,
+            contentType: "text/plain; charset=UTF-8",
+            data: data,
+            success: redirect_func,
+            // type were expecting back
+            // if none is specified, jQuery will try to infer it based on the MIME type
+            dataType: null
         });
+    // to also prevent default
+    return false;
     });
-    </script>
-{% endif %}
+});
+</script>
                         </td>
                     </tr>
                 </tbody>

@@ -180,14 +180,18 @@ def import_book(url=None, force_new=False):
         # show prompt to add extinfo or add as a new book
         return show_info(bid, add_ei_or_new_book_prompt=(url, extr_data_json, thumb_url))
     else:
-        # dl cover as temp uuid name and display add book page
-        import uuid
-        filename = uuid.uuid4().hex
-        cover_path = os.path.join(current_app.config["THUMBS_FOLDER"], filename)
-        cover_dled = mdb.download_cover(thumb_url, cover_path)
+        # dl cover as temp and display add book page
+        # only allow one temp cover
+        # change this to temp_cover_{username} if we add multiple user support
+        cover_path = os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover")
+        cover_dled = mdb.download_cover(thumb_url, cover_path, overwrite=True)
         if not cover_dled:
+            current_app.logger.error(
+                    "Could not download cover for book at %s with thumb url %s",
+                    url, thumb_url)
             flash("Thumb couldnt be downloaded!")
-        return show_add_book(book=book, cover_temp=filename if cover_dled else None,
+
+        return show_add_book(book=book, cover_uploaded=True if cover_dled else False,
                              extr_data=extr_data_json)
 
 
@@ -532,7 +536,7 @@ def add_ext_info(book_id):
 
 
 @main_bp.route("/book/add")
-def show_add_book(book=None, cover_temp=None, extr_data=None):
+def show_add_book(book=None, cover_uploaded=None, extr_data=None):
     mdb = get_mdb()
     if book is None:
         # @Hack
@@ -552,7 +556,7 @@ def show_add_book(book=None, cover_temp=None, extr_data=None):
         'edit_info.html',
         book=book,
         available_options=available_options,
-        cover_temp_name=cover_temp,
+        cover_uploaded=cover_uploaded,
         extr_data=extr_data)
 
 
@@ -575,19 +579,18 @@ def add_book():
     bid, outdated_on_ei_id = book.save(block_update=True)
     outdated_on_ei_id = outdated_on_ei_id[0] if outdated_on_ei_id else None
 
-    # rename book cover if one was uploaded with temp name
-    temp_name = request.form.get("cover_temp_name", None)
-    if temp_name is not None:
-        os.rename(os.path.join(current_app.config["THUMBS_FOLDER"], temp_name),
-                  os.path.join(current_app.config["THUMBS_FOLDER"], str(bid)))
+    # rename book cover if one was uploaded
+    if request.form.get("cover_uploaded", None):
+        os.replace(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover"),
+                   os.path.join(current_app.config["THUMBS_FOLDER"], str(bid)))
     return show_info(bid, book=book, show_outdated=outdated_on_ei_id)
 
 
 @main_bp.route("/book/add/cancel", methods=["POST"])
 def cancel_add_book():
-    # instead of using js to read out cover_temp_name and using ajax to send POST request
+    # instead of using js to read out cover_uploaded and using ajax to send POST request
     # to this funcs url i could insert a form with only one field a hidden input with
-    # cover_temp_name as value and bind the cancel button to submit the form
+    # cover_uploaded as value and bind the cancel button to submit the form
     # (cant do it in the noraml form since i have required fields)
 
     # Use request.get_data() to get the raw data, regardless of content type.
@@ -600,9 +603,9 @@ def cancel_add_book():
     # print(request.get_data())
     # specified contentType text/plain here so .data works
     # del temp book cover file if we dont add book
-    temp_name = request.data
-    if temp_name:
-        os.remove(os.path.join(current_app.config["THUMBS_FOLDER"], temp_name.decode("UTF-8")))
+    cover_uploaded = request.data
+    if cover_uploaded:
+        os.remove(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover"))
     # js takes care of the redirection
     return url_for("main.show_entries")
 
@@ -677,6 +680,12 @@ def edit_book(book_id):
     book.update_from_dict(update_dic)
     book.save()
 
+    # change cover if one was uploaded
+    if request.form.get("cover_uploaded", None):
+        thumb_dir = current_app.config['THUMBS_FOLDER']
+        os.replace(os.path.join(thumb_dir, "temp_cover"),
+                   os.path.join(thumb_dir, str(book_id)))
+
     return redirect(url_for("main.show_info", book_id=book_id))
 
 
@@ -700,20 +709,6 @@ def upload_cover(book_id):
     if file_data.filename == '':
         return jsonify({"error": "No file selected!"})
     if file_data and allowed_thumb_ext(file_data.filename):
-        if book_id == 0:
-            # generate unique filename for book that has no book id yet
-            # insert as hidden field into add_book and rename to book id then
-            # Version 4: These are generated from random (or pseudo-random) numbers. If you just
-            # need to generate a UUID, this is probably what you want.
-            import uuid
-            filename = uuid.uuid4().hex
-
-            # del old cover if there is one
-            old_temp = request.form.get("old_cover_temp_name", None)
-            if old_temp:
-                os.remove(os.path.join(current_app.config['THUMBS_FOLDER'], old_temp))
-        else:
-            filename = str(book_id)
         from PIL import Image
         # file_data is only the wrapper (werkzeug.FileStorag) open actual file with .stream
         # (SpooledTemporaryFile)
@@ -721,10 +716,11 @@ def upload_cover(book_id):
         # convert to thumbnail (in-place) tuple is max size, keeps apsect ratio
         img.thumbnail((400, 600))
         # when saving without extension we need to pass format kwarg
-        img.save(os.path.join(current_app.config['THUMBS_FOLDER'], filename), format=img.format)
+        img.save(os.path.join(current_app.config['THUMBS_FOLDER'], "temp_cover"),
+                 format=img.format)
         img.close()
         file_data.close()
-        return jsonify({'cover_path': url_for('main.thumb_static', filename=filename)})
+        return jsonify({'cover_path': url_for('main.thumb_static', filename="temp_cover")})
     else:
         return jsonify({"error": "Wrong extension for thumb!"})
 
