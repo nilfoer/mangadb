@@ -18,16 +18,12 @@
                         search for the book title on the page and see if you want to replace the old
                         version!</p>
                     <p class="title is-5 mt-3">Outdated links</p>
-                <!-- {# {% for o in outdated %} -->
-                <!-- <p class="info"> -->
-                <!--     <a class="underline" href="{{ url_for('main.show_info', book_id=o[0]) }}">Book</a> / --> 
-                <!--     <a class="underline" href="{{ o[1].url }}">Outdated Link</a> ( {{ o[1].url }} ) -->
-                <!-- </p> -->
-                    <!-- {% endfor %} #} -->
+                    {% for o in outdated %}
                     <p class="info">
-                        <a class="underline" href="{{ url_for('main.show_info', book_id=23452) }}">Book</a> / 
-                        <a class="underline" href="#">Outdated Link</a> ( https://nehtna.net/g/s82342 )
+                    <a class="underline" href="{{ url_for('main.show_info', book_id=o[0]) }}">Book</a> / 
+                    <a class="underline" href="{{ o[1].url }}">Outdated Link</a> ( {{ o[1].url }} )
                     </p>
+                    {% endfor %}
                     <p class="info">View all outdated books <a class="underline" 
                             href="{{ url_for('main.show_outdated_links') }}">here!</a>
                     </p>

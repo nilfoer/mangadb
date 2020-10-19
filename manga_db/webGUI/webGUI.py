@@ -239,9 +239,6 @@ def jump_to_book_by_url():
 
 @main_bp.route('/book/<int:book_id>/ext_info/<int:ext_info_id>/update', methods=("POST",))
 def update_book_ext_info(book_id, ext_info_id):
-    conv = {'normal': {'pages': 26}, 'added_removed': {'category': ({'Manga'}, set()), 'collection': (set(), {'Reishuu'}), 'groups': ({'MediBang!'}, set()), 'artist': ({'ElectricSheep', 'Yuuki Tsumugi'}, set()), 'parody': ({'Original'}, set()), 'character': (set(), {'Kimihito Kurusu', 'Usagi Tsukino / Sailor Moon', 'Pepperoni', 'Mahiru Koizumi'}), 'tag': ({'Office Lady', 'Bukkake', 'Large Breasts', 'Breast Sucking', 'Harem', 'Nakadashi', 'Megane', 'Gangbang', 'Exhibitionism', 'Anal', 'Pantyhose', 'Group Sex', 'Leg Lock', 'Blowjob', 'Decensored', 'Spitroast', 'Full Color', 'Huge Penis', 'Deepthroat', 'Cunnilingus', 'French Kissing', 'X-ray'}, set())}}
-    return show_info(book_id, book_upd_changes=conv)
-
     mdb = get_mdb()
     old_book = mdb.get_book(book_id)
     # could also pass in url using post or get

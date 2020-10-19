@@ -5,6 +5,7 @@ import datetime
 import bs4
 import sqlite3
 import pytest
+import re
 from io import BytesIO
 
 from PIL import Image
@@ -324,28 +325,28 @@ def test_show_info(app_setup):
         assert len(cat) == 1
         assert cat[0].text.strip() == "Doujinshi"
 
-        grp = soup.select("#Group > a")
+        grp = soup.select("#Group > .tags > a")
         assert len(grp) == 1
         assert grp[0].text.strip() == "SeaFox"
 
-        artist = soup.select("#Artist > a")
+        artist = soup.select("#Artist > .tags > a")
         assert len(artist) == 1
         assert artist[0].text.strip() == "Kirisaki Byakko"
 
-        chars = [a.text.strip() for a in soup.select("#Character > a")]
+        chars = [a.text.strip() for a in soup.select("#Character > .tags > a")]
         assert len(chars) == 3
         assert "Mario" in chars
         assert "Princess Peach" in chars
         assert "Super Crown Bowser | Bowsette" in chars
 
-        parody = soup.select("#Parody > a")
+        parody = soup.select("#Parody > .tags > a")
         assert len(parody) == 1
         assert parody[0].text.strip() == "Super Mario Bros. / スーパーマリオブラザーズ"
 
         tags_expected = set("Femdom;Large Breasts;Nakadashi;Collar;Dragon Girl;Fangs;"
                             "Futa on Female;Futanari;Gender Bender;Hat;Leotard;Monster Girl;"
                             "Royalty".split(";"))
-        tags = [a.text.strip() for a in soup.select("#Tag > a")]
+        tags = [a.text.strip() for a in soup.select("#Tag > .tags > a")]
         tags_nr = len(tags)
         tags = set(tags)
         assert len(tags) == tags_nr
@@ -379,7 +380,7 @@ def test_show_info(app_setup):
         assert soup.select_one("#ReadingStatus").text.strip() == "23"
         assert soup.select_one("#btnFav").text.strip() == "Favorite"
         assert soup.select_one("#Downloaded > .fa-check")
-        assert soup.select_one("#Collection > a ").text.strip() == "Dolls"
+        assert soup.select_one("#Collection > .tags > a ").text.strip() == "Dolls"
 
         assert b"COLLECTION: </span>Dolls" in resp.data
 
@@ -556,8 +557,8 @@ def test_upload_cover(app_setup):
         img_bio.seek(0)
         tfile = (img_bio, "test.png")
         resp = upload_file(app, client, 10, tfile)
-        assert resp.json == jsonify({"cover_path": "/thumbs/10"}).json
-        cover_img = Image.open(os.path.join(tmpdir, "thumbs", "10"))
+        assert resp.json == jsonify({"cover_path": "/thumbs/temp_cover"}).json
+        cover_img = Image.open(os.path.join(tmpdir, "thumbs", "temp_cover"))
         assert cover_img.size <= (400, 600)
         cover_img.close()
 
@@ -576,6 +577,9 @@ def test_upload_cover(app_setup):
         assert cover_img.size <= (400, 600)
         cover_img.close()
 
+        # using same temp name -> del old one first
+        os.remove(os.path.join(tmpdir, "thumbs", "temp_cover"))
+
         img = Image.new('RGB', (300, 530), color='red')
         # save pil image in BytesIO obj
         img_bio = BytesIO()
@@ -587,8 +591,7 @@ def test_upload_cover(app_setup):
             sess["_csrf_token"] = "token123"
         resp = client.post(
                     url_for("main.upload_cover", book_id=0),
-                    data={"file": tfile,
-                          "old_cover_temp_name": r_dic["cover_path"].rsplit("/", 1)[-1]},
+                    data={"file": tfile},
                     headers={
                         'Content-Type': 'multipart/form-data',
                         'X-Requested-With': 'XMLHttpRequest',
@@ -598,9 +601,7 @@ def test_upload_cover(app_setup):
         r_dic2 = resp.get_json()
         assert os.path.isfile(os.path.join(tmpdir, "thumbs",
                                            r_dic2["cover_path"].rsplit("/", 1)[-1]))
-        # other temp img was deleted
-        assert not os.path.exists(os.path.join(tmpdir, "thumbs",
-                                               r_dic["cover_path"].rsplit("/", 1)[-1]))
+        # since we overwrite anyway we don't need to check for deltion
 
 
 tsu_extr_data = {
@@ -660,7 +661,7 @@ def test_import_book(app_setup, monkeypatch):
                     follow_redirects=True)
 
         # cover temp written correctly
-        assert (gen_hash_from_file(os.path.join(tmpdir, "thumbs", kwargs_show_add["cover_temp"]),
+        assert (gen_hash_from_file(os.path.join(tmpdir, "thumbs", "temp_cover"),
                                    "sha512") ==
                 "6c77019c5a84f00486b35a496b4221eb30dfb8a5d37d006c298d01562291ca0138e2ef72e"
                 "27f076be80593fb1ff27f09a5a557c55c8a98e80f88d91ceff8b533")
@@ -774,12 +775,12 @@ def test_add_book(app_setup):
     tmpdir, app, client = app_setup
     setup_authenticated_sess(app, client)
 
-    tmpcov_path = os.path.join(tmpdir, "thumbs", "tempcover")
+    tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover")
     data = {k: v for k, v in extr_data.items() if k not in ExternalInfo.COLUMNS and
             v is not None}
     data.update({
         "extr_data_json": extr_json,
-        "cover_temp_name": "tempcover",
+        "cover_uploaded": True,
         "_csrf_token": "token123",
         "read_status": "",
         "language_id": 1,
@@ -818,7 +819,7 @@ def test_add_book(app_setup):
         assert sorted(row[10].split(";")) == tags_expected
 
     # cancel add book
-    tmpcov_path = os.path.join(tmpdir, "thumbs", "tempcover")
+    tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover")
     with open(tmpcov_path, "w") as f:
         f.write("Testcover temp file to delete")
     with app.app_context():
@@ -826,7 +827,7 @@ def test_add_book(app_setup):
             sess["_csrf_token"] = "token123"
         client.post(
                 url_for("main.cancel_add_book"),
-                data="tempcover",
+                data="1",
                 headers={
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRFToken': "token123"
@@ -876,7 +877,7 @@ def test_add_ext_info(app_setup, monkeypatch):
                     data={"url": url, "book_title": book_title, "_csrf_token": "token123"},
                     follow_redirects=True)
         # title missmatch warning
-        assert b"Title of external link and book&#39;s title don&#39;t match!" in resp.data
+        assert b"Title of external link and book&#39;s title doesn&#39;t match!" in resp.data
         # outdated warning
         assert b"External links from same site and with matching IDs found!" in resp.data
         assert f"( {url} )".encode("utf-8") in resp.data
@@ -969,7 +970,7 @@ def test_update_book_ext_info(app_setup, monkeypatch):
         #                 "Nakadashi", "School Uniform", "Sweating", "Added Tag"],
         #         "collection": ["Big Sis Martina's"]
         #         }
-        assert "pages: 29" in r_html
+        assert re.search(r'input name="pages" .*\r?\n?.* value="29"', r_html)
         added_removed = (
                 ({"Decensored", "Added Tag"}, {"Exhibitionism", "Ponytail"}),
                 "Added Artist;;;",
