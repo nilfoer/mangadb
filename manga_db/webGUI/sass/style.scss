@@ -116,19 +116,27 @@ body {
 // 6. Import the rest of Bulma
 // To override any of these variables ($primary etc.), just set them before importing Bulma.
 // imports everything: @import "../bulma-0.9.1/bulma.sass";
-@import "../bulma-0.9.1/bulma.sass";
+//@import "../bulma-0.9.1/bulma.sass";
 // Import only what you need from Bulma
-//@import "../bulma-0.9.1/sass/utilities/_all.sass";
-//@import "../bulma-0.9.1/sass/base/_all.sass";
-//@import "../bulma-0.9.1/sass/elements/button.sass";
-//@import "../bulma-0.9.1/sass/elements/container.sass";
-////@import "../bulma-0.9.1/sass/elements/title.sass";
-//@import "../bulma-0.9.1/sass/form/_all.sass";
-//@import "../bulma-0.9.1/sass/components/navbar.sass";
-//@import "../bulma-0.9.1/sass/components/dropdown.sass";
-//@import "../bulma-0.9.1/sass/helpers/visibility.sass";
-////@import "../bulma-0.9.1/sass/layout/hero.sass";
-////@import "../bulma-0.9.1/sass/layout/section.sass";
+// NOTE: order important !
+@import "../bulma-0.9.1/sass/utilities/_all.sass";
+@import "../bulma-0.9.1/sass/base/_all.sass";
+@import "../bulma-0.9.1/sass/components/dropdown.sass";
+@import "../bulma-0.9.1/sass/components/navbar.sass";
+@import "../bulma-0.9.1/sass/elements/button.sass";
+@import "../bulma-0.9.1/sass/elements/container.sass";
+// deprecated use /form/_all.sass @import "../bulma-0.9.1/sass/elements/form.sass";
+@import "../bulma-0.9.1/sass/elements/icon.sass";
+@import "../bulma-0.9.1/sass/elements/image.sass";
+@import "../bulma-0.9.1/sass/elements/other.sass";
+@import "../bulma-0.9.1/sass/elements/table.sass";
+@import "../bulma-0.9.1/sass/elements/tag.sass";
+@import "../bulma-0.9.1/sass/elements/title.sass";
+@import "../bulma-0.9.1/sass/form/_all.sass";
+@import "../bulma-0.9.1/sass/grid/columns.sass";
+@import "../bulma-0.9.1/sass/helpers/_all.sass";
+@import "../bulma-0.9.1/sass/layout/hero.sass";
+@import "../bulma-0.9.1/sass/layout/section.sass";
 
 .purple-color{background-color: $purple !important; }
 .pink-color{background-color: $pink !important; }
@@ -174,8 +182,6 @@ hr {
 //     display: inherit;
 // }
 
-// TODO navbar-menu keeps is-active state when burger-menu was clicked and the browser size increased
-// so it doesn't show anymore.. when does this normally ever happen?
 .navbar-menu .navbar-start {
     width: 75%;
 }
@@ -714,33 +720,48 @@ hr {
       * spread out from the start and closer to their loaded pos/size */
     min-width: 150px;
 }
-// TODO either use old container with 75% width >=1200px or re-do these for bulma container
-@media only screen and (min-width: 700px) {
+// use bulma breakpoints
+// mobile: up to 768px
+// tablet: from 769px
+// desktop: from 1024px
+// widescreen: from 1216px
+// fullhd: from 1408px
+// NOTE: widescreen and fullhd breakpoints can be disabled
+// either use them with $tablet or with mixin shorthand:
+// +tablet (shorthand for @include tablet; mixin tablet has to be defined
+//          with indented mixin syntax using '=' instead of @mixin)
+// compiles to:
+// @media screen and (min-width: $tablet)
+//   @content
+// max for mobile rest min-width and mobile is just $table -1px
+@media only screen and (min-width: 600px) {
     .book-grid {
         grid-template-columns: repeat(3, auto);
     }
 }
-@media only screen and (min-width: 900px) {
-    /* we switch to 100% width of page < 1200px so 4 cols works for a wider range */
+@media only screen and (min-width: $tablet) {
     .book-grid {
         grid-template-columns: repeat(4, auto);
     }
 }
-@media only screen and (min-width: 1500px) {
+@media only screen and (min-width: $desktop) {
+    .book-grid {
+        grid-template-columns: repeat(4, auto);
+    }
+}
+@media only screen and (min-width: $widescreen) {
     .book-grid {
         grid-template-columns: repeat(5, auto);
     }
 }
-@media only screen and (min-width: 1750px) {
+@media only screen and (min-width: $fullhd) {
     .book-grid {
         grid-template-columns: repeat(6, auto);
     }
 }
-@media only screen and (min-width: 2000px) {
-    .book-grid {
-        grid-template-columns: repeat(7, auto);
-    }
-}
+// defining breakpoints >$fullhd is not sensible unless we also define new breakpoints
+// for .container that limits content to max-width
+
 .book-grid-item-cover:hover .overlay {
     display: block;
 }
@@ -1122,7 +1143,7 @@ hr {
 // }
 .books-collection-grid {
     display: grid;
-    grid-template-columns: auto;
+    grid-template-columns: repeat(2, auto);
     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
     align-items: stretch; /* Aligns grid items along the block (column) axis */
     justify-content: flex-start; /* align the whole grid inside the container */
@@ -1138,24 +1159,24 @@ hr {
 }
 /* Device-width refers to the display's resolution (eg. the 1024 from
  * 1024x768), while width refers to the width of the browser itself */
-@media only screen and (min-width: 300px) {
-    .books-collection-grid {
-        grid-template-columns: repeat(2, auto);
-    }
-}
-@media only screen and (min-width: 700px) {
+@media only screen and (min-width: $tablet) {
     .books-collection-grid {
         grid-template-columns: repeat(3, auto);
     }
 }
-@media only screen and (min-width: 900px) {
+@media only screen and (min-width: $desktop) {
     .books-collection-grid {
         grid-template-columns: repeat(4, auto);
     }
 }
-@media only screen and (min-width: 1500px) {
+@media only screen and (min-width: $widescreen) {
     .books-collection-grid {
         grid-template-columns: repeat(5, auto);
+    }
+}
+@media only screen and (min-width: $fullhd) {
+    .books-collection-grid {
+        grid-template-columns: repeat(6, auto);
     }
 }
 

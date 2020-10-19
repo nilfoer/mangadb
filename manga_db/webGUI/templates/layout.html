@@ -90,7 +90,7 @@
 
                         <div class="dropdown-menu" id="sortColOptions" role="menu">
                             <div class="dropdown-content">
-                                <a class="dropdown-item {{ 'is-active' if order_col == 'id' else '' }}" data-value="id" href="#">Id</a>
+                                <a class="dropdown-item {{ 'is-active' if not order_col or order_col == 'id' else '' }}" data-value="id" href="#">Id</a>
                                 <a class="dropdown-item {{ 'is-active' if order_col == 'title_eng' else '' }}" data-value="title_eng" href="#">English Title</a>
                                 <a class="dropdown-item {{ 'is-active' if order_col == 'title_foreign' else '' }}" data-value="title_foreign" href="#">Foreign Title</a>
                                 <a class="dropdown-item {{ 'is-active' if order_col == 'pages' else '' }}" data-value="pages" href="#">Pages</a>
