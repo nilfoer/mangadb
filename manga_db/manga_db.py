@@ -548,9 +548,6 @@ class MangaDB:
             CREATE TABLE IF NOT EXISTS ExternalInfo(
                     id INTEGER PRIMARY KEY ASC,
                     book_id INTEGER NOT NULL,
-                    -- url could be built from id but idk if thats true for all sites
-                    -- so keep it for now
-                    url TEXT NOT NULL,
                     id_onpage INTEGER NOT NULL,
                     imported_from INTEGER NOT NULL,
                     upload_date DATE NOT NULL,
