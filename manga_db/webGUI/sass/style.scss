@@ -151,16 +151,6 @@ body {
 .red-fcolor { color: $red !important; }
 .green-fcolor { color: $green !important; }
 
-// a, h1, h2       { color: #fff; underline: none }
-// a               { text-decoration: none; }
-// a:hover, a:visited, a:focus {
-//     text-decoration: none;
-//     color: #fff;
-// }
-// h1, h2          { font-family: 'Open Sans',sans-serif; margin: 0; }
-// h1              { border-bottom: 2px solid #eee; margin-bottom: 1em;}
-// h2              { font-size: 1.2em; }
-// h3              { color: #22a7f0; }
 hr { 
     display: block;
     margin: .5rem auto;
@@ -168,19 +158,6 @@ hr {
     border-width: 1px;
     border-color: #fff;
 }
-
-// // needed so navbar-item is-expanded can grow for wide search bar
-// // works but only really with 100% width of child
-// .navbar-start {
-//     flex-grow: 1;
-//     flex-shrink: 1;
-//     display: flex;
-// }
-
-// // buger menu active reset display attrib so it stacks
-// .navbar-menu.is-active > .navbar-start {
-//     display: inherit;
-// }
 
 .navbar-menu .navbar-start {
     width: 75%;
@@ -242,34 +219,10 @@ hr {
     color: $text;
 }
 
-// .img-responsive {
-//     display: block;
-//     max-width: 100%;
-//     height: auto;
-// }
 .mdb-navbar-brand {
     font-size: 1.75rem;
 }
-// .mdb-nav {
-//     display: flex;
-//     flex-flow: row nowrap;
-//     align-items: center;
-//     z-index: 999; /* so pos fixed next/prev dont overlap */
-// }
-// .mdb-nav-right {
-//     display: flex;
-//     flex-flow: row nowrap;
-//     flex-grow: 1;
-//     justify-content: flex-end;
-// }
-// .page           { margin: 1rem auto 2rem auto; width: 100%;
-//                   padding: 0.8em; }
-// @media only screen and (min-width: 1200px) {
-//     /* use full screen width on smaller devices but center on 3/4 for desktop */
-//     .page {
-//         width: 75%;
-//     }
-// }
+
 .page-nav {
     position: fixed;
     top: 0%;
@@ -317,87 +270,6 @@ hr {
 .book-info-table.has-one-fullwidth-td td {
     width: 100%;
 }
-// .button-leftmost {
-//     margin-left: 0;
-// }
-// .list-tag {
-// 	position: relative;
-// 	padding-right: 20px!important;
-// }
-// .list-tag-border {
-// 	border: #22a7f0 1px solid;
-// }
-// .list-tag a {
-// 	text-decoration: none!important;
-// 	color: #fff!important;
-// }
-// input[type="checkbox"].mdb-checkboxes {
-// 	/* input[type=checkbox], input[type=radio] { */
-// 	vertical-align: middle;
-// 	position: relative;
-// 	bottom: 1px;
-// 	margin: 0 3px 0 0;
-// }
-// .mdb-list-remove {
-//     display: inline-block;
-//     position: absolute;
-//     top: 0;
-//     bottom: 0;
-//     vertical-align: middle;
-//     right: 0;
-//     text-align: center;
-//     padding: 3px;
-//     padding-top: 7px;
-//     font-size: 0.8em;
-//     border-left: 1px solid #22a7f0;
-// }
-// #mdb-list-add-btn {
-//     font-size: 12px;
-// }
-// #list-dropdown-container {
-//     display: inline-block;
-// }
-// /* Dropdown Button */
-// .mdb-drop-btn {
-//     	cursor: pointer;
-// }
-
-// /* Dropdown button on hover & focus */
-// .mdb-drop-btn:hover, .mdb-drop-btn:focus {
-//     background-color: #4c4c4c;
-// }
-
-// /* The container <div> - needed to position the dropdown content */
-// .mdb-dropdown {
-//     position: relative;
-//     display: inline-block;
-// }
-
-// /* Dropdown Content (Hidden by Default) */
-// .mdb-dropdown-content {
-//     display: none;
-//     position: absolute;
-//     background-color: #333;
-//     min-width: 160px;
-//     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-//     z-index: 1;
-//     /* limit height and add scrollbar with overflow auto */
-//     overflow: auto;
-//     max-height: 250px;
-// }
-
-// /* Links inside the dropdown */
-// .mdb-dropdown-content a {
-//     color: #fff;
-//     padding: 3px 12px;
-//     text-decoration: none;
-//     display: block;
-// }
-
-// /* Change color of dropdown links on hover */
-// .mdb-dropdown-content a:hover {background-color: #4c4c4c}
-// /* Show the dropdown menu (use JS to add this class to the .dropdown-content container when the user clicks on the dropdown button) */
-// .mdb-show {display:block;}
 
 .kw-headline hr {
     display: block;
@@ -414,14 +286,7 @@ hr {
     font-size: 1.25rem;
     letter-spacing: 1.5px;
 }
-// .ext-info-row {
-//     margin-bottom: 1.5rem;
-// }
-// .ext-info-container {
-//     float: left;
-//     width: 100%;
-//     padding-left: .25rem;
-// }
+
 .ext-info-container hr {
     display: block;
     margin-top: .2rem;
@@ -432,68 +297,11 @@ hr {
     border-width: 1px;
     border-color: #2196f3;
 }
-// .ext-info-inner {
-//     font-size: .9rem;
-//     font-weight: 400;
-// }
+
 .ext-info-title {
     font-size: 1.1rem;
 }
-// .ext-info-line {
-//     display: table-row;
-// }
-// .ext-info {
-//     display: table-cell;
-//     padding-right: 13px;
-// }
-// .ext-info-data {
-//     display: table-cell;
-// }
-// .text-input {
-//     background-color: #2d2d2d;
-//     border: none;
-//     color: #fff;
-// }
-// #ext-info-add {
-//     width: 100%;
-//     display: flex;
-//     flex-flow: row nowrap;
-// }
-// #add-ext-info-inp {
-//     line-height: 1.5;
-//     padding-left: 27px;
-//     flex: 1;
-//     margin-right: .3rem;
-//     /* shift by icon size */
-//     margin-left: -15px;
 
-// }
-// #add-ext-info-icon {
-//     display: inline-block !important;
-//     min-width: 15px;
-//     min-height: 15px;
-//     line-height: 32px;
-//     position: relative;
-//     left: 7px;
-// }
-// #add-ext-info-btn {
-//     color: #1a1a1a; margin-left: 5px;
-//     margin-right: 0; margin-top: auto; margin-bottom: auto; padding: 6px; 
-//     flex: 0 0 0;
-// }
-// #upload-cover {
-//     font-size: .9rem;
-// }
-// .edit-book-info {
-// 	vertical-align: middle;
-// 	display: table-cell;
-// }
-// .choose-book-info-container {
-// 	font-family: 'Open Sans',sans-serif;
-//         color: #fff;
-//         display: table;
-//         border-collapse: separate;
-// }
 .flash-messages {
    list-style: none;
    //margin-left: 0;
@@ -538,147 +346,6 @@ hr {
 //     color: #c00 !important;
 // }
 
-    
-// /* change placeholder for inputs */
-// ::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
-//     color: #bdbdbd;
-//     opacity: 1; /* Firefox */
-// }
-
-// :-ms-input-placeholder { /* Internet Explorer 10-11 */
-//     color: #bdbdbd;
-// }
-
-// ::-ms-input-placeholder { /* Microsoft Edge */
-//     color: #bdbdbd;
-// }
-// /* Change autocomplete styles in WebKit */
-// input:-webkit-autofill,
-// input:-webkit-autofill:hover, 
-// input:-webkit-autofill:focus
-// textarea:-webkit-autofill,
-// textarea:-webkit-autofill:hover
-// textarea:-webkit-autofill:focus,
-// select:-webkit-autofill,
-// select:-webkit-autofill:hover,
-// select:-webkit-autofill:focus {
-//     /* either set color to same color as our input or use transition delay so it never gets set
-//      * unless the user spends 9999s on the page
-//     -webkit-transition-delay: 9999s;
-//     transition-delay: 9999s; */
-//     -webkit-text-fill-color: #fff;
-//     -webkit-box-shadow: 0 0 0px 30px #1a1a1a inset;
-// }
-// .search-container {
-//     width: 50%;
-// }
-.search-form {
-    display: flex;
-    margin-left: .5rem;
-    flex-grow: 3;
-}
-// #search-icon { /* set to inline-block and same (line)height as input field to align icon and input */
-//     display: inline-block !important;
-//     min-width: 15px;
-//     min-height: 15px;
-//     line-height: 32px;
-//     position: relative;
-//     left: 25px;
-// }
-// .searchbar {
-//     background-color: #191919;
-//     border: none;
-//     width: 100%;
-//     padding-left: 30px;
-//     color: #fff;
-// }
-// #refreshSearch {
-//     /* since sync-alt icon is bigger on same font-size scale it down */
-//     font-size: 14px;
-//     padding-top: .6rem;
-// }
-// #search-options {
-//     margin-left: .4rem;
-//     flex-grow: 2;
-// }
-// .mdb-nav .navbar-nav .nav-link {
-//     padding-right: .5rem;
-//     padding-left: 0;
-// }
-// /* re-style bootstrap dropdown */
-// .dropdown-item.active, .dropdown-item:active {
-//     color: #fff;
-//     text-decoration: none;
-//     background-color: #4c4c4c;
-// }
-// .dropdown-item {
-//     display: block;
-//     width: 100%;
-//     padding: .25rem 1.5rem;
-//     clear: both;
-//     font-weight: 400;
-//     color: #fff;
-//     text-align: inherit;
-//     white-space: nowrap;
-//     background-color: transparent;
-//     border: 0;
-// }
-// .dropdown-item:focus, .dropdown-item:hover {
-//     color: #fff;
-//     text-decoration: none;
-//     background-color: #4c4c4c;
-// }
-// .dropdown-menu {
-//     position: absolute;
-//     top: 100%;
-//     left: 0;
-//     z-index: 1000;
-//     display: none;
-//     float: left;
-//     min-width: 10rem;
-//     padding: .5rem 0;
-//     margin: .125rem 0 0;
-//     font-size: 1rem;
-//     color: #fff;
-//     text-align: left;
-//     list-style: none;
-//     background-color: #2d2d2d;
-//     background-clip: padding-box;
-//     border: 1px solid rgba(0,0,0,.15);
-//     border-radius: .25rem;
-// }
-
-// #updateBtn {
-//     margin: 0;
-// }
-// .lists-label {
-//     cursor: pointer;
-//     position: relative;
-// }
-// .button-icon {
-//     display: inline;
-//     margin: 0;
-// }
-// #add-book-btn {
-//     margin-right: 1.5rem;
-// }
-// #title-anchor {
-//     text-decoration:none;
-// }
-// #title-anchor:hover {
-//     text-decoration:none;
-//     cursor: pointer;
-//     color: #fff !important;
-// }
-// .container-align-left {
-//     float: left;
-//     text-align: left;
-// }
-// .container-align-right {
-//     float: right;
-//     text-align: right;
-// }
-
 /* to make all book-grid-items the same size i could either specify a fixed size(min/width/height)
  * in px or % for the items -> no resizing not rly responsive or i could use bootstraps cols and add
  * col-md-2 col-sm-4 col-xs-6 no-padding to book-grid-item's div classes
@@ -692,14 +359,6 @@ hr {
     justify-content: center; /* align the whole grid inside the container */
     align-content: start; /* vertically align the whole grid inside the container */
 }
-// .no-padding {
-//     padding-left: 0!important;
-//     padding-right: 0!important;
-// }
-// .no-margin {
-//     margin-left: 0!important;
-//     margin-right: 0!important;
-// }
 .book-grid-item {
     display: inline-grid;
     justify-items: center;
@@ -992,155 +651,7 @@ hr {
 .button-border-sep {
     border-left: 2px solid $button-hover-border-color;
 }
-// .show-book-container {
-// }
-// .book-cover-container {
-//     padding-left: 0;
-//     padding-right: .75rem;
-// }
-// @media only screen and (min-width: 768px) {
-//     .book-cover-container {
-//         margin: 0;
-//         padding-top: 5px;
-//     }
-// }
-// .book-cover {
-//     width: 100%;
-//     display: block;
-//     max-width: 100%;
-//     height: auto;
-//     border-radius: 10px;
-// }
-// .book-title {
-//     font-size: 1.6rem;
-//     font-weight: 600;
-// }
-// .show-book-container .book-title {
-//     margin-bottom: .75rem;
-// }
 
-// .button {
-//     background-color: #2d2d2d;
-//     font-size: 14px;
-//     font-weight: bold;
-//     color: #fff!important;
-//     text-decoration: none!important;
-//     padding: 15px;
-//     cursor: pointer;
-//     border: none;
-// }
-// .ext-info-btn-container .button {
-//     margin: 2px 0;
-// }
-// .ext-info-btn-container .button.ext-info-read-button {
-//     padding-right: 15px;
-// }
-// .ext-info-btn-container .button.dropdown-split {
-//     border-left: 1px solid #fff;
-// }
-// .button-stack {
-//     margin: 2px;
-//     display: inline-block;
-// }
-// .inline-block {
-//     display: inline-block;
-// }
-// input[type=submit] {
-//     border: none;
-//     color: #fff;
-//     /* 1rem == 16px */
-//     font-size: .9rem;
-//     background-color: #2d2d2d;
-// }
-// .tag {
-//     margin-right: 2px;
-//     display: inline-block;
-//     background-color: #2d2d2d;
-//     color: #fff !important;
-//     font-family: 'Open Sans',sans-serif;
-//     font-size: 14px;
-//     font-weight: 400;
-//     line-height: 10px;
-//     text-decoration: none !important;
-//     padding: 7px;
-//     height: 25px;
-//     margin-bottom: 5px;
-// }
-// .book-info-wrap {
-//     float: right;
-//     width: 100%;
-// }
-// .book-info-wrap .book-info-container {
-//     display: grid;
-//     justify-items: stretch;
-//     font-size: 1rem;
-//     grid-row-gap: .1rem;
-// }
-// .book-info-wrap .book-info-container .book-row {
-//     display: grid;
-//     grid-template-columns: 100px auto;
-//     align-items: center;
-//     justify-items: stretch;
-//     align-content: stretch;
-//     justify-content: stretch;
-//     grid-column-gap: .5rem;
-// }
-// .book-info-wrap .book-info-container .book-field-title {
-//     align-self: start;
-//     justify-self: start;
-// }
-//  .book-info-wrap .book-info-container .book-field-data {
-//     align-self: start;
-//     justify-self: start;
-// }
-// .book-collection-container {
-// }
-// .book-collection-container.current-book {
-// }
-// .collection-info {
-//     flex: 8 1 0;
-// }
-// .collection-thumb {
-//     flex: 1 1 0;
-//     padding: 5px .25rem 0 .5rem;
-// }
-// .collection-thumb .c_book-info-container {
-//     display: table;
-//     border-collapse: separate; /* sep border for cells -> border-spacing has effect */
-//     border-spacing: 3px;
-//     font-size: .9rem;
-// }
-// .collection-info .book-title {
-//     font-size: 1.2rem;
-//     font-weight: 600;
-// }
-// .collection-info .c_book-info-container {
-//     display: table;
-//     border-collapse: separate; /* sep border for cells -> border-spacing has effect */
-//     border-spacing: 3px;
-//     font-size: .9rem;
-// }
-// .collection-info .c_book-info-container .c_book-line {
-//     display: table-row;
-//     vertical-align: middle;
-// }
-//  .collection-info .c_book-info-container .c_book-data {
-//     display: table-cell;
-// }
-// .collection-info .c_book-info-container .c_book-info {
-//     display: table-cell;
-//     padding-right: 12px;
-// }
-// hr.info-sep {
-//     display: block;
-//     margin-top: 0;
-//     margin-bottom: .5rem;
-//     margin-left: auto;
-//     margin-right: auto;
-//     border-style: inset;
-//     border-width: 1px;
-//     border-color: #2196f3;
-// }
 .books-collection-grid {
     display: grid;
     grid-template-columns: repeat(2, auto);
@@ -1179,14 +690,3 @@ hr {
         grid-template-columns: repeat(6, auto);
     }
 }
-
-// .entries img    { width: 100% }
-// .entries li h2  { margin-left: -1em; }
-// .metanav        { text-align: right; font-size: 0.8em; padding: 0.3em;
-//                   margin-bottom: 1em; background: #1a1a1a; }
-// .flash          { background: #22a7f0; padding: 0.5em;
-//                   margin: 0.5em 0 2em  auto; 
-//                   color: #fff !important;
-//                   font-family: 'Open Sans',sans-serif;
-//                   font-size: 14px; }
-.error          { background: #f0d6d6; padding: 0.5em; }
