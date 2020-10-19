@@ -329,14 +329,14 @@
                         <td id="List">
                             <div class="tags">
                                 {% for li in book.list %}
-                                <div class="tag is-rounded list-tag list-tag-border">
+                                <div class="tag is-rounded list-tag">
                                     <a data-value="{{ li }}" href="{{ url_for('main.search_books', q='list:\"' + li + '\"') }}">
                                         {{ li }}
                                     </a>
                                     <button class="delete is-small is-dark mdb-list-remove" data-value="{{ li }}" href="#"/>
                                 </div>
                                 {% endfor %}
-                                <div class="dropdown is-hoverable">
+                                <div id="list-dropdown-container" class="dropdown is-hoverable">
                                     <div class="dropdown-trigger">
                                         <a class="tag is-rounded is-small green-color" aria-haspopup="true" aria-controls="list-dropdown-container">
                                             <span class="icon is-small">
@@ -355,137 +355,142 @@
                                     </div>
                                 </div>
                             </div>
-                            <script>
-                                // list add/remove script
-                                $(document).ready(function() {
+    <script>
+        // list add/remove script
+        $(document).ready(function() {
 
-                                    // otherwise jquery will add brackets to key of ajax data of type array
-                                    // $.ajaxSetup({traditional: true});
-                                    // add click event for all elements with .mdb-list-add class
-                                    $('.mdb-list-add').click(function(event) {
-                                        let before = []
-                                        // this refers to the DOM element. To use jQuery functionality on this element you
-                                        // need to wrap it in a jQuery object, ie: $(this)
-                                        $('div.list-tag > a:first-child').each(function(index, value) {
-                                            // normal js $(this).data("value") would be jquery
-                                            before.push(this.dataset.value);
-                                        });
-                                        $.ajax({
-                                            data : {
-                                                // get target of click event and retrieve data
-                                                // attribute -value
-                                                'name' : $(event.target).data('value'),
-                                                'before': before
-                                            },
-                                            type : 'POST',
-                                            url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='add') }}",
-                                            // let jquery know that flask is returning json data
-                                            // (data in func below)
-                                            dataType: "json"
-                                        })
-                                            .done(function(data) { // when prev function is done
+            // otherwise jquery will add brackets to key of ajax data of type array
+            // $.ajaxSetup({traditional: true});
+            // add click event for all elements with .mdb-list-add class
+            $('#list-dropdown').click(function(event) {
+                let before = []
+                // this refers to the DOM element. To use jQuery functionality on this element you
+                // need to wrap it in a jQuery object, ie: $(this)
+                $('div.list-tag > a:first-child').each(function(index, value) {
+                    // normal js $(this).data("value") would be jquery
+                    before.push(this.dataset.value);
+                });
+                // for #list-dropdown.click()
+                // e.currentTarget div#list-dropdown
+                // e.target div.mdb-list-add
+                $.ajax({
+                    data : {
+                        // get target of click event and retrieve data
+                        // attribute -value
+                        'name' : $(event.target).data('value'),
+                        'before': before
+                    },
+                    type : 'POST',
+                    url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='add') }}",
+                    // let jquery know that flask is returning json data
+                    // (data in func below)
+                    dataType: "json"
+                })
+                    .done(function(data) { // when prev function is done
 
-                                                if (data.error) {
-                                                    console.log(data.error);
-                                                }
-                                                else {
-                                                    var html_string =[
-                                                        '<div class="tag is-rounded list-tag list-tag-border"><a data-value="',
-                                                        data.added, '" href="',
-                                                        data.search_tag_url,
-                                                        '">', data.added,
-                                                        '</a><a class="mdb-list-remove" data-value="',
-                                                        data.added,
-                                                        '" href="#"><i class="fas fa-times" style="vertical-align: middle;"></i></a></div>'].join("");
-                                                    // add HTMLString to element with id List
-                                                    // use appendTo so we get reference back and add func to click event
-                                                    // since Event handlers are bound only to the currently selected elements;
-                                                    // they must exist on the page at the time your code makes the call
-                                                    let new_tag = $(html_string).appendTo('#List');
-                                                    // $(selector) returns collection of matched elems -> select first (and
-                                                    // only)
-                                                    // new_tag[0].children[1] is normal js use $() to be able to use jquery
-                                                    // .click binding
-                                                    $(new_tag[0].children[1]).click(handle_list_remove);
+                        if (data.error) {
+                            console.log(data.error);
+                        }
+                        else {
+                            var html_string =[
+                                '<div class="tag is-rounded list-tag"><a data-value="',
+                                data.added, '" href="',
+                                data.search_tag_url,
+                                '">', data.added,
+                                '</a><button class="delete is-small is-dark ',
+                                'mdb-list-remove" data-value="',
+                                data.added, '" href="#"/></div>'].join("");
+                            // add HTMLString to element with id List
+                            // use appendTo so we get reference back and add func to click event
+                            // since Event handlers are bound only to the currently selected elements;
+                            // they must exist on the page at the time your code makes the call
+                            let new_tag = $(html_string).appendTo('#List > .tags');
+                            // $(selector) returns collection of matched elems -> select first (and
+                            // only)
+                            // new_tag[0].children[1] is normal js use $() to be able to use jquery
+                            // .click binding
+                            $(new_tag[0].children[1]).click(handle_list_remove);
 
-                                                    // select all mdb-list-add options
-                                                    $('#list-dropdown-container .mdb-dropdown-content .mdb-list-add')
-                                                    // get the one that was added and remove it
-                                                        .filter(function () {
-                                                            return $(this).data("value") == data.added;
-                                                        }).remove();
+                            // select all mdb-list-add options
+                            $('#list-dropdown .mdb-list-add')
+                            // get the one that was added and remove it
+                                .filter(function () {
+                                    return $(this).data("value") == data.added;
+                                }).remove();
 
-                                                    // get dropdown container and append it so the add
-                                                    // button is at the end again
-                                                    $('#List').append($('#list-dropdown-container'));
-                                                }
+                            // get dropdown container and append it so the add
+                            // button is at the end again
+                            $('#List > .tags').append($('#list-dropdown-container'));
+                        }
 
-                                            });
+                    });
 
-                                        event.preventDefault();
+                event.preventDefault();
 
-                                    });
+            });
 
-                                    // add click event for all elements with .mdb-list-add class
-                                    $('.mdb-list-remove').click(handle_list_remove);
+            // add click event for all elements with .mdb-list-add class
+            $('.mdb-list-remove').click(handle_list_remove);
 
-                                    function handle_list_remove(event) {
-                                        let before = []
-                                        // this refers to the DOM element. To use jQuery functionality on this element you
-                                        // need to wrap it in a jQuery object, ie: $(this)
-                                        $('div.list-tag > a:first-child').each(function(index, value) {
-                                            // normal js $(this).data("value") would be jquery
-                                            before.push(this.dataset.value);
-                                        });
-                                        // e.target is what triggers the event dispatcher to trigger and
-                                        // e.currentTarget is what you assigned your listener to
-                                        // here:
-                                        // target: w.fn.init [i.fas.fa-times]
-                                        // currentTarget: w.fn.init [a.mdb-list-remove]
-                                        $.ajax({
-                                            data : {
-                                                // get target of click event and retrieve data
-                                                // attribute -value
-                                                name : $(event.currentTarget).data('value'),
-                                                'before': before
-                                            },
-                                            type : 'POST',
-                                            url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='remove') }}",
-                                            // let jquery know that flask is returning json data
-                                            // (data in func below)
-                                            dataType: "json"
-                                        })
-                                            .done(function(data) { // when prev function is done
+            function handle_list_remove(event) {
+                let before = []
+                // this refers to the DOM element. To use jQuery functionality on this element you
+                // need to wrap it in a jQuery object, ie: $(this)
+                $('div.list-tag > a:first-child').each(function(index, value) {
+                    // normal js $(this).data("value") would be jquery
+                    before.push(this.dataset.value);
+                });
+                // e.target is what triggers the event dispatcher to trigger and
+                // e.currentTarget is what you assigned your listener to
+                // here:
+                // target: w.fn.init [i.fas.fa-times]
+                // currentTarget: w.fn.init [a.mdb-list-remove]
+                $.ajax({
+                    data : {
+                        // get target of click event and retrieve data
+                        // attribute -value
+                        name : $(event.currentTarget).data('value'),
+                        'before': before
+                    },
+                    type : 'POST',
+                    url : "{{ url_for('main.list_action_ajax', book_id=book.id, action='remove') }}",
+                    // let jquery know that flask is returning json data
+                    // (data in func below)
+                    dataType: "json"
+                })
+                    .done(function(data) { // when prev function is done
 
-                                                if (data.error) {
-                                                    console.log(data.error);
-                                                }
-                                                else {
-                                                    // go through all a tags in vv
-                                                    $('#List > div.tag.list-tag.list-tag-border > a').each(function() {
+                        if (data.error) {
+                            console.log(data.error);
+                        }
+                        else {
+                            // go through all a tags in vv
+                            $('#List > div.tags > .list-tag > a').each(function() {
 
-                                                        // if data-value attrib matches removed
-                                                        // remove its parent
-                                                        if($(this).data('value') == data.removed) {
-                                                            $(this.parentNode).remove();
-                                                        }
+                                // if data-value attrib matches remove
+                                // remove its parent
+                                if($(this).data('value') == data.removed) {
+                                    $(this.parentNode).remove();
+                                }
 
-                                                    });
+                            });
 
-                                                    var add_option = '<a class="mdb-list-add" data-value="' + data.removed + '">' + data.removed + '</a>';
-                                                    // add removed list back to dropdown
-                                                    $('#list-dropdown-container .mdb-dropdown-content')
-                                                        .append(add_option);
-                                                }
+                            var add_option = '<a class="dropdown-item mdb-list-add" data-value="' + data.removed + '">' + data.removed + '</a>';
+                            // add removed list back to dropdown
+                            // don't need to bind click since it's bound to
+                            // #list-dropdown and not the a.mdb-list-add
+                            $('#list-dropdown')
+                                .append(add_option);
+                        }
 
-                                            });
+                    });
 
-                                        event.preventDefault();
+                event.preventDefault();
 
-                                    }
+            }
 
-                                });
-                            </script>
+        });
+    </script>
                         </td>
                     </tr>
                     {% if book.note %}
