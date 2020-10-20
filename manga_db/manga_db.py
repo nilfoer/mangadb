@@ -508,6 +508,9 @@ class MangaDB:
                     title_foreign TEXT,
                     language_id INTEGER NOT NULL,
                     pages INTEGER NOT NULL,
+                    -- TODO fix typo in type name
+                    -- has no effect since col still has the same type affinity,
+                    -- because all type containing 'INT' get INTEGER affinity assigned
                     status_id INTERGER NOT NULL,
                     read_status INTEGER,
                     my_rating REAL,

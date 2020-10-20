@@ -24,9 +24,9 @@ class ExternalInfo(DBRow):
     rating = Column(float)
     ratings = Column(int)
     favorites = Column(int)
-    downloaded = Column(int)
-    last_update = Column(datetime.date)
-    outdated = Column(int)
+    downloaded = Column(int, nullable=False)
+    last_update = Column(datetime.date, nullable=False)
+    outdated = Column(int, nullable=False)
 
     def __init__(
                 self, manga_db, book,

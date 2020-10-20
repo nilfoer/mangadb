@@ -46,7 +46,7 @@ class Book(DBRow):
     tag = AssociatedColumnMany("Tag", Relationship.MANYTOMANY,
                                assoc_table="BookTag")
     ext_infos = AssociatedColumnMany("ExternalInfo", Relationship.ONETOMANY)
-    last_change = Column(datetime.date)
+    last_change = Column(datetime.date, nullable=False)
     note = Column(str)
     favorite = Column(int, nullable=False)
 
