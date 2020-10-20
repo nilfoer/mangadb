@@ -336,41 +336,147 @@ hr {
     }
 }
 
-// .star-inactive {
-//     color: #fff !important;
-// }
-// .star-active {
-//     color: #22a7f0 !important;
-// }
-// #MyRating i:hover {
-//     color: #c00 !important;
-// }
+.star-inactive {
+    color: #fff !important;
+}
+.star-active {
+    color: #22a7f0 !important;
+}
+#MyRating i:hover {
+    color: #c00 !important;
+}
 
-/* to make all book-grid-items the same size i could either specify a fixed size(min/width/height)
- * in px or % for the items -> no resizing not rly responsive or i could use bootstraps cols and add
- * col-md-2 col-sm-4 col-xs-6 no-padding to book-grid-item's div classes
- * or i could use grid and alter the nr of cols it hast based on viewport size
- * with grid-template-columns: auto auto .. nr_of_cols*auto (auto for auto size) */
+/* flexbox solution for book-item-grid */
+//.book-grid {
+//    display: flex;
+//    flex-wrap: wrap;
+//    // fr -> fraction unit, 1fr for e.g. 4 cols each gets one fraction of the available space
+//    // each gets 25% space
+//    // grid-template-columns: repeat(2, 1fr);
+//    //justify-items: stretch; /* Aligns grid items along the inline (row) axis */
+//    align-items: stretch; /* how flex items are laid out along the cross axis on the current line */
+//    justify-content: center; /* alignment along the main axis */
+//    align-content: flex-start; /* aligns the container’s lines within when there is extra space in the cross-axis */
+//    // grid-gap: 5px;
+//}
+
+//.book-grid-item {
+//    // shorthand for flex-grow, flex-shrink and flex-basis
+//    // 0 0 -> items don't grow or shrink and have equal size
+//    // needs to use interpolation to embed the result of a SassScript expression
+//    // into a chunk of CSS (wrap it with #{} )
+//    // account for margin in flex main axis (here: 2*5px)
+//    flex: 0 0 calc(100% / #{$book-grid-min-cols} - 10px);
+//    display: inline-grid;
+//    justify-items: stretch;//center;
+//    justify-content: center;
+//    align-items: stretch;
+//    align-content: stretch;
+//    /* grid-template-rows: 85% 15%; /1* manga cover takes 80% title 20% of height *1/ */
+//    grid-template-rows: auto 50px; /* 2*line-height of book-grid-item-title + 5px top and bot margin */
+//    margin: 5px;
+//}
+//.book-grid-item-cover {
+//    // margin: .2rem;
+//     /* setting min-width needed otherwise we get weird loading behaviour with
+//      * css grid since all divs are collapsed and only a few pixels big and
+//      * thus are all(60 books) visible in the middle of the screen and expand
+//      * while loading and at the end size is re-calculated which makes grid
+//      * "twitch" around, with a min-width this is avoided since the divs are
+//      * spread out from the start and closer to their loaded pos/size */
+//    min-width: 150px;
+//}
+//// use bulma breakpoints
+//// mobile: up to 768px
+//// tablet: from 769px
+//// desktop: from 1024px
+//// widescreen: from 1216px
+//// fullhd: from 1408px
+//// NOTE: widescreen and fullhd breakpoints can be disabled
+//// either use them with $tablet or with mixin shorthand:
+//// +tablet (shorthand for @include tablet; mixin tablet has to be defined
+////          with indented mixin syntax using '=' instead of @mixin)
+//// compiles to:
+//// @media screen and (min-width: $tablet)
+////   @content
+//// max for mobile rest min-width and mobile is just $table -1px
+//@media only screen and (min-width: 600px) {
+//    .book-grid-item {
+//        flex: 0 0 calc(100% / #{$book-grid-mobile-cols} - 10px);
+//    }
+//}
+//@media only screen and (min-width: $tablet) {
+//    .book-grid-item {
+//        flex: 0 0 calc(100% / #{$book-grid-tablet-cols} - 10px);
+//    }
+//}
+//@media only screen and (min-width: $desktop) {
+//    .book-grid-item {
+//        flex: 0 0 calc(100% / #{$book-grid-desktop-cols} - 10px);
+//    }
+//}
+//@media only screen and (min-width: $widescreen) {
+//    .book-grid-item {
+//        flex: 0 0 calc(100% / #{$book-grid-widescreen-cols} - 10px);
+//    }
+//}
+//@media only screen and (min-width: $fullhd) {
+//    .book-grid-item {
+//        flex: 0 0 calc(100% / #{$book-grid-fullhd-cols} - 10px);
+//    }
+//}
+
+$book-grid-min-cols: 2;
+$book-grid-mobile-cols: 3;
+$book-grid-tablet-cols: 4;
+$book-grid-desktop-cols: 4;
+$book-grid-widescreen-cols: 5;
+$book-grid-fullhd-cols: 6;
+
+// sass: comments using /* */ are (usually, not in compressed mode) compiled to CSS, // are not
+
+// to make all book-grid-items the same size i could either specify a fixed size(min/width/height)
+// in px or % for the items -> no resizing not rly responsive or i could use bootstraps cols and add
+// col-md-2 col-sm-4 col-xs-6 no-padding to book-grid-item's div classes
+// or i could use grid and alter the nr of cols it hast based on viewport size
+// with grid-template-columns: auto auto .. nr_of_cols*auto (auto for auto size)
+// could either use grid with repeat(nr_cols, 1fr) to get equally sized items the only problem
+// being that orphans(left over items) on the last row won't be centered that is only
+// possible with some really ugly hacks (items spanning multiple columns and then detecting
+// which n-th last item it is etc.)
+// -> flexbox is better suited for this; just using flex-wrap: wrap; and justify-content: center
+//    on the container and flex: 0 0 calc(100% / nr_cols); on the items
+// flexbox then has the problem that the rows aren't equal height and the only way to make them
+// have equal height is use a fixed height so in the end the grid solution with non-centered
+// orphans looks better
 .book-grid {
     display: grid;
-    grid-template-columns: repeat(2, auto);
+    // fr -> fraction unit, 1fr for e.g. 4 cols each gets one fraction of the available space
+    // each gets 25% space
+    // double the columns since children span 2 columns so we can center orphans
+    // sass supports math operations
+    grid-template-columns: repeat($book-grid-min-cols, 1fr);
     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
     align-items: stretch; /* Aligns grid items along the block (column) axis */
     justify-content: center; /* align the whole grid inside the container */
     align-content: start; /* vertically align the whole grid inside the container */
+    grid-gap: 5px;
+    //
+    // could also use minmax(min, max); that keeps it between a min and max
+    // specifies the size of an implicitly-created grid row track (created when
+    // not specified in grid-template-rows)
+    grid-auto-rows: 1fr;  // equal height rows
 }
 .book-grid-item {
     display: inline-grid;
-    justify-items: center;
+    justify-items: stretch;//center;
     justify-content: center;
     align-items: stretch;
     align-content: stretch;
     /* grid-template-rows: 85% 15%; /1* manga cover takes 80% title 20% of height *1/ */
     grid-template-rows: auto 50px; /* 2*line-height of book-grid-item-title + 5px top and bot margin */
-    margin-bottom: 5px;
 }
 .book-grid-item-cover {
-    margin: .2rem;
      /* setting min-width needed otherwise we get weird loading behaviour with
       * css grid since all divs are collapsed and only a few pixels big and
       * thus are all(60 books) visible in the middle of the screen and expand
@@ -379,6 +485,56 @@ hr {
       * spread out from the start and closer to their loaded pos/size */
     min-width: 150px;
 }
+
+// :nth-child(An+B)
+// 
+// matches an element that has an+b-1 siblings in front of it
+// <An+B>
+//     Represents elements in a list whose indices match those found in a
+//     custom pattern of numbers, defined by An+B, where:
+//     A is an integer step size,
+//     B is an integer offset,
+//     n is all positive integers, starting from 0.
+//     It can be read as the An+Bth element of a list. 
+// Element indices are 1-based.
+// 2n+0 -> even
+// 2n+1 -> odd
+
+/* use 2x the columns with grid-column: span 2; on the children and define
+   selectors for orphans inside media queries
+   gets reaaaaly ugly real quick since you have to define selectors for
+   every orphan for every nr of possilbe orphans while also having
+   to overwrite previous selectors first */
+// for 2 cols -> odd child is one left over
+// .book-grid-item:last-child:nth-child(2n+1) {
+//     grid-column-end: -2;
+// }
+// @media only screen and (min-width: 600px) {
+//     .book-grid {
+//         grid-template-columns: repeat($book-grid-mobile-cols * 2, 1fr);
+//     }
+
+//     // reset all
+//     .book-grid-item {
+//         grid-column-end: auto;
+//     }
+
+//     // 2 orphans
+//     // 3 cols last child
+//     .book-grid-item:last-child:nth-child(3n-1) {
+//         grid-column-end: -2;
+//     }
+//     // 3 cols 2nd last child
+//     .book-grid-item:nth-last-child(2):nth-child(3n+1) {
+//         grid-column-end: 4;
+//     }
+
+//     // 1 orphan
+//     .book-grid-item:last-child:nth-child(3n-2) {
+//         grid-column-end: 5;
+//     }
+// }
+
 // use bulma breakpoints
 // mobile: up to 768px
 // tablet: from 769px
@@ -395,27 +551,27 @@ hr {
 // max for mobile rest min-width and mobile is just $table -1px
 @media only screen and (min-width: 600px) {
     .book-grid {
-        grid-template-columns: repeat(3, auto);
+        grid-template-columns: repeat($book-grid-mobile-cols, 1fr);
     }
 }
 @media only screen and (min-width: $tablet) {
     .book-grid {
-        grid-template-columns: repeat(4, auto);
+        grid-template-columns: repeat($book-grid-tablet-cols, 1fr);
     }
 }
 @media only screen and (min-width: $desktop) {
     .book-grid {
-        grid-template-columns: repeat(4, auto);
+        grid-template-columns: repeat($book-grid-desktop-cols, 1fr);
     }
 }
 @media only screen and (min-width: $widescreen) {
     .book-grid {
-        grid-template-columns: repeat(5, auto);
+        grid-template-columns: repeat($book-grid-widescreen-cols, 1fr);
     }
 }
 @media only screen and (min-width: $fullhd) {
     .book-grid {
-        grid-template-columns: repeat(6, auto);
+        grid-template-columns: repeat($book-grid-fullhd-cols, 1fr);
     }
 }
 // defining breakpoints >$fullhd is not sensible unless we also define new breakpoints
@@ -654,39 +810,37 @@ hr {
 
 .books-collection-grid {
     display: grid;
-    grid-template-columns: repeat(2, auto);
+    grid-template-columns: repeat(2, 1fr);
     justify-items: stretch; /* Aligns grid items along the inline (row) axis */
     align-items: stretch; /* Aligns grid items along the block (column) axis */
     justify-content: flex-start; /* align the whole grid inside the container */
     align-content: start; /* vertically align the whole grid inside the container */
-}
-.books-collection-grid .book-grid-item {
-    margin: .2rem;
-    min-width: 150px;
-    /* vw, vh are units depending on viewport-size 1 unit is 1% of vw,vh..
-     * vmin/vmax = 1vw/vh whichever is smaller/bigger */
-    /* max-width: 17vw; */
-    max-width: 250px;
+    grid-gap: 5px;
 }
 /* Device-width refers to the display's resolution (eg. the 1024 from
  * 1024x768), while width refers to the width of the browser itself */
-@media only screen and (min-width: $tablet) {
+@media only screen and (min-width: 650px) {
     .books-collection-grid {
-        grid-template-columns: repeat(3, auto);
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+@media only screen and (min-width: 850px) {
+    .books-collection-grid {
+        grid-template-columns: repeat(4, 1fr);
     }
 }
 @media only screen and (min-width: $desktop) {
     .books-collection-grid {
-        grid-template-columns: repeat(4, auto);
+        grid-template-columns: repeat(4, 1fr);
     }
 }
 @media only screen and (min-width: $widescreen) {
     .books-collection-grid {
-        grid-template-columns: repeat(5, auto);
+        grid-template-columns: repeat(5, 1fr);
     }
 }
 @media only screen and (min-width: $fullhd) {
     .books-collection-grid {
-        grid-template-columns: repeat(6, auto);
+        grid-template-columns: repeat(6, 1fr);
     }
 }
