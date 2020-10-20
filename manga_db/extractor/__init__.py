@@ -8,11 +8,26 @@ import re
 from ..exceptions import MangaDBException
 
 module_dir = os.path.dirname(os.path.realpath(__file__))
+
+# account for being bundled (e.g. using pyinstaller)
+# when trying to find data files relative to the main script, sys._MEIPASS can be used
+# if getattr(sys, 'frozen', False):  # check if we're bundled
+#     bundle_dir = os.path.abspath(sys._MEIPASS)
+#     module_dir = os.path.join(bundle_dir, os.path.dirname(__file__))
+# the above does not work since python modules are embedded in the exe as a
+# compressed ZlibArchive instead of being saved in a normal folder structure
+# custom import hooks make sure that normal imports work
+# but since we try to import files based on a folders content it won't work
+# since __file__ just points to the location at the time of import and
+# not to the location in the exe (since that's not possible with a path anyway)
+# => either import them by a list of static names or store them
+#    as data files in the pyinstaller output
+
 # get all modules in dir (except __init__.py) and remove ending
 # also possible to specify all names
-modules = [f[:-3] for f in os.listdir(module_dir) if f.endswith(".py") and not f.startswith("__")]
-# since empty pattern "" of BaseExtractor matches on everything
-modules.remove("base")
+# don't include base module since empty pattern "" of BaseExtractor matches on everything
+modules = [f[:-3] for f in os.listdir(module_dir) if not f.startswith("__") and
+           f != 'base.py' and f.endswith('.py')]
 
 # holds extractor classes already imported extractor modules
 _cache = []
