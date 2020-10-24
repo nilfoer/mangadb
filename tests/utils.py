@@ -57,6 +57,13 @@ def load_db_from_sql_file(sql_fn, db_path, row_fac=False):
     return db_from_sql(sql, db_path, row_fac=row_fac)
 
 
+def load_db(db_fn, row_fac=False):
+    db_con = sqlite3.connect(db_fn, detect_types=sqlite3.PARSE_DECLTYPES)
+    if row_fac:
+        db_con.row_factory = sqlite3.Row
+    return db_con
+
+
 @pytest.fixture
 def setup_tmpdir():
     tmpdir = os.path.join(TESTS_DIR, "tmp")

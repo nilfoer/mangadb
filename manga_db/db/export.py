@@ -1,4 +1,6 @@
 import csv
+import sqlite3
+import datetime
 
 
 def export_csv_from_sql(filename, db_con):
@@ -134,3 +136,75 @@ def export_csv_from_sql(filename, db_con):
 # LEFT JOIN BookParody bp ON Books.id = bp.book_id
 # LEFT JOIN Parody ON Parody.id = bp.parody_id
 # GROUP BY Books.id
+
+
+def convert_or_escape_to_str(column_value):
+    if column_value is None:
+        return 'NULL'
+    elif isinstance(column_value, datetime.date):
+        # sqlite3 stores dates among others as TEXT as ISO8601 strings
+        # return f"'{column_value.strftime('%Y-%m-%d')}'"
+        return f"'{column_value.isoformat()}'"
+    elif isinstance(column_value, datetime.datetime):
+        # return f"'{column_value.strftime('%Y-%m-%dT%H:%M:%S')}'"
+        return f"'{column_value.isoformat()}'"
+    elif isinstance(column_value, str):
+        # escape single quotes using another one
+        column_value = column_value.replace("'", "''")
+        # enclose in single quotes
+        return f"'{column_value}'"
+    else:
+        return str(column_value)
+
+
+def export_to_sql(filename, db_con):
+    row_fac_bu = db_con.row_factory
+    db_con.row_factory = sqlite3.Row
+
+    c = db_con.execute(
+            "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY name")
+    sql_master = c.fetchall()
+
+    # sql statement is exactly the same as when table/index/trigger was
+    # created, including comments
+    index_creation_statements = []
+    table_names = []
+    trigger_creation_statements = []
+    result = ["PRAGMA foreign_keys=off;", "BEGIN TRANSACTION;"]
+    for row in sql_master:
+        if row['name'].startswith("sqlite_autoindex_"):
+            continue
+        type_name = row['type']
+        if type_name == 'trigger':
+            trigger_creation_statements.append((row['name'], row['sql']))
+        elif type_name == 'index':
+            index_creation_statements.append((row['name'], row['sql']))
+        elif type_name == 'table':
+            table_names.append(row['name'])
+            # create all tables first
+            result.append(f"{row['sql']};")
+        else:
+            assert 0
+
+    # insert all the values
+    for tbl_name in table_names:
+        result.append(f"INSERT INTO \"{tbl_name}\" VALUES")
+        table_rows = c.execute(f"SELECT * FROM {tbl_name}").fetchall()
+        for i, tr in enumerate(table_rows):
+            result.append(f"({','.join(convert_or_escape_to_str(c) for c in tr)})"
+                          f"{';' if i == len(table_rows)-1 else ','}")
+
+    for idx_name, idx_statement in index_creation_statements:
+        result.append(f"{idx_statement};")
+
+    for trigger_name, trigger_statement in trigger_creation_statements:
+        print("trigg", trigger_statement)
+        result.append(f"{trigger_statement};")
+
+    result.append("COMMIT;")
+    result.append("PRAGMA foreign_keys=on;")
+
+    with open(filename, 'w', encoding='UTF-8') as f:
+        f.write("\n".join(result))
+
+    db_con.row_factory = row_fac_bu
