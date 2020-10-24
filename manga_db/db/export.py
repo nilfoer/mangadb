@@ -198,7 +198,6 @@ def export_to_sql(filename, db_con):
         result.append(f"{idx_statement};")
 
     for trigger_name, trigger_statement in trigger_creation_statements:
-        print("trigg", trigger_statement)
         result.append(f"{trigger_statement};")
 
     result.append("COMMIT;")

@@ -9,19 +9,21 @@ logger = logging.getLogger(__name__)
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # so we don't have to read all migration scripts every time
-LATEST_VERSION = 0
+LATEST_VERSION = -1
 VERSION_TABLE = 'MDB_Version'
 MIGRATIONS_DIRNAME = 'migrations'
+# migrations dir has to be a sub-folder of the MODULE_DIR
 MIGRATIONS_PATH = os.path.join(MODULE_DIR, MIGRATIONS_DIRNAME)
-
-# TODO tests
-# TODO __init__ missing in migrations folder
 
 # NOTE: migrations file name pattern must be
 # version_id padded with zeroes to 4 digits then an underscore followed by a migration name
 # 0001_name.py
+# a migration file only needs 2 things:
+# a module-level variable 'date' with an iso8601 date string
+# and an upgrade function that takes the db connection as its only parameter
 # NOTE: IMPORANT migration scripts should never commit themselves!
 
+# NOTE: if you change these you will have to also change the rest of the code
 VERSION_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS {VERSION_TABLE} (
     version_id INTEGER PRIMARY KEY ASC,
@@ -73,11 +75,13 @@ class Database:
         # If the context was exited without an exception, all three arguments will be None
         # if all((exc_type is None, exc_value is None, traceback is None)):
         # context manager just for automatically closing connection
-        print(exc_type, exc_value, traceback)
+        self._close()
+
+    def __del__(self):
         self._close()
 
     def _is_versionized(self):
-        version_tbl = self.db_con.execute(f"SELECT 1 FROM sqlite_master WHERE type = 'table' "
+        version_tbl = self.db_con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' "
                                           f"AND name = '{VERSION_TABLE}'").fetchone()
         if version_tbl:
             return True
@@ -201,7 +205,7 @@ class Database:
         migrations = gather_migrations(self.version)
         if not migrations:
             raise MigrationMissing(
-                    "No migrations available to upgrade to latest version {LATEST_VERSION}!")
+                    f"No migrations available to upgrade to latest version {LATEST_VERSION}!")
         self.migrations = migrations
 
         # NOTE: _upgrade_to_version commits on success or rolls back on failure and exceptions

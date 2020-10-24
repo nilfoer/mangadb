@@ -6,6 +6,8 @@ import urllib.request
 
 from .logging_setup import configure_logging
 from . import extractor
+from .exceptions import MangaDBException
+from .db import migrate
 from .db import search
 from .db.loading import load_instance
 from .db.id_map import IndentityMap
@@ -438,8 +440,8 @@ class MangaDB:
     @staticmethod
     def _load_or_create_sql_db(filename, read_only=False):
         """
-        Creates connection to sqlite3 db and a cursor object. Creates the tables if
-        they dont exist yet.
+        Creates connection to sqlite3 db and a cursor object. Creates the DB if
+        it doesn't exist yet.
 
         If read_only is set to True the database schema won't be created!
 
@@ -447,15 +449,37 @@ class MangaDB:
         :param read_only: Whether to return a read-only database connection
         :return: connection to sqlite3 db and cursor instance
         """
+        if not os.path.isfile(filename):
+            if read_only is True:
+                raise MangaDBException("Can't create new database in read-only mode!")
+            else:
+                return MangaDB._create_sql_db(filename)
+
         if read_only is True:
             # enable uri mode so we can pass mode ro for read-only access
             conn = sqlite3.connect(f"file:{filename}?mode=ro", uri=True,
                                    detect_types=sqlite3.PARSE_DECLTYPES)
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
-            return conn, c
-        # PARSE_DECLTYPES -> parse types and search for converter function for
-        # it instead of searching for converter func for specific column name
+        else:
+            # PARSE_DECLTYPES -> parse types and search for converter function for
+            # it instead of searching for converter func for specific column name
+            conn = sqlite3.connect(filename, detect_types=sqlite3.PARSE_DECLTYPES)
+
+            # NOTE: migrate DB; context manager automatically closes connection
+            with migrate.Database(filename) as migration:
+                migration_success = migration.upgrade_to_latest()
+            if not migration_success:
+                raise MangaDBException("Could not migrate DB! Open an issue at "
+                                       "github.com/nilfoer/mangadb")
+
+        # use Row as row_factory for easier access
+        conn.row_factory = sqlite3.Row
+        # after row factory change otherwise cursor will still use tuples!
+        c = conn.cursor()
+
+        return conn, c
+
+    @staticmethod
+    def _create_sql_db(filename, read_only=False):
         conn = sqlite3.connect(filename, detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
@@ -498,9 +522,9 @@ class MangaDB:
         # FOREIGN KEY.. PRIMARY KEY (..) etc. muss nach columns kommen sonst syntax error
         # NOT NULL for book_id, tag_id must be stated even though theyre primary keys since
         # in SQLite they can be 0 (contrary to normal SQL)
-        # ON DELETE CASCADE, wenn der eintrag des FK in der primärtabelle gelöscht wird dann auch
-        # in dieser (detailtabelle) die einträge löschen -> Löschweitergabe
-        c.executescript("""
+        # ON DELETE CASCADE, wenn der eintrag des FK in der primärtabelle gelöscht wird dann
+        # auch in dieser (detailtabelle) die einträge löschen -> Löschweitergabe
+        create_db_sql = f"""
             PRAGMA foreign_keys=ON; -- make sure foreign key support is activated
             CREATE TABLE IF NOT EXISTS Books(
                     id INTEGER PRIMARY KEY ASC,
@@ -510,7 +534,7 @@ class MangaDB:
                     pages INTEGER NOT NULL,
                     -- TODO fix typo in type name
                     -- has no effect since col still has the same type affinity,
-                    -- because all type containing 'INT' get INTEGER affinity assigned
+                    -- because all types containing 'INT' get INTEGER affinity assigned
                     status_id INTERGER NOT NULL,
                     read_status INTEGER,
                     my_rating REAL,
@@ -650,6 +674,13 @@ class MangaDB:
                     PRIMARY KEY (book_id, character_id)
                 );
 
+            -- insert versioning table
+            -- migrate uses execute instead of executescript since the latter
+            -- auto-commits and execute doesn't allow semicolons
+            -- -> append semicolon manually here
+            {migrate.VERSION_TABLE_SQL};
+            INSERT INTO '{migrate.VERSION_TABLE}' VALUES ({migrate.LATEST_VERSION}, 0);
+
             CREATE INDEX IF NOT EXISTS idx_id_onpage_imported_from ON
             ExternalInfo (id_onpage, imported_from);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_artist_name ON Artist (name);
@@ -670,12 +701,14 @@ class MangaDB:
                                     SET last_change = DATE('now', 'localtime')
                                     WHERE id = NEW.id;
                                  END
-                 """)
-
+                 """
+        c.executescript(create_db_sql)
         # commit changes
         conn.commit()
 
         # use Row as row_factory for easier access
         conn.row_factory = sqlite3.Row
+        # get new cursor after row factory change otherwise cursor will still use tuples!
+        c = conn.cursor()
 
         return conn, c

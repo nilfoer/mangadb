@@ -157,7 +157,8 @@ def test_created_db_matches_row_classes():
     # and one or more as associated column
     all_tables = list(set(all_tables))
     assert sorted(all_tables +
-                  ["Censorship", "Languages", "Sites", "Status"]) == all_expected_tables
+                  ["Censorship", "Languages", "Sites", "Status",
+                   migrate.VERSION_TABLE]) == all_expected_tables
 
 
 def test_export_to_sql(setup_tmpdir):
