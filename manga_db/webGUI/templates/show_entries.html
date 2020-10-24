@@ -11,8 +11,8 @@
 {% endif %}
 <section class="section">
     <div class="container">
+        {% if books %}
         <div class="book-grid" id="searchResult">
-            {% if books %}
             {% for book in books %}
             <div class="book-grid-item
             {% if book.read_status is not none %}
@@ -71,10 +71,12 @@
 
             {% endfor %}
 
-            {% else %}
-            <em>Unbelievable.  No entries here so far</em>
-            {% endif %}
         </div>
+        {% else %}
+        <div style="width: 100%;text-align: center;">
+            <em>Unbelievable.  No entries here so far</em>
+        </div>
+        {% endif %}
     </div>
 </section>
 
