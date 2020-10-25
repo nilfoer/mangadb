@@ -8,7 +8,7 @@ from .csrf import init_app as csrf_init_app
 from .auth import auth_bp, init_app as auth_init_app
 
 
-def create_app(test_config=None, **kwargs):
+def create_app(instance_path=None, test_config=None, **kwargs):
     # create and configure the app
     # configuration files are relative to the instance folder. The instance folder is located
     # outside the flaskr package and can hold local data that shouldn’t be committed to version
@@ -40,6 +40,9 @@ def create_app(test_config=None, **kwargs):
     # or it points to the temp folder where the embedded contents of the
     # exe were unpacked to (will be deleted when process is killed)
     # => better to use sys.argv[0] or sys.executable
+    # When a normal Python script runs, sys.executable is the path to the
+    # program that was executed, namely, the Python interpreter.
+    # in frozen app:
     # sys.executable = (abs?)path to bootloader in either the one-file app or
     #                  the executable in the one-folder app.
     # sys.argv[0] = name or relative path that was used in the user’s command
@@ -55,7 +58,10 @@ def create_app(test_config=None, **kwargs):
     # the same folder as the files it will operate on, for example a music
     # player that should be stored in the same folder as the audio files it
     # will play. For this case, you would use os.path.dirname(sys.executable).
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    if instance_path is not None:
+        app = Flask(__name__, instance_path=instance_path,
+                    instance_relative_config=True, **kwargs)
+    elif getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         exe_dir = os.path.abspath(os.path.dirname(sys.executable))
         app = Flask(__name__,
                     instance_path=os.path.join(exe_dir, "instance"),

@@ -15,15 +15,18 @@ def main():
     parser = argparse.ArgumentParser(description="Command-line interface for MangaDB - A "
                                      "database to keep track of your manga reading habits!")
 
-    parser.add_argument("-db", "--db-path", default="./instance/manga_db.sqlite", type=str,
-                        help="Path to db file; Default uses file named 'manga_db.sqlite' "
-                             "in directory instance")
+    parser.add_argument("-p", "--path", default=None, type=str,
+                        help="Path to directory where user files will be stored "
+                             "inside of! MangaDB will be looking for a file named "
+                             "'manga_db.sqlite' inside that folder!")
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='sub-command help', dest="subcmd")
 
     webgui = subparsers.add_parser("webgui", aliases=["web"])
     webgui.add_argument("-o", "--open", action="store_true", 
                         help="Run on you machine's IP and make the webGUI accessible from your LAN")
+    webgui.add_argument("-po", "--port", type=int, default=7578,
+                        help="Port that the webGUI server should use")
     webgui.set_defaults(func=_cl_webgui)
 
     collector = subparsers.add_parser("link_collector", aliases=["collect"])
@@ -31,9 +34,6 @@ def main():
                            "links collected!", nargs="*", default=())
     collector.add_argument("-re", "--resume", action="store_true", help="Resume importing books "
                            "from resume file")
-    collector.add_argument("-dp", "--data-path", default="./instance/", type=str,
-                           help="Path to folder containing manga_db.sqlite file; Default uses"
-                                "instance folder current working directory")
     collector.set_defaults(func=_cl_collector)
 
     get_info = subparsers.add_parser("get_info")
@@ -53,7 +53,7 @@ def main():
     show_book.set_defaults(func=_cl_show_book)
 
     export = subparsers.add_parser("export", aliases=["exp"])
-    export.add_argument("path", type=str, help="Path/Filename of csv file the db should be "
+    export.add_argument("csv_path", type=str, help="Path/Filename of csv file the db should be "
                         "exported to")
     export.set_defaults(func=_cl_export)
 
@@ -62,12 +62,18 @@ def main():
         # default to stdout, but stderr would be better (use sys.stderr, then exit(1))
         parser.print_help()
         sys.exit(0)
+
+    mdb_path = os.path.abspath(os.path.normpath(args.path)) if args.path else None
     # let webgui handle db_con when subcmd is selected
     if args.subcmd == "webgui":
-        args.func(args)
+        # flask instance_path must be absolute!
+        args.func(args, instance_path=mdb_path)
     else:
-        db_path = os.path.realpath(os.path.normpath(args.db_path))
-        mdb = MangaDB(os.path.dirname(db_path), db_path)
+        # even when called from e.g. a batch file argv[0] is still:
+        # argv0: D:\SYNC\coding\tsu-info\run_manga_db.py
+        mdb_path = mdb_path if mdb_path else os.path.join(os.path.dirname(sys.argv[0]), "instance")
+        os.makedirs(mdb_path, exist_ok=True)
+        mdb = MangaDB(mdb_path, os.path.join(mdb_path, "manga_db.sqlite"))
         args.func(args, mdb)
 
 
@@ -99,30 +105,30 @@ def _cl_show_book(args, mdb):
 
 def _cl_collector(args, mdb):
     if args.resume:
-        lc = LinkCollector.from_json("link_collect_resume.json", args.data_path,
+        lc = LinkCollector.from_json("link_collect_resume.json", mdb.root_dir,
                                      args.standard_list)
     else:
-        lc = LinkCollector(args.data_path, args.standard_list)
+        lc = LinkCollector(mdb.root_dir, args.standard_list)
     lc.cmdloop()
 
 
 def _cl_export(args, mdb):
-    export_csv_from_sql(args.path, mdb.db_con)
-    logger.info(f"Exported database at {os.path.abspath(args.db_path)} to "
-                f"{os.path.abspath(args.path)}!")
+    export_csv_from_sql(args.csv_path, mdb.db_con)
+    logger.info(f"Exported database at {os.path.join(mdb.root_dir, 'manga_db.sqlite')} to "
+                f"{os.path.abspath(args.csv_path)}!")
 
 
-def _cl_webgui(args):
+def _cl_webgui(args, instance_path=None):
     # use terminal environment vars to set debug etc.
     # windows: set FLASK_ENV=development -> enables debug or set FLASK_DEBUG=1
-    app = create_app()
+    app = create_app(instance_path=instance_path)
     # use threaded=False so we can leverage MangaDB's id_map
     # also makes sense since we only want to support one user (at least with write access)
     # use host='0.0.0.0' or ip to run on machine's ip address and be accessible over lan
     if args.open:
-        app.run(threaded=False, host='0.0.0.0', port=7578)
+        app.run(threaded=False, host='0.0.0.0', port=args.port)
     else:
-        app.run(threaded=False, port=7578)
+        app.run(threaded=False, port=args.port)
 
 
 def cli_yes_no(question_str):
