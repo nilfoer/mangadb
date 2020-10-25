@@ -11,6 +11,7 @@ a = Analysis(['run_manga_db.py'],
              datas=[("manga_db\\extractor\\*.py", "manga_db\\extractor\\"),
                     ("manga_db/webGUI/static", "manga_db/webGUI/static"),
                     ("manga_db/webGUI/templates", "manga_db/webGUI/templates"),
+                    ("manga_db/db/migrations", "manga_db/db/migrations"),
                     ],
              # since we inlcude extractors only as data files and import the dynamically
              # we need to manually identify their imports and add them here
