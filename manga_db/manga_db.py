@@ -468,6 +468,7 @@ class MangaDB:
             with migrate.Database(filename) as migration:
                 migration_success = migration.upgrade_to_latest()
             if not migration_success:
+                conn.close()
                 raise MangaDBException("Could not migrate DB! Open an issue at "
                                        "github.com/nilfoer/mangadb")
 

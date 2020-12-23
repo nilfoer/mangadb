@@ -186,7 +186,6 @@ class Database:
                 os.remove(self.filename)
                 shutil.copy(backup_filename, self.filename)
                 self.__init__(self.filename)
-                print('dirt', self.is_dirty)
             else:
                 raise DatabaseError("Previous upgrade failed and there is no backup available!"
                                     "Aborting!")
@@ -208,12 +207,29 @@ class Database:
                     f"No migrations available to upgrade to latest version {LATEST_VERSION}!")
         self.migrations = migrations
 
+        if self.version != LATEST_VERSION:
+            logger.info("Migrating DB with version %d to newest version %d!",
+                        self.version, LATEST_VERSION)
+
         # NOTE: _upgrade_to_version commits on success or rolls back on failure and exceptions
         while self.version != LATEST_VERSION:
             new_version = self.version + 1
             if not self._upgrade_to_version(new_version):
                 return False
         else:
+            # trigger manual VACUUM so db gets optimized after migrating it
+            # The VACUUM command does not change the content of the database
+            # except the rowid values. If you use INTEGER PRIMARY KEY column,
+            # the VACUUM does not change the values of that column
+            # good practice to run manually after deleting alot etc. -> so good
+            # after migration
+            # SQLite first copies data within a database file to a temporary
+            # database. This operation defragments the database objects,
+            # ignores the free spaces, and repacks individual pages.
+            # then the result is copied back overwriting the original DB
+            logger.info("Optimizing DB after migration!")
+            self.db_con.execute("VACUUM")
+
             return True
 
 
