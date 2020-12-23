@@ -258,7 +258,7 @@ class Book(DBRow):
         else:
             logger.warning("Type of status needs to be string!")
 
-    def save(self, block_update=False):
+    def save(self, block_update=False, force=False):
         """
         Save changes to DB
         """
@@ -267,6 +267,16 @@ class Book(DBRow):
             if bid is None:
                 return self._add_entry()
             elif block_update:
+                # NOTE: currently assuming that saving with block_update=True means we
+                # wanted to add the book to the DB and it since we landed here
+                # the title eng+foreign combination was already present
+                # -> append sth. unique to the title and try again ONCE
+                if force:
+                    logger.info("The combination of the english and foreign title was not "
+                                "unique for this book and thus has been renamed!")
+                    self.title_eng = f"{self.title_eng} (DUPLICATE {datetime.datetime.now()})"
+                    return self.save(block_update=True, force=False)
+
                 logger.debug("Book was found in DB(id %d) but saving was blocked due to "
                              "block_update option!", bid)
                 return None, None

@@ -573,7 +573,7 @@ def add_book():
         book.ext_infos = [ext_info]
 
     # we also use add_book to import books -> we need outdated_on_ei_id
-    bid, outdated_on_ei_id = book.save(block_update=True)
+    bid, outdated_on_ei_id = book.save(block_update=True, force=True)
     outdated_on_ei_id = outdated_on_ei_id[0] if outdated_on_ei_id else None
 
     # rename book cover if one was uploaded

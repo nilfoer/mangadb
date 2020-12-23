@@ -14,8 +14,9 @@
                 {% if book.id is not none %}
                     src={{ url_for('main.thumb_static', filename=book.id) }}
                 {% else %}
+                    {# add timestamp to temp_cover so the cached version does net get used #}
                     src={{ url_for('static', filename='no-image.png') if not cover_uploaded else
-                           url_for('main.thumb_static', filename='temp_cover') }}
+                           url_for('main.thumb_static', filename='temp_cover') + "?timestamp=" + time_str() }}
                 {% endif %}
                 >
             </figure>

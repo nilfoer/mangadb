@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 
 from flask import Flask
 
@@ -115,6 +116,11 @@ def create_app(instance_path=None, test_config=None, **kwargs):
         # configuration. This is so the tests you’ll write later in the tutorial can be configured
         # independently of any development values you have configured
         app.config.from_mapping(test_config)
+
+    # add utility for jinja templates to get a timestamp
+    def time_str():
+        return str(time.time())
+    app.jinja_env.globals['time_str'] = time_str
 
     csrf_init_app(app)
     app.register_blueprint(main_bp)
