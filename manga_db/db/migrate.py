@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # so we don't have to read all migration scripts every time
-LATEST_VERSION = -1
+LATEST_VERSION = 0
 VERSION_TABLE = 'MDB_Version'
 MIGRATIONS_DIRNAME = 'migrations'
 # migrations dir has to be a sub-folder of the MODULE_DIR
@@ -156,7 +156,7 @@ class Database:
                                     dict(version=migration.version_id,
                                          date=migration.date, dirty=1))
             try:
-                migration.upgrade(self.db_con)
+                migration.upgrade(self.db_con, self.filename)
             except Exception:
                 self._rollback()
                 logger.error("Upgrading from version %d to %d failed! DB was rolled back!",

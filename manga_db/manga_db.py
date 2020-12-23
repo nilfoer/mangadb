@@ -542,6 +542,7 @@ class MangaDB:
                     note TEXT,
                     last_change DATE NOT NULL,
                     favorite INTEGER NOT NULL,
+                    cover_timestamp REAL NOT NULL DEFAULT 0,
                     FOREIGN KEY (language_id) REFERENCES Languages(id)
                        ON DELETE RESTRICT,
                     FOREIGN KEY (status_id) REFERENCES Status(id)

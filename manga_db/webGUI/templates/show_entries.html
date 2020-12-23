@@ -26,7 +26,8 @@
 
                         {# To reduce the amount of request you can use data uri images as the placeholder. #}
                         <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
-                        url_for('main.thumb_static', filename=book.id) }} class="lazyload">
+                        url_for('main.thumb_static', filename=book.id, cover_timestamp=book.cover_timestamp) }}
+                        class="lazyload">
                         <div class="overlay">
                             <div class="overlay-data">
                                 <div class="overlay-artist">

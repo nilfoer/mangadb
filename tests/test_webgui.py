@@ -557,8 +557,8 @@ def test_upload_cover(app_setup):
         img_bio.seek(0)
         tfile = (img_bio, "test.png")
         resp = upload_file(app, client, 10, tfile)
-        assert resp.json == jsonify({"cover_path": "/thumbs/temp_cover"}).json
-        cover_img = Image.open(os.path.join(tmpdir, "thumbs", "temp_cover"))
+        assert resp.json == jsonify({"cover_path": "/thumbs/temp_cover_0"}).json
+        cover_img = Image.open(os.path.join(tmpdir, "thumbs", "temp_cover_0"))
         assert cover_img.size <= (400, 600)
         cover_img.close()
 
@@ -578,7 +578,7 @@ def test_upload_cover(app_setup):
         cover_img.close()
 
         # using same temp name -> del old one first
-        os.remove(os.path.join(tmpdir, "thumbs", "temp_cover"))
+        os.remove(os.path.join(tmpdir, "thumbs", "temp_cover_0"))
 
         img = Image.new('RGB', (300, 530), color='red')
         # save pil image in BytesIO obj
@@ -661,7 +661,7 @@ def test_import_book(app_setup, monkeypatch):
                     follow_redirects=True)
 
         # cover temp written correctly
-        assert (gen_hash_from_file(os.path.join(tmpdir, "thumbs", "temp_cover"),
+        assert (gen_hash_from_file(os.path.join(tmpdir, "thumbs", "temp_cover_0"),
                                    "sha512") ==
                 "6c77019c5a84f00486b35a496b4221eb30dfb8a5d37d006c298d01562291ca0138e2ef72e"
                 "27f076be80593fb1ff27f09a5a557c55c8a98e80f88d91ceff8b533")
@@ -775,7 +775,7 @@ def test_add_book(app_setup):
     tmpdir, app, client = app_setup
     setup_authenticated_sess(app, client)
 
-    tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover")
+    tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover_0")
     data = {k: v for k, v in extr_data.items() if k not in ExternalInfo.COLUMNS and
             v is not None}
     data.update({
@@ -799,10 +799,10 @@ def test_add_book(app_setup):
                     follow_redirects=True)
         assert b"Mirai Tantei Nankin Jiken" in resp.data
         assert not os.path.isfile(tmpcov_path)
-        assert os.path.isfile(os.path.join(tmpdir, "thumbs", "18"))
+        assert os.path.isfile(os.path.join(tmpdir, "thumbs", "18_0"))
 
         row_expected = ('Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, 3.4,
-                        "test", datetime.date.today(), 0, None, 'Kakuzatou', 'Doujinshi',
+                        "test", datetime.date.today(), 0, 0.0, None, 'Kakuzatou', 'Doujinshi',
                         "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
                         "Testpar1;Testpar2",
                         # 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
@@ -816,10 +816,10 @@ def test_add_book(app_setup):
         # also compare them sorted
         assert tuple((c for c in row if not (type(c) == str and "Femdom" in c))) == row_expected
         tags_expected = sorted('Femdom;Handjob;Large Breasts;Nakadashi;Straight Shota;Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;Elder Sister;Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug'.split(";"))
-        assert sorted(row[10].split(";")) == tags_expected
+        assert sorted(row[11].split(";")) == tags_expected
 
     # cancel add book
-    tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover")
+    tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover_0")
     with open(tmpcov_path, "w") as f:
         f.write("Testcover temp file to delete")
     with app.app_context():

@@ -13,6 +13,9 @@ def committed_state_callback(instance, col_name, before, after):
 
 class Column:
 
+    # set by __set_name__ on instance
+    name = None
+
     def __init__(self, value_type, default=None, **kwargs):
         self.type = value_type
         self.default = default
@@ -55,6 +58,7 @@ class Column:
     def __set__(self, instance, value):
         if value is not None and not isinstance(value, self.type):
             raise TypeError("Value doesn't match the column's type!")
+
         before = self.__get__(instance, instance.__class__)
         committed_state_callback(instance, self.name, before, value)
 
@@ -71,8 +75,11 @@ class ColumnWithCallback(Column):
         self.callbacks = {}
 
     def __set__(self, instance, value):
+        # @CopyNPaste from base class; move this to an internal func or sth.
+        # so we don't repeat the code
         if value is not None and not isinstance(value, self.type):
             raise TypeError("Value doesn't match the column's type!")
+
         before = self.__get__(instance, instance.__class__)
         committed_state_callback(instance, self.name, before, value)
 

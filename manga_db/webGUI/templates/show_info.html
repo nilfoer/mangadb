@@ -161,7 +161,8 @@
         <div class="column is-two-fifths">
             <figure class="image">
                 <img alt="{{ book.title }}" src={{ url_for('main.thumb_static',
-                                            filename=book.id) }}>
+                                            filename=book.id,
+                                            cover_timestamp=book.cover_timestamp) }}>
             </figure>
         </div>
         <div class="column is-three-fifths">
@@ -745,8 +746,10 @@
                         {% endif %}
 
                         {# To reduce the amount of request you can use data uri images as the placeholder. #}
-                        <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-src={{
-                             url_for('main.thumb_static', filename=c_book.id) }} class="lazyload">
+                        <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs="
+                             data-src={{ url_for('main.thumb_static', filename=c_book.id,
+                                                 cover_timestamp=c_book.cover_timestamp) }}
+                             class="lazyload">
                         <div class="overlay">
                             <div class="overlay-data">
                                 <div class="overlay-title">

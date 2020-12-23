@@ -6,6 +6,7 @@ Description: Creates webGUI for manga_db using flask
 import os.path
 import json
 import re
+import time
 
 from datetime import datetime
 from flask import (
@@ -35,11 +36,11 @@ URL_RE = re.compile(r"(?:https?://)?(?:\w+\.)?(\w+\.\w+)/")
 
 
 # create route for thumbs/static data that isnt in static, can be used in template with
-# /thumbs/path/filename or with url_for(main.thumb_static, filename='filename')
-# Custom static data
 @main_bp.route('/thumbs/<path:filename>')
 def thumb_static(filename):
-    return send_from_directory(current_app.config['THUMBS_FOLDER'], filename)
+    cover_timestamp = request.args.get("cover_timestamp", 0, type=float)
+    fn = f"{filename}_{cover_timestamp:.0f}"
+    return send_from_directory(current_app.config['THUMBS_FOLDER'], fn)
 
 
 def get_books(query=None):
@@ -183,7 +184,7 @@ def import_book(url=None, force_new=False):
         # dl cover as temp and display add book page
         # only allow one temp cover
         # change this to temp_cover_{username} if we add multiple user support
-        cover_path = os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover")
+        cover_path = os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover_0")
         cover_dled = mdb.download_cover(thumb_url, cover_path, overwrite=True)
         if not cover_dled:
             current_app.logger.error(
@@ -191,7 +192,7 @@ def import_book(url=None, force_new=False):
                     url, thumb_url)
             flash("Thumb couldnt be downloaded!")
 
-        return show_add_book(book=book, cover_uploaded=True if cover_dled else False,
+        return show_add_book(book=book, cover_uploaded=time.time() if cover_dled else 0,
                              extr_data=extr_data_json)
 
 
@@ -578,8 +579,10 @@ def add_book():
 
     # rename book cover if one was uploaded
     if request.form.get("cover_uploaded", None):
-        os.replace(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover"),
-                   os.path.join(current_app.config["THUMBS_FOLDER"], str(bid)))
+        # first cover will always have timestamp 0
+        os.replace(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover_0"),
+                   os.path.join(current_app.config["THUMBS_FOLDER"], f"{bid}_0"))
+
     return show_info(bid, book=book, show_outdated=outdated_on_ei_id)
 
 
@@ -602,7 +605,7 @@ def cancel_add_book():
     # del temp book cover file if we dont add book
     cover_uploaded = request.data
     if cover_uploaded:
-        os.remove(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover"))
+        os.remove(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover_0"))
     # js takes care of the redirection
     return url_for("main.show_entries")
 
@@ -675,13 +678,16 @@ def edit_book(book_id):
     update_dic = book_form_to_dic(request.form)
 
     book.update_from_dict(update_dic)
-    book.save()
 
     # change cover if one was uploaded
-    if request.form.get("cover_uploaded", None):
+    cover_timestamp = request.form.get("cover_uploaded", None, type=float)
+    if cover_timestamp:
         thumb_dir = current_app.config['THUMBS_FOLDER']
-        os.replace(os.path.join(thumb_dir, "temp_cover"),
-                   os.path.join(thumb_dir, str(book_id)))
+        os.replace(os.path.join(thumb_dir, "temp_cover_0"),
+                   os.path.join(thumb_dir, f"{book_id}_{cover_timestamp:.0f}"))
+        book.cover_timestamp = cover_timestamp
+
+    book.save()
 
     return redirect(url_for("main.show_info", book_id=book_id))
 
@@ -713,11 +719,11 @@ def upload_cover(book_id):
         # convert to thumbnail (in-place) tuple is max size, keeps apsect ratio
         img.thumbnail((400, 600))
         # when saving without extension we need to pass format kwarg
-        img.save(os.path.join(current_app.config['THUMBS_FOLDER'], "temp_cover"),
+        img.save(os.path.join(current_app.config['THUMBS_FOLDER'], "temp_cover_0"),
                  format=img.format)
         img.close()
         file_data.close()
-        return jsonify({'cover_path': url_for('main.thumb_static', filename="temp_cover")})
+        return jsonify({'cover_path': url_for('main.thumb_static', filename="temp_cover_0")})
     else:
         return jsonify({"error": "Wrong extension for thumb!"})
 

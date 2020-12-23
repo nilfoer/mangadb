@@ -186,7 +186,7 @@ def all_book_info(db_con, book_id=None, include_id=True):
     c = db_con.execute(f"""
             SELECT Books.title_eng, Books.title_foreign, Books.language_id, Books.pages,
                    Books.status_id, Books.my_rating, Books.note, Books.last_change,
-                   Books.favorite, Books.read_status,
+                   Books.favorite, Books.cover_timestamp, Books.read_status,
                    {'Books.id AS bid,' if include_id else ''}
                 (
                     SELECT group_concat(Tag.name, ';')

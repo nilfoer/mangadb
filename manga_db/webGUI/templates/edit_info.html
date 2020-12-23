@@ -12,11 +12,15 @@
             <figure class="image">
                 <img id="book-cover" alt="{{ book.title }}" 
                 {% if book.id is not none %}
-                    src={{ url_for('main.thumb_static', filename=book.id) }}
+                    src={{ url_for('main.thumb_static', filename=book.id,
+                                   cover_timestamp=book.cover_timestamp) }}
                 {% else %}
-                    {# add timestamp to temp_cover so the cached version does net get used #}
+                    {# add timestamp (not cover_timestamp since that would need a different name #}
+                    {# instead we always want to have the name temp_cover_0 so we don't start #}
+                    {# "collecting" them if a user decides to quite the page without hitting cancel #}
+                    {# @CleanUp this only works for a single user obv. #}
                     src={{ url_for('static', filename='no-image.png') if not cover_uploaded else
-                           url_for('main.thumb_static', filename='temp_cover') + "?timestamp=" + time_str() }}
+                           url_for('main.thumb_static', filename='temp_cover', t=time_str()) }}
                 {% endif %}
                 >
             </figure>
@@ -100,15 +104,16 @@ $(document).ready(function() {
             else {
                 // browser caches img and if url doesnt change new img wont be displayed
                 // circumvent that by adding a variable to the img url
+                let timestamp = new Date().getTime();
                 $("#book-cover").attr("src",
-                    data.cover_path + "?timestamp=" + new Date().getTime());
+                    data.cover_path + "?timestamp=" + timestamp);
                 // arrow func doesn't have "this" ref
                 let cover_uploaded = $("#cover_uploaded");
 
                 if (!cover_uploaded.length)
                 {
                     $("#edit-book-form, #add-book-form").prepend(
-                        "<input type='hidden' id='cover_uploaded' name='cover_uploaded' value='1' />");
+                        `<input type='hidden' id='cover_uploaded' name='cover_uploaded' value=${timestamp} />`);
                 }
            }
         });
@@ -133,7 +138,7 @@ $(document).ready(function() {
             {% else %}
             <form id=add-book-form action={{ url_for('main.add_book') }} method=post style="min-width:100%;width:100%;">
             {% if cover_uploaded %}
-            <input type='hidden' id='cover_uploaded' name='cover_uploaded' value='1' />
+            <input type='hidden' id='cover_uploaded' name='cover_uploaded' value={{ cover_uploaded }} />
             {% endif %}
             {% if extr_data %}
             <input type='hidden' id='extr_data_json' name='extr_data_json' value="{{ extr_data }}" />

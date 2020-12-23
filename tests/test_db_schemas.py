@@ -497,7 +497,7 @@ def test_db_migration(setup_tmpdir, monkeypatch, caplog):
 
     # overwrite exception raising migration
     with open(os.path.join(tmp_migrations, migration_1_fn), 'w') as f:
-        f.write("date = '2020-10-24'\ndef upgrade(db_con):\n  "
+        f.write("date = '2020-10-24'\ndef upgrade(db_con, db_filename):\n  "
                 "db_con.execute('ALTER TABLE Sites RENAME TO no_exc')")
     # needs to be reloaded otherwise cached version will be used
     importlib.reload(m.migrations[1].module)

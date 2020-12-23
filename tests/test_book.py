@@ -441,9 +441,12 @@ def test_save_book(monkeypatch, setup_mdb_dir, caplog):
             ext_infos=None,
             last_change=datetime.date(2018, 6, 3),
             note=None,
-            favorite=None
+            favorite=None,
+            cover_timestamp=None,
             )
     b1 = Book(mdb, **b1_data)
+    # since we later check that cover_timestamp gets saved as 0.0 if None
+    b1_data['cover_timestamp'] = 0.0
     ei1 = ExternalInfo(mdb, b1, **ei_data)
     ei2 = ExternalInfo(mdb, b1, **ei_data)
     # will outdate extinfo 8

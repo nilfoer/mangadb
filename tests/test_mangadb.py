@@ -87,12 +87,12 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     actual = all_book_info(mdb.db_con, 18, include_id=False)
 
     for i, v in enumerate(actual):
-        if i == 16:
+        if i == 17:
             assert v == "to-read;to-download"
         elif i == 7:
             # last_change
             assert v == datetime.date.today()
-        elif i == 27:  # -1 since url removed
+        elif i == 28:  # -1 since url removed
             # last_update
             assert v == datetime.date.today()
         else:
