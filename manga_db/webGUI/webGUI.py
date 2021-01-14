@@ -683,8 +683,17 @@ def edit_book(book_id):
     cover_timestamp = request.form.get("cover_uploaded", None, type=float)
     if cover_timestamp:
         thumb_dir = current_app.config['THUMBS_FOLDER']
-        os.replace(os.path.join(thumb_dir, "temp_cover_0"),
-                   os.path.join(thumb_dir, f"{book_id}_{cover_timestamp:.0f}"))
+
+        # delete old cover if present
+        try:
+            os.remove(os.path.join(thumb_dir, f"{book_id}_{book.cover_timestamp:.0f}"))
+        except FileNotFoundError:
+            pass
+
+        # replace with new one and update timestamp
+        # rename instead of os.replace so it crashes on existing file
+        os.rename(os.path.join(thumb_dir, "temp_cover_0"),
+                  os.path.join(thumb_dir, f"{book_id}_{cover_timestamp:.0f}"))
         book.cover_timestamp = cover_timestamp
 
     book.save()
@@ -723,7 +732,9 @@ def upload_cover(book_id):
                  format=img.format)
         img.close()
         file_data.close()
-        return jsonify({'cover_path': url_for('main.thumb_static', filename="temp_cover_0")})
+        # this needs to be temp_cover without _0 since we don't use a cover_timestamp
+        # for the temp_cover and thumb_static will automatically append _0 if none is supplied
+        return jsonify({'cover_path': url_for('main.thumb_static', filename="temp_cover")})
     else:
         return jsonify({"error": "Wrong extension for thumb!"})
 
