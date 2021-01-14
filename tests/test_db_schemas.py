@@ -278,8 +278,10 @@ def test_db_migration(setup_tmpdir, monkeypatch, caplog):
 
     os.makedirs(tmp_migrations)
     migration_0_fn = '0000_add_column.py'
-    shutil.copy(os.path.join(test_files, migration_0_fn),
-                tmp_migrations)
+    # use copyfile instead of copy so we don't run into permission errors
+    # on linux, since copy tries to copy those
+    shutil.copyfile(os.path.join(test_files, migration_0_fn),
+                                 os.path.join(tmp_migrations, migration_0_fn))
 
     monkeypatch.setattr("manga_db.db.migrate.LATEST_VERSION", 1)
 
@@ -389,8 +391,8 @@ def test_db_migration(setup_tmpdir, monkeypatch, caplog):
     monkeypatch.setattr("manga_db.db.migrate.Database._rollback", patched_rollback)
 
     migration_1_fn = '0001_raises.py'
-    shutil.copy(os.path.join(test_files, migration_1_fn),
-                tmp_migrations)
+    shutil.copyfile(os.path.join(test_files, migration_1_fn),
+                    os.path.join(tmp_migrations, migration_1_fn))
 
     monkeypatch.setattr("manga_db.db.migrate.LATEST_VERSION", 1)
 

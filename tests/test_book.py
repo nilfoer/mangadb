@@ -344,7 +344,7 @@ def test_remove_book(monkeypatch, setup_mdb_dir):
     # copy cover
     os.makedirs(os.path.join(tmpdir, "thumbs"))
     cover_path = os.path.join(tmpdir, "thumbs", "16")
-    shutil.copy(os.path.join(tmpdir, os.pardir, "book_test_files", "16"), cover_path)
+    shutil.copyfile(os.path.join(tmpdir, os.pardir, "book_test_files", "16"), cover_path)
     db_con = memdb
 
     # book removed and all ext infos
