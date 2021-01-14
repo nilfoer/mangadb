@@ -177,6 +177,10 @@ def cleanup(request):
 
 
 def all_book_info(db_con, book_id=None, include_id=True):
+    # force use of sqlite3.Row
+    rf_bu = db_con.row_factory
+    db_con.row_factory = sqlite3.Row
+
     # dont get id since ids wont match since order changes every time
     # same for dates
     # order by sth predictable like title_eng
@@ -186,7 +190,8 @@ def all_book_info(db_con, book_id=None, include_id=True):
     c = db_con.execute(f"""
             SELECT Books.title_eng, Books.title_foreign, Books.language_id, Books.pages,
                    Books.status_id, Books.my_rating, Books.note, Books.last_change,
-                   Books.favorite, Books.cover_timestamp, Books.read_status,
+                   Books.favorite, Books.cover_timestamp, Books.chapter_status,
+                   Books.read_status,
                    {'Books.id AS bid,' if include_id else ''}
                 (
                     SELECT group_concat(Tag.name, ';')
@@ -252,6 +257,10 @@ def all_book_info(db_con, book_id=None, include_id=True):
             ORDER BY Books.title_eng
         """, (book_id,) if book_id else ())
     rows = c.fetchall()
+
+    # restore original row factory
+    db_con.row_factory = rf_bu
+
     if rows:
         return rows if len(rows) > 1 else rows[0]
     else:

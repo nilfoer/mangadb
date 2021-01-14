@@ -194,11 +194,20 @@
                             {{ book.pages }}
                         </td>
                     </tr>
+                    {% if book.chapter_status is not none %}
+                    <tr>
+                        <th>Chapter Status</th>
+                        <td id="ChapterStatus">
+                            {{ book.chapter_status }}
+                        </td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th>Reading Status</th>
                         <td id="ReadingStatus">
                             {% if book.read_status is not none %}
-                            {{ 'Finished' if book.read_status == 0 else book.read_status }}
+                            {# use ~ instead of + in jinja so the arguments get converted to str first #}
+                            {{ 'Finished' if book.read_status == 0 else 'Page ' ~ book.read_status }}
                             {% else %}
                             Not Read
                             {% endif %}

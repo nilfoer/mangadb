@@ -86,17 +86,16 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
 
     actual = all_book_info(mdb.db_con, 18, include_id=False)
 
-    for i, v in enumerate(actual):
-        if i == 17:
+    for (i, k) in enumerate(actual.keys()):
+        v = actual[k]
+        if k == 'lists':
             assert v == "to-read;to-download"
-        elif i == 7:
-            # last_change
+        elif k == 'last_change':
             assert v == datetime.date.today()
-        elif i == 28:  # -1 since url removed
-            # last_update
+        elif k == 'last_update':
             assert v == datetime.date.today()
         else:
-            assert v == expected[i]
+            assert v == expected[k]
 
     caplog.set_level(logging.DEBUG)
     # clear logging records

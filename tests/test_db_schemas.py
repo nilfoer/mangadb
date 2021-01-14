@@ -62,7 +62,10 @@ def test_sql_test_files():
                     f"pragma table_info('{exp_row[2]}')").fetchall()
             act_tbl = memdb.execute(
                     f"pragma table_info('{act_row[2]}')").fetchall()
-            assert exp_tbl == act_tbl
+            # don't compare order/ids
+            exp_tbl_noid = set(tuple(r[1:]) for r in exp_tbl)
+            act_tbl_noid = set(tuple(r[1:]) for r in act_tbl)
+            assert exp_tbl_noid == act_tbl_noid
 
 
 def find_col_idx(col_name, rows):
@@ -111,10 +114,6 @@ def test_created_db_matches_row_classes():
                         (info['dflt_value'] is None or info['dflt_value'] == 'None'))
             assert col.primary_key is bool(info['pk'])
 
-            # @Hack TODO db creation statement has a typo in it - ignore for now since it
-            # has no effect
-            if info['type'] == 'INTERGER':
-                continue
             assert col.type is type_map[info['type']]
 
         if cls is ExternalInfo:

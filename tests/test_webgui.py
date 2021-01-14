@@ -314,6 +314,8 @@ def test_show_info(app_setup):
         r_html = resp.data.decode("utf-8")
         soup = bs4.BeautifulSoup(r_html, "html.parser")
         assert soup.select_one("#Pages").text.strip() == "19"
+        # chapter status not displayed if not set!
+        assert not soup.select_one("#ChapterStatus")
         assert soup.select_one("#ReadingStatus").text.strip() == "Not Read"
         assert soup.select_one("#Status").text.strip() == "Unknown"
 
@@ -369,7 +371,8 @@ def test_show_info(app_setup):
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),
                                  detect_types=sqlite3.PARSE_DECLTYPES)
         with db_con:
-            db_con.execute("UPDATE Books SET favorite = 1, my_rating = 3.5 WHERE id = 3")
+            db_con.execute("UPDATE Books SET favorite = 1, my_rating = 3.5, "
+                           "chapter_status = 'Whatever' WHERE id = 3")
             db_con.execute("UPDATE ExternalInfo SET downloaded = 1 WHERE book_id = 3")
 
         resp = client.get(url_for("main.show_info", book_id=3), follow_redirects=True)
@@ -377,7 +380,8 @@ def test_show_info(app_setup):
                 b"Izumi&#39;s Story- Ch. 2") in resp.data
         r_html = resp.data.decode("utf-8")
         soup = bs4.BeautifulSoup(r_html, "html.parser")
-        assert soup.select_one("#ReadingStatus").text.strip() == "23"
+        assert soup.select_one("#ChapterStatus").text.strip() == "Whatever"
+        assert soup.select_one("#ReadingStatus").text.strip() == "Page 23"
         assert soup.select_one("#btnFav").text.strip() == "Favorite"
         assert soup.select_one("#Downloaded > .fa-check")
         assert soup.select_one("#Collection > .tags > a ").text.strip() == "Dolls"
@@ -802,7 +806,8 @@ def test_add_book(app_setup):
         assert os.path.isfile(os.path.join(tmpdir, "thumbs", "18_0"))
 
         row_expected = ('Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, 3.4,
-                        "test", datetime.date.today(), 0, 0.0, None, 'Kakuzatou', 'Doujinshi',
+                        #                                      chapter, read_status
+                        "test", datetime.date.today(), 0, 0.0, None, None, 'Kakuzatou', 'Doujinshi',
                         "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
                         "Testpar1;Testpar2",
                         # 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
@@ -816,7 +821,7 @@ def test_add_book(app_setup):
         # also compare them sorted
         assert tuple((c for c in row if not (type(c) == str and "Femdom" in c))) == row_expected
         tags_expected = sorted('Femdom;Handjob;Large Breasts;Nakadashi;Straight Shota;Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;Elder Sister;Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug'.split(";"))
-        assert sorted(row[11].split(";")) == tags_expected
+        assert sorted(row['tags'].split(";")) == tags_expected
 
     # cancel add book
     tmpcov_path = os.path.join(tmpdir, "thumbs", "temp_cover_0")

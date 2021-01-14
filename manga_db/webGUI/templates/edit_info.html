@@ -179,10 +179,22 @@ $(document).ready(function() {
                         </td>
                     </tr>
                     <tr>
+                        <th>Chapter Status</th>
+                        <td id="ChapterStatus">
+                            <input type="text" class="selectize-input" name="chapter_status"
+                                   id="ChapterStatusInp"
+                                   placeholder="e.g. Vol. 2 Ch. 4 or empty for no chapters/not read!"
+                            {% if book.chapter_status is not none %}
+                            value="{{ book.chapter_status }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Reading Status</th>
                         <td id="ReadingStatus">
                             <input type="text" class="selectize-input" name="read_status" id="ReadingStatusInp"
-                            placeholder="0 == finished reading, empty == not read!"
+                            placeholder="Current page, 0 == finished, empty == not read!"
                             {% if book.read_status is not none %}
                             value="{{ book.read_status }}"
                             {% endif %}
