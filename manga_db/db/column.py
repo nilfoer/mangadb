@@ -57,7 +57,8 @@ class Column:
 
     def __set__(self, instance, value):
         if value is not None and not isinstance(value, self.type):
-            raise TypeError("Value doesn't match the column's type!")
+            raise TypeError(f"Value doesn't match the column's ({self.name}) type! Got "
+                            f"{type(value)}: {value} epxected {self.type}")
 
         before = self.__get__(instance, instance.__class__)
         committed_state_callback(instance, self.name, before, value)
@@ -78,7 +79,8 @@ class ColumnWithCallback(Column):
         # @CopyNPaste from base class; move this to an internal func or sth.
         # so we don't repeat the code
         if value is not None and not isinstance(value, self.type):
-            raise TypeError("Value doesn't match the column's type!")
+            raise TypeError(f"Value doesn't match the column's ({self.name}) type! Got "
+                            f"{type(value)}: {value} epxected {self.type}")
 
         before = self.__get__(instance, instance.__class__)
         committed_state_callback(instance, self.name, before, value)

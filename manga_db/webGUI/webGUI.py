@@ -158,7 +158,7 @@ def import_book(url=None, force_new=False):
             flash(f"URL was: {url}")
             flash("Check the logs for more details!", "info")
             return redirect(url_for("main.show_entries"))
-    book = Book(mdb, **extr_data)
+    book = mdb.book_from_data(extr_data)
     # convert data to json so we can rebuilt ext_info when we add it to DB
     # as we have to take all data from edit_info page or store a json serialized ExternalInfo
     # in session; jsonify return flask.Response i just need a str
@@ -517,7 +517,7 @@ def add_ext_info(book_id):
         flash("Check the logs for more details!", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
     mdb = get_mdb()
-    book, ext_info = mdb.book_from_data(extr_data)
+    book, ext_info = mdb.book_and_ei_from_data(extr_data)
     if book.title != book_title:
         # just warn if titles dont match, its ultimately the users decision
         flash("Title of external link and book's title doesn't match!", "title warning")

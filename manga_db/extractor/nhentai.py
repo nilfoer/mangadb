@@ -3,6 +3,8 @@ import datetime
 import json
 import re
 
+from typing import cast, Match
+
 from .base import BaseMangaExtractor
 from ..constants import CENSOR_IDS, STATUS_IDS
 
@@ -23,7 +25,7 @@ class NhentaiExtractor(BaseMangaExtractor):
     THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.{img_ext}"
     KW_LOOKP_RE_FORMAT = r"(?:\[|\(){keyword}[^)\]\n]*(?:\]|\))"
 
-    def __init__(self, url):
+    def __init__(self, url: str):
         super().__init__(url)
         self.id_onpage = NhentaiExtractor.book_id_from_url(url)
         self.thumb_url = None
@@ -36,6 +38,10 @@ class NhentaiExtractor(BaseMangaExtractor):
             return f"NhentaiExtractor('{self.url}', {metastring})"
         else:
             return f"NhentaiExtractor('{self.url}')"
+
+    @classmethod
+    def match(cls, url: str) -> bool:
+        return bool(cls.URL_PATTERN_RE.match(url))
 
     @classmethod
     def url_from_ext_info(cls, ext_info):
@@ -203,9 +209,9 @@ class NhentaiExtractor(BaseMangaExtractor):
 
     # mb move to baseclass? but mb not able to get id from url
     @classmethod
-    def book_id_from_url(cls, url):
+    def book_id_from_url(cls, url: str) -> int:
         try:
-            return int(re.search(cls.URL_PATTERN_RE, url).group(1))
+            return int(cast(Match, re.search(cls.URL_PATTERN_RE, url)).group(1))
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

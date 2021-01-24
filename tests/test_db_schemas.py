@@ -117,7 +117,7 @@ def test_created_db_matches_row_classes():
             assert col.type is type_map[info['type']]
 
         if cls is ExternalInfo:
-            assert cls.ASSOCIATED_COLUMNS is None
+            assert hasattr(cls, "ASSOCIATED_COLUMNS") is False
             continue
 
         all_assoc_tables = []

@@ -4,6 +4,8 @@ import re
 
 import bs4
 
+from typing import cast, Match
+
 from .base import BaseMangaExtractor
 from ..util import is_foreign
 from ..constants import CENSOR_IDS, STATUS_IDS
@@ -41,6 +43,10 @@ class TsuminoExtractor(BaseMangaExtractor):
             return f"TsuminoExtractor('{self.url}', {metastring})"
         else:
             return f"TsuminoExtractor('{self.url}')"
+
+    @classmethod
+    def match(cls, url: str) -> bool:
+        return bool(cls.URL_PATTERN_RE.match(url))
 
     @classmethod
     def url_from_ext_info(cls, ext_info):
@@ -163,9 +169,9 @@ class TsuminoExtractor(BaseMangaExtractor):
 
     # mb move to baseclass? but mb not able to get id from url
     @classmethod
-    def book_id_from_url(cls, url):
+    def book_id_from_url(cls, url: str) -> int:
         try:
-            return int(re.search(cls.URL_PATTERN_RE, url).group(1))
+            return int(cast(Match, re.search(cls.URL_PATTERN_RE, url)).group(1))
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

@@ -1,11 +1,14 @@
+from typing import List, Dict, Any, Tuple, Mapping
+
+
 class DBRow:
 
     TABLENAME = ""
 
-    PRIMARY_KEY_COLUMNS = None
+    PRIMARY_KEY_COLUMNS: List[str]
     # cant assign [] here otherwise col names of all subclasses will be appended to same list
-    COLUMNS = None
-    ASSOCIATED_COLUMNS = None
+    COLUMNS: List[str]
+    ASSOCIATED_COLUMNS: List[str]
 
     def __init__(self, manga_db, in_db, **kwargs):
         self.manga_db = manga_db
@@ -21,30 +24,30 @@ class DBRow:
         return self.__class__, tuple((getattr(self, col) for col in self.PRIMARY_KEY_COLUMNS))
 
     @classmethod
-    def get_all_column_names(cls):
+    def get_all_column_names(cls) -> List[str]:
         """
         Returns list of strings containing all column names
         """
         return cls.COLUMNS + cls.ASSOCIATED_COLUMNS
 
     @classmethod
-    def filter_dict(cls, data):
+    def filter_dict(cls, data: Dict) -> Dict:
         """
-        Filters out all data fields that are not in cls.get_column_names()
+        Filters out all data fields that are not in our columns
         """
         dic = {}
-        for col in cls.get_column_names():
+        for col in cls.get_all_column_names():
             try:
                 dic[col] = data[col]
             except KeyError:
                 pass
         return dic
 
-    def export_for_db(self):
+    def export_for_db(self) -> Dict[str, Any]:
         """
         Returns a dict with all the attributes of self that are stored in the row directly
         """
-        result = {}
+        result: Dict[str, Any] = {}
         for attr in self.COLUMNS + self.PRIMARY_KEY_COLUMNS:
             val = getattr(self, attr)
             result[attr] = val
@@ -56,7 +59,7 @@ class DBRow:
         """
         raise NotImplementedError
 
-    def diff_normal_cols(self, row):
+    def diff_normal_cols(self, row: Mapping[str, Any]) -> Tuple[str, List[str]]:
         changed_str = []
         changed_cols = []
         for col in self.COLUMNS:
@@ -66,10 +69,10 @@ class DBRow:
                 changed_cols.append(col)
         return "\n".join(changed_str), changed_cols
 
-    def changed_str(self):
+    def changed_str(self) -> str:
         return "\n".join([f"{col}: '{val}' changed to '{getattr(self, col)}'" for col, val in
                           self._committed_state.items()])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         selfdict_str = ", ".join((f"{attr}: '{val}'" for attr, val in self.__dict__.items()))
         return f"{self.__class__.__name__}({selfdict_str})"

@@ -4,6 +4,8 @@ import sqlite3
 import re
 import urllib.request
 
+from typing import Optional, Tuple, Any, Dict, List
+
 from .logging_setup import configure_logging
 from . import extractor
 from .exceptions import MangaDBException
@@ -122,7 +124,7 @@ class MangaDB:
             return None
 
     @staticmethod
-    def retrieve_book_data(url):
+    def retrieve_book_data(url: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         extractor_cls = extractor.find(url)
         extr = extractor_cls(url)
         data = extr.get_metadata()
@@ -132,20 +134,22 @@ class MangaDB:
             logger.warning("No book data recieved! URL was '%s'!", url)
             return None, None
 
-    def book_from_data(self, data):
-        if not data:
-            return None, None
+    def book_from_data(self, data: Dict[str, Any]) -> Book:
         # @Cleanup @Temporary convert lanugage in data to id
         data["language_id"] = self.get_language(data["language"], create_unpresent=True)
         del data["language"]
 
-        book = Book(self, **data)
+        return Book(self, **data)
+
+    def book_and_ei_from_data(self, data: Dict[str, Any]) -> Tuple[Book, ExternalInfo]:
+        book = self.book_from_data(data)
         ext_info = ExternalInfo(self, book, **data)
         book.ext_infos = [ext_info]
         return book, ext_info
 
     # !!! also change single_thread_import in threads when this gets changed
-    def import_book(self, url, lists):
+    def import_book(self, url: str, lists: List[str]) -> Tuple[
+            Optional[int], Optional[Book], Optional[int]]:
         """
         Imports book into DB and downloads cover
         Either url and lists or book and thumb_url has to be supplied
@@ -154,7 +158,7 @@ class MangaDB:
         if extr_data is None:
             logger.warning("Importing book failed!")
             return None, None, None
-        book, ext_info = self.book_from_data(extr_data)
+        book, ext_info = self.book_and_ei_from_data(extr_data)
         book.list = lists
 
         bid, outdated_on_ei_id = book.save(block_update=True)

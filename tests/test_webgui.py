@@ -561,7 +561,8 @@ def test_upload_cover(app_setup):
         img_bio.seek(0)
         tfile = (img_bio, "test.png")
         resp = upload_file(app, client, 10, tfile)
-        assert resp.json == jsonify({"cover_path": "/thumbs/temp_cover_0"}).json
+        # _0 is automatically appended
+        assert resp.json == jsonify({"cover_path": "/thumbs/temp_cover"}).json
         cover_img = Image.open(os.path.join(tmpdir, "thumbs", "temp_cover_0"))
         assert cover_img.size <= (400, 600)
         cover_img.close()
@@ -577,7 +578,7 @@ def test_upload_cover(app_setup):
         resp = upload_file(app, client, 0, tfile)
         r_dic = resp.get_json()
         cover_img = Image.open(os.path.join(tmpdir, "thumbs",
-                                            r_dic["cover_path"].rsplit("/", 1)[-1]))
+                                            r_dic["cover_path"].rsplit("/", 1)[-1] + "_0"))
         assert cover_img.size <= (400, 600)
         cover_img.close()
 
@@ -604,8 +605,8 @@ def test_upload_cover(app_setup):
                     content_type='multipart/form-data')
         r_dic2 = resp.get_json()
         assert os.path.isfile(os.path.join(tmpdir, "thumbs",
-                                           r_dic2["cover_path"].rsplit("/", 1)[-1]))
-        # since we overwrite anyway we don't need to check for deltion
+                                           r_dic2["cover_path"].rsplit("/", 1)[-1] + "_0"))
+        # since we overwrite anyway we don't need to check for deletion
 
 
 tsu_extr_data = {
@@ -684,8 +685,7 @@ def test_import_book(app_setup, monkeypatch):
         b = kwargs_show_add["book"]
         assert b.title_eng == row_expected[0]
         assert b.title_foreign == row_expected[1]
-        # lang id gets set on add book page
-        assert b.language_id is None
+        assert b.language_id == 1
         assert b.pages == row_expected[3]
         assert b.status_id == row_expected[4]
         assert b.my_rating == row_expected[5]

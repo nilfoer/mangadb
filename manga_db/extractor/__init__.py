@@ -3,11 +3,14 @@
 import os
 import inspect
 import importlib
-import re
 
+from typing import List, Iterator, Union, Dict, Type
+
+from .base import BaseMangaExtractor
 from ..exceptions import MangaDBException
 
-module_dir = os.path.dirname(os.path.realpath(__file__))
+
+module_dir: str = os.path.dirname(os.path.realpath(__file__))
 
 # account for being bundled (e.g. using pyinstaller)
 # when trying to find data files relative to the main script, sys._MEIPASS can be used
@@ -26,32 +29,34 @@ module_dir = os.path.dirname(os.path.realpath(__file__))
 # get all modules in dir (except __init__.py) and remove ending
 # also possible to specify all names
 # don't include base module since empty pattern "" of BaseExtractor matches on everything
-modules = [f[:-3] for f in os.listdir(module_dir) if not f.startswith("__") and
-           f != 'base.py' and f.endswith('.py')]
+modules: List[str] = [f[:-3] for f in os.listdir(module_dir) if not f.startswith("__") and
+                      f != 'base.py' and f.endswith('.py')]
 
 # holds extractor classes already imported extractor modules
-_cache = []
+_cache: List[Type[BaseMangaExtractor]] = []
 
-SUPPORTED_SITES = {
+SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         # site id, site name
         1: "tsumino.com",
+        2: "nhentai.net",
+        3: "MangaDex",
         # site name, id
         "tsumino.com": 1,
         "nhentai.net": 2,
-        2: "nhentai.net",
+        "MangaDex": 3,
         }
 
 
-def find(url):
+def find(url: str) -> Type[BaseMangaExtractor]:
     """Find extractor for given url"""
     for cls in _list_extractor_classes():
-        if re.match(cls.URL_PATTERN_RE, url):
+        if cls.match(url):
             return cls
     else:
         raise NoExtractorFound(f"No matching extractor found for '{url}'")
 
 
-def find_by_site_id(site_id):
+def find_by_site_id(site_id: int) -> Type[BaseMangaExtractor]:
     """Find extractor for given site_id"""
     for cls in _list_extractor_classes():
         if cls.site_id == site_id:
@@ -66,7 +71,7 @@ def add_extractor_cls_module(module):
     pass
 
 
-def _list_extractor_classes():
+def _list_extractor_classes() -> Iterator[Type[BaseMangaExtractor]]:
     """
     Yields
     firstly: Extractor classes from _cache (since their modules were already imported)
@@ -83,8 +88,8 @@ def _list_extractor_classes():
         yield from extr_classes
 
 
-def _get_classes_in_module(module):
-    """Returns a list of all classes in module that have the attribute URL_PATTERN_RE"""
+def _get_classes_in_module(module) -> List[Type[BaseMangaExtractor]]:
+    """Returns a list of all subclasses of BaseMangaExtractor in module"""
     # get all members if isclass
     # and class has URL_PATTERN_RE
     # Return all the members of an object in a list of (name, value) pairs
@@ -93,7 +98,7 @@ def _get_classes_in_module(module):
     # inspect.getmembers(module, inspect.isclass) also includes imported classes!!!
     # -> check that cls module name matches module.__name__
     return [insp_tuple[1] for insp_tuple in inspect.getmembers(module, inspect.isclass) if
-            hasattr(insp_tuple[1], "URL_PATTERN_RE") and
+            issubclass(insp_tuple[1], BaseMangaExtractor) and
             insp_tuple[1].__module__ == module.__name__]
 
 

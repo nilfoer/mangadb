@@ -188,12 +188,14 @@
                             {{ book.title_foreign }}
                         </td>
                     </tr>
+                    {% if book.pages > 0 %}
                     <tr>
                         <th>Pages</th>
                         <td id="Pages">
                             {{ book.pages }}
                         </td>
                     </tr>
+                    {% endif %}
                     {% if book.chapter_status is not none %}
                     <tr>
                         <th>Chapter Status</th>
@@ -346,6 +348,7 @@
                                     <button class="delete is-small is-dark mdb-list-remove" data-value="{{ li }}" href="#"/>
                                 </div>
                                 {% endfor %}
+                                {% if lists %}
                                 <div id="list-dropdown-container" class="dropdown is-hoverable">
                                     <div class="dropdown-trigger">
                                         <a class="tag is-rounded is-small green-color" aria-haspopup="true" aria-controls="list-dropdown-container">
@@ -364,6 +367,12 @@
                                         </div>
                                     </div>
                                 </div>
+                                {% else %}
+                                <span class="help">
+                                    Press the 'Edit' button to add some lists that will be displayed here
+                                    with a quick-add button!
+                                </span>
+                                {% endif %}
                             </div>
     <script>
         // list add/remove script
@@ -595,6 +604,10 @@
             <div class="ext-info-inner">
                 <table class="book-info-table book-info-container">
                     <tbody>
+                        {# sfw mangas are uploaded in chapters and thus don't have a singular upload date #}
+                        {# @CleanUp using min datetime.date instead of None since #}
+                        {# upload_date column is NOT NULL #}
+                        {% if ext_info.upload_date != ext_info.upload_date.min %}
                         <tr>
                             <th>Uploader</th>
                             <td id="Uploader">
@@ -607,6 +620,7 @@
                                 {{ ext_info.upload_date }}
                             </td>
                         </tr>
+                        {% endif %}
                         {% if ext_info.rating is not none %}
                         <tr>
                             <th>Rating</th>
@@ -616,6 +630,7 @@
                         </tr>
                         {% endif %}
                         <tr>
+                            {# TODO hide this for sfw mangas? #}
                             <th>Censorship</th>
                             <td id="Censorship">
                                 {{ ext_info.censorship }}

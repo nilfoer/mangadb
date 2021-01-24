@@ -1,11 +1,16 @@
 import logging
 import datetime
 
+from typing import Tuple, Optional, TYPE_CHECKING
+
 from .db.row import DBRow
 from .db.column import Column
 from .db.constants import ColumnValue
 from .constants import CENSOR_IDS
 from .extractor import SUPPORTED_SITES, find_by_site_id
+
+if TYPE_CHECKING:
+    from .manga import Book
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +114,19 @@ class ExternalInfo(DBRow):
             else:
                 setattr(self, col, new)
 
-    def update_from_url(self, force=False):
+    def update_from_url(self, force=False) -> Tuple[str, Optional['Book']]:
         if not self.id or not self.book:
             logger.info("Cant update external info without id and assoicated book!")
             return "id_or_book_missing", None
         # TODO mb propagate updates to Book?
         extr_data, _ = self.manga_db.retrieve_book_data(self.url)
-        book, ext_info = self.manga_db.book_from_data(extr_data)
-        if book is None:
+        if not extr_data:
             return "no_data", None
+
+        book, ext_info = self.manga_db.book_and_ei_from_data(extr_data)
+        if book is None or ext_info is None:
+            return "no_data", None
+
         if book.title != self.book.title:
             logger.warning("Title at URL of external info doesnt match title of associated "
                            "book! Aborting update! Use force=True to force update!\n"
