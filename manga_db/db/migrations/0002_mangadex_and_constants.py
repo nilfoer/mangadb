@@ -15,6 +15,12 @@ def upgrade(db_con, db_filename):
     # add nsfw column to Books
     #
     c.execute("ALTER TABLE Books ADD COLUMN nsfw INTEGER NOT NULL DEFAULT 0")
+    # assume previous imports from nhentai or tsumino are nsfw
+    c.execute("""
+    UPDATE Books SET nsfw = 1 WHERE (
+        SELECT imported_from FROM ExternalInfo ei
+        WHERE ei.book_id = Books.id
+    ) IS NOT NULL""")
 
     #
     # add status 'Cancelled'
