@@ -143,6 +143,9 @@ def convert_or_escape_to_str(column_value):
         return 'NULL'
     elif isinstance(column_value, datetime.date):
         # sqlite3 stores dates among others as TEXT as ISO8601 strings
+        # NOTE: strftime's %Y is inconsistent between OSs; pads with 0 to 4 digits
+        # on Windows but doesn't pad on linux
+        # isoformat does not seemt to have that problem???
         # return f"'{column_value.strftime('%Y-%m-%d')}'"
         return f"'{column_value.isoformat()}'"
     elif isinstance(column_value, datetime.datetime):

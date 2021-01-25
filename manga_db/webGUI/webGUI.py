@@ -7,8 +7,8 @@ import os.path
 import json
 import re
 import time
+import datetime
 
-from datetime import datetime
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
         render_template, flash, send_from_directory,
@@ -144,7 +144,7 @@ def import_book(url=None, force_new=False):
         extr_data = json.loads(request.form['extr_data_json'])
         thumb_url = request.form['thumb_url']
         # during json conversion datetime was converted to a str (in isoformat)
-        extr_data["upload_date"] = datetime.strptime(extr_data['upload_date'], "%Y-%m-%d").date()
+        extr_data["upload_date"] = datetime.date.fromisoformat(extr_data['upload_date'])
         if request.form['action'] == "add_new":
             force_new = True
         else:
@@ -567,9 +567,7 @@ def add_book():
     if extr_data:
         extr_data = json.loads(extr_data)
         # convert date string back to dateteime date
-        import datetime
-        extr_data["upload_date"] = datetime.datetime.strptime(
-                extr_data["upload_date"], "%Y-%m-%d").date()
+        extr_data["upload_date"] = datetime.date.fromisoformat(extr_data["upload_date"])
         ext_info = ExternalInfo(mdb, book, **extr_data)
         book.ext_infos = [ext_info]
 
