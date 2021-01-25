@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="UTF-8") as fh:
 
 setuptools.setup(
     name="MangaDB",
-    version="0.2b",
+    version="0.21.0",
     description="Organize your manga reading habits",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -16,10 +16,11 @@ setuptools.setup(
     license="MIT",
     keywords="manga database",
     packages=setuptools.find_packages(exclude=['tests*']),
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     install_requires=["pyperclip>=1.5.25,<=1.7.0",
                       "beautifulsoup4>=4.5.3,<=4.6.3",
-                      "flask>=0.12,<=1.0.2"],
+                      "flask>=0.12,<=1.0.2",
+                      "pillow>=5.3.0,<=8.1.0"],
     tests_require=['pytest'],
     # non-python data that should be included in the pkg
     # mapping from package name to a list of relative path names that should be
