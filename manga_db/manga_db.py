@@ -4,7 +4,7 @@ import sqlite3
 import re
 import urllib.request
 
-from typing import Optional, Tuple, Any, Dict, List
+from typing import Optional, Tuple, Any, Dict, List, overload
 
 from .logging_setup import configure_logging
 from . import extractor
@@ -109,12 +109,19 @@ class MangaDB:
             return None
 
     @staticmethod
-    def download_cover(url, filename, overwrite=False):
+    def download_cover(url: str, dir_path: str, book_id: int, overwrite: bool = False,
+                       forced_filename: Optional[str] = None) -> Optional[bool]:
+        # NOTE: _0 appended to filename due to filename requirements imposed by the webGUI
+        if forced_filename is None:
+            cover_path = os.path.join(dir_path, f"{book_id}_0")
+        else:
+            cover_path = os.path.join(dir_path, forced_filename)
+
         # TODO use urlopen and add headers
-        if not os.path.isfile(filename) or overwrite:
+        if not os.path.isfile(cover_path) or overwrite:
             try:
                 urllib.request.urlretrieve(url,
-                                           filename)
+                                           cover_path)
             except urllib.request.HTTPError as err:
                 logger.warning("HTTP Error %s: %s: \"%s\"",
                                err.code, err.reason, url)
@@ -123,7 +130,7 @@ class MangaDB:
                 return True
         else:
             logger.debug("Thumb at '%s' was skipped since the path already exists: '%s'",
-                         url, filename)
+                         url, cover_path)
             return None
 
     @staticmethod
@@ -150,17 +157,33 @@ class MangaDB:
         book.ext_infos = [ext_info]
         return book, ext_info
 
-    # !!! also change single_thread_import in threads when this gets changed
+    @overload
     def import_book(self, url: str, lists: List[str]) -> Tuple[
-            Optional[int], Optional[Book], Optional[int]]:
+            Optional[int], Optional[Book], Optional[int]]: ...
+
+    # use mypy to make sure both extr_data as well as the thumb_url are supplied
+    @overload
+    def import_book(self, url: str, lists: List[str],
+                    extr_data: Dict[str, Any], thumb_url: str) -> Tuple[
+                            Optional[int], Optional[Book], Optional[int]]: ...
+
+    # NOTE: !IMPORTANT also change single_thread_import in threads when this
+    # gets changed as well as webGUI/webGUI.py:import_book
+    def import_book(self, url: str, lists: List[str],
+                    extr_data: Optional[Dict[str, Any]] = None,
+                    thumb_url: Optional[str] = None) -> Tuple[
+                            Optional[int], Optional[Book], Optional[int]]:
         """
         Imports book into DB and downloads cover
         Either url and lists or book and thumb_url has to be supplied
         """
-        extr_data, thumb_url = self.retrieve_book_data(url)
+
         if extr_data is None:
-            logger.warning("Importing book failed!")
-            return None, None, None
+            extr_data, thumb_url = self.retrieve_book_data(url)
+            if extr_data is None:
+                logger.warning("Importing book failed!")
+                return None, None, None
+
         book, ext_info = self.book_and_ei_from_data(extr_data)
         book.list = lists
 
@@ -174,12 +197,15 @@ class MangaDB:
         # ext_info per book -> so later just return first one if true
         outdated_on_ei_id = outdated_on_ei_id[0] if outdated_on_ei_id else None
 
-        cover_path = os.path.join(self.root_dir, "thumbs", f"{book.id}")
-        # always pass headers = extr.headers?
-        if self.download_cover(thumb_url, cover_path):
-            logger.info("Thumb for book %s downloaded successfully!", book.title)
-        else:
+        if not thumb_url:
             logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
+        else:
+            cover_dir_path = os.path.join(self.root_dir, "thumbs")
+            # always pass headers = extr.headers?
+            if self.download_cover(thumb_url, cover_dir_path, bid):
+                logger.info("Thumb for book %s downloaded successfully!", book.title)
+            else:
+                logger.warning("Thumb for book %s couldnt be downloaded!", book.title)
 
         return bid, book, outdated_on_ei_id
 

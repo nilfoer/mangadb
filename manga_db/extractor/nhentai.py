@@ -3,7 +3,7 @@ import datetime
 import json
 import re
 
-from typing import cast, Match
+from typing import cast, Match, Optional
 
 from .base import BaseMangaExtractor
 from ..constants import CENSOR_IDS, STATUS_IDS
@@ -207,7 +207,9 @@ class NhentaiExtractor(BaseMangaExtractor):
 
         return result
 
-    def get_cover(self):
+    def get_cover(self) -> Optional[str]:
+        if self.thumb_url is None:
+            self.get_metadata()
         return self.thumb_url
 
     # mb move to baseclass? but mb not able to get id from url

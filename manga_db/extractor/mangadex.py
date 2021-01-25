@@ -1,6 +1,8 @@
 import re
 import json
 import datetime
+import logging
+import time
 
 from typing import cast, Match, Optional, Dict, Any, Tuple, Pattern, ClassVar, List, TYPE_CHECKING
 
@@ -10,6 +12,8 @@ from ..constants import CENSOR_IDS, STATUS_IDS
 if TYPE_CHECKING:
     from ..ext_info import ExternalInfo
 
+logger = logging.getLogger(__name__)
+
 
 class MangaDexExtractor(BaseMangaExtractor):
     site_name = "MangaDex"
@@ -18,7 +22,7 @@ class MangaDexExtractor(BaseMangaExtractor):
     # MangaDex said official domains are mangadex.com|org|cc but com redirects
     # somewhere else
     URL_PATTERN_RE: Pattern = re.compile(
-            r"(?:https?://)?(?:www\.)?mangadex\.(?:org|cc)/title/(\d+)(?:/([-a-z0-9]+))?")
+            r"(?:https?://)?(?:www\.)?mangadex\.(?:org|cc)/(?:title|manga)/(\d+)(?:/([-a-z0-9]+))?")
 
     BASE_URL: ClassVar[str] = "https://mangadex.org"
     BASE_API_URL: ClassVar[str] = "https://api.mangadex.org/v2"
@@ -52,6 +56,7 @@ class MangaDexExtractor(BaseMangaExtractor):
     # so we don't have to fetch it for every manga or query for every tag name
     # one by one
     _tag_map: ClassVar[Optional[Dict[int, Dict[str, Any]]]] = None
+    _tag_map_tries_left: ClassVar[int] = 3
 
     id_onpage: int
     escaped_title: Optional[str]
@@ -85,6 +90,8 @@ class MangaDexExtractor(BaseMangaExtractor):
             response = cls.get_html(api_url)
             if response:
                 tag_dict = json.loads(response)
+                if tag_dict['code'] != 200:
+                    return None
                 # returns sequential? string keys?
                 cls._tag_map = {int(k): v for k, v in tag_dict['data'].items()}
 
@@ -96,7 +103,19 @@ class MangaDexExtractor(BaseMangaExtractor):
             if not self.api_reponse:
                 return None
 
-        tag_map = MangaDexExtractor._get_tag_map()
+        # getting the tag map fails sporadicly with error 500
+        tag_map = None
+        while tag_map is None and MangaDexExtractor._tag_map_tries_left > 0:
+            tag_map = MangaDexExtractor._get_tag_map()
+            MangaDexExtractor._tag_map_tries_left -= 1
+            time.sleep(0.5)
+        if tag_map is None:
+            logger.warning("Failed to get tag map from MangaDex after 3 tries. "
+                           "Import aborted since Books would be without tags. Try again "
+                           "at a later time or submit a github issue if this error "
+                           "keeps happening!")
+            return None
+
         manga_data = self.api_reponse['data']
 
         result = {
@@ -112,7 +131,7 @@ class MangaDexExtractor(BaseMangaExtractor):
             'favorites': manga_data['follows'],
             # MangaDex uses max 10 rating
             'rating': (manga_data['rating']['bayesian'] / 2
-                       if manga_data['rating']['bayesian'] > 0 else 0),
+                       if manga_data['rating']['bayesian'] > 0 else 0.0),
             'ratings': manga_data['rating']['users'],
             'uploader': None,
             # @CleanUp cant be None due to db constraint; use min date for now
@@ -135,12 +154,23 @@ class MangaDexExtractor(BaseMangaExtractor):
         if tag_map:
             result['tag'] = [
                     tag_map[mdex_tag_id]['name'] for mdex_tag_id in manga_data['tags']]
-            result['tag'].append(self.DEMOGRAPHIC_MAP[manga_data['publication']['demographic']])
+
+            # demographic 0 in api means none assigned
+            demographic_tag = self.DEMOGRAPHIC_MAP[manga_data['publication']['demographic']]
+            if demographic_tag is not None:
+                result['tag'].append(demographic_tag)
 
         return result
 
-    def get_cover(self) -> str:
-        return f"{self.BASE_URL}/images/manga/{self.id_onpage}.jpg"
+    def get_cover(self) -> Optional[str]:
+        if not self.api_reponse:
+            self.api_reponse = self._get_manga_json()
+            if not self.api_reponse:
+                return None
+
+        # might have different extension
+        # return f"{self.BASE_URL}/images/manga/{self.id_onpage}.jpg"
+        return self.api_reponse['data']['mainCover']
 
     @classmethod
     def book_id_from_url(cls, url: str) -> int:

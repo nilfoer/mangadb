@@ -4,9 +4,14 @@ import logging
 from threading import Thread, current_thread
 from queue import Queue
 
+from typing import List, Sequence, Dict, TYPE_CHECKING
+
 from .manga_db import MangaDB
 from .manga import Book
 from .ext_info import ExternalInfo
+
+if TYPE_CHECKING:
+    from .link_collector import UrlList, ImportData
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +20,7 @@ URL_WORKER_SLEEP = 1
 RETRIEVE_BOOK_DATA, DOWNLOAD_COVER = 0, 1
 
 
-def thread_retrieve_data_or_cover(url_queue, book_queue):
+def thread_retrieve_data_or_cover(url_queue: Queue, book_queue: Queue) -> None:
     while True:
         # will block on the statement .get() until the queue has something to return, so it
         # is safe to start the threads before there is anything in the queue
@@ -46,9 +51,12 @@ def thread_retrieve_data_or_cover(url_queue, book_queue):
                 url_queue.task_done()
         elif task == DOWNLOAD_COVER:
             try:
-                url, filename = data
-                print(f"{current_thread().name}: Downloading cover to {filename}")
-                MangaDB.download_cover(url, filename)
+                book_id: int
+                # defined from ln34 thumb_url: str
+                cover_dir_path: str
+                book_id, thumb_url, cover_dir_path = data
+                print(f"{current_thread().name}: Downloading cover from {thumb_url}")
+                MangaDB.download_cover(thumb_url, cover_dir_path, book_id)
             finally:
                 url_queue.task_done()
         else:
@@ -56,7 +64,8 @@ def thread_retrieve_data_or_cover(url_queue, book_queue):
         time.sleep(URL_WORKER_SLEEP)
 
 
-def single_thread_import(data_path, url_lists, to_process, url_queue, book_queue):
+def single_thread_import(data_path: str, url_lists: 'UrlList', to_process: int,
+                         url_queue: Queue, book_queue: Queue) -> None:
     # only the thread that created the sqlite conn can use it!!
     mdb = MangaDB(data_path, os.path.join(data_path, "manga_db.sqlite"))
 
@@ -108,8 +117,8 @@ def single_thread_import(data_path, url_lists, to_process, url_queue, book_queue
                 # also counts as processed/done
                 # book_done called in finally
             else:
-                cover_path = os.path.join(mdb.root_dir, "thumbs", f"{book.id}")
-                url_queue.put((DOWNLOAD_COVER, (thumb_url, cover_path)))
+                cover_dir_path = os.path.join(mdb.root_dir, "thumbs")
+                url_queue.put((DOWNLOAD_COVER, (book.id, thumb_url, cover_dir_path)))
         finally:
             processed += 1
             # wrap task_done in finally so even when we get an exception (thread wont exit)
@@ -118,7 +127,7 @@ def single_thread_import(data_path, url_lists, to_process, url_queue, book_queue
             book_queue.task_done()
 
 
-def import_multiple(data_path, url_lists):
+def import_multiple(data_path: str, url_lists: 'UrlList'):
     data_path = os.path.realpath(data_path)
     # make sure db file and thumbs folder exists
     if not os.path.isfile(os.path.join(data_path, "manga_db.sqlite")):
@@ -126,8 +135,8 @@ def import_multiple(data_path, url_lists):
         return
     os.makedirs(os.path.join(data_path, "thumbs"), exist_ok=True)
 
-    url_queue = Queue()
-    book_queue = Queue()
+    url_queue: Queue = Queue()
+    book_queue: Queue = Queue()
     print("** Filling URL Queue! **")
     for url, url_data in url_lists.items():
         url_queue.put((RETRIEVE_BOOK_DATA, url))

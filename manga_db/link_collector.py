@@ -7,8 +7,13 @@ import os
 
 import pyperclip
 
+from typing import Dict, Sequence, TypedDict, Dict, Iterator, Optional
+
 from . import extractor
 from .threads import import_multiple
+
+ImportData = TypedDict('ImportData', {'lists': Sequence[str], 'downloaded': bool})
+UrlList = Dict[str, ImportData]
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +25,17 @@ class LinkCollector(cmd.Cmd):
 
     URL_RE = re.compile(r"(?:https?://)?(?:\w+\.)?(\w+\.\w+)/")
 
-    def __init__(self, data_path, standard_lists):
+    def __init__(self, data_path: str, standard_lists: Sequence[str]):
         super().__init__()
-        self.data_root = os.path.realpath(os.path.normpath(data_path))
+        self.data_root: str = os.path.realpath(os.path.normpath(data_path))
         # must be immutable
-        self._standard_downloaded = "downloaded" in standard_lists
-        self._standard_lists = tuple((x for x in standard_lists if x != "downloaded"))
-        self.links = {}
-        self._recent_value = ""
+        self._standard_downloaded: bool = "downloaded" in standard_lists
+        self._standard_lists: Sequence[str] = tuple(
+                (x for x in standard_lists if x != "downloaded"))
+        self.links: UrlList = {}
+        self._recent_value: str = ""
 
-    def watch_clip(self):
+    def watch_clip(self) -> Iterator[str]:
         logger.info("Watching clipboard...")
         # prob doesnt matter but local var access is faster since it doesnt have to
         # look up the var in the __dict__ of local var self
@@ -45,14 +51,14 @@ class LinkCollector(cmd.Cmd):
             logger.info("Stopped watching clipboard!")
             return None
 
-    def do_collect(self, args):
+    def do_collect(self, args: str) -> None:
         for url in self.watch_clip():
             # dont overwrite (possibly modified by set_lists) entry in self.links
             if url is not None and url not in self.links:
                 if "\n" in url:
                     urls = url.splitlines()
                 else:
-                    urls = (url,)
+                    urls = [url]
                 for add_url in urls:
                     try:
                         extractor.find(add_url)
@@ -63,7 +69,7 @@ class LinkCollector(cmd.Cmd):
                     except extractor.NoExtractorFound:
                         logger.info("Unsupported URL!")
 
-    def do_add(self, args):
+    def do_add(self, args: str) -> None:
         arg_li = args.split()
         if not arg_li:
             print("No arguments supplied!")
@@ -80,7 +86,7 @@ class LinkCollector(cmd.Cmd):
         except extractor.NoExtractorFound:
             logger.info("Unsupported URL!")
 
-    def do_print(self, url):
+    def do_print(self, url: str):
         if url == "all":
             print("\n".join((f"{k}: {v}" for k, v in self.links.items())))
         elif url:
@@ -97,11 +103,11 @@ class LinkCollector(cmd.Cmd):
             else:
                 print("No links yet!")
 
-    def do_p(self, url):
+    def do_p(self, url: str):
         """Alias for print"""
         self.do_print(url)
 
-    def do_set_standard_lists(self, args):
+    def do_set_standard_lists(self, args: str):
         """
         Sets standard lists that get added to book when collecting links
         Usage: set_standard_lists [list [list ...]]
@@ -117,7 +123,7 @@ class LinkCollector(cmd.Cmd):
         self._standard_lists = tuple(lists)
         logger.info("Changed standard lists to %s", lists)
 
-    def do_set_lists(self, args):
+    def do_set_lists(self, args: str):
         """
         Sets lists of book at url to provided lists
         Usage: set_lists url [list [list ...]]
@@ -143,11 +149,11 @@ class LinkCollector(cmd.Cmd):
         else:
             print("Given url wasnt found in links!")
 
-    def do_sl(self, args):
+    def do_sl(self, args: str):
         """Alias for set_lists"""
         self.do_set_lists(args)
 
-    def do_not_downloaded(self, url):
+    def do_not_downloaded(self, url: str):
         if not url:
             print("URL needed!")
             return
@@ -160,10 +166,10 @@ class LinkCollector(cmd.Cmd):
         except KeyError:
             print("No such url!")
 
-    def do_ndl(self, url):
+    def do_ndl(self, url: str):
         self.do_not_downloaded(url)
 
-    def do_remove(self, url):
+    def do_remove(self, url: str):
         """
         Remove url from links: remove url
         Shortcut: remove recent - to remove last url"""
@@ -178,7 +184,7 @@ class LinkCollector(cmd.Cmd):
         if rem is not None:
             logger.info("Removed %s: %s from link list!", url, rem)
 
-    def do_import(self, args):
+    def do_import(self, args: Optional[str]):
         logger.info("Started working on list with %d items!", len(self.links))
         try:
             import_multiple(self.data_root, self.links)
@@ -192,7 +198,7 @@ class LinkCollector(cmd.Cmd):
         self._recent_value = ""
         logger.info("Finished working on list!")
 
-    def do_exit(self, args):
+    def do_exit(self, args: str) -> bool:
         if self.links:
             imp = cli_yes_no("Do you want to import the collected links before exiting?\n"
                              "They're gonna be lost otherwise!")
@@ -201,15 +207,15 @@ class LinkCollector(cmd.Cmd):
         # cmdloop returns when postcmd() method returns true value
         return True
 
-    def do_export(self, args):
+    def do_export(self, args: str):
         self.export_json("link_collect_resume.json")
 
-    def export_json(self, filename):
+    def export_json(self, filename: str):
         with open(filename, "w", encoding="UTF-8") as f:
             f.write(json.dumps(self.links))
 
     @classmethod
-    def from_json(cls, filename, data_path, standard_lists):
+    def from_json(cls, filename: str, data_path: str, standard_lists: Sequence[str]):
         lc = cls(data_path, standard_lists)
         if not os.path.isfile(filename):
             logger.warning("Couldn't resume from file 'link_collector_resume.json' it wasn't found"
@@ -221,7 +227,7 @@ class LinkCollector(cmd.Cmd):
         return lc
 
 
-def cli_yes_no(question_str):
+def cli_yes_no(question_str: str) -> bool:
     ans = input(f"{question_str} y/n:\n")
     while True:
         if ans == "n":
@@ -251,3 +257,4 @@ def resume_from_file(filename):
         result.append((url, tags.split(","), upd))
 
     return result
+

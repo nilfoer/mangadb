@@ -4,7 +4,7 @@ import re
 
 import bs4
 
-from typing import cast, Match
+from typing import cast, Match, Optional
 
 from .base import BaseMangaExtractor
 from ..util import is_foreign
@@ -139,7 +139,7 @@ class TsuminoExtractor(BaseMangaExtractor):
 
         return result
 
-    def get_cover(self):
+    def get_cover(self) -> Optional[str]:
         return self.thumb_url
 
     @classmethod

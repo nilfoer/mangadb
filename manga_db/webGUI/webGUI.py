@@ -138,6 +138,7 @@ def import_book(url=None, force_new=False):
         url = request.form['ext_url']
     mdb = get_mdb()
     extr_data, thumb_url = None, None
+    # whether the import should be added as external link to an existing book instead
     add_ext_info = False
     if "extr_data_json" in request.form:
         # coming from add as external or new book prompt!!
@@ -184,8 +185,9 @@ def import_book(url=None, force_new=False):
         # dl cover as temp and display add book page
         # only allow one temp cover
         # change this to temp_cover_{username} if we add multiple user support
-        cover_path = os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover_0")
-        cover_dled = mdb.download_cover(thumb_url, cover_path, overwrite=True)
+        cover_dled = mdb.download_cover(
+                thumb_url, current_app.config["THUMBS_FOLDER"], bid,
+                overwrite=True, forced_filename="temp_cover_0")
         if not cover_dled:
             current_app.logger.error(
                     "Could not download cover for book at %s with thumb url %s",

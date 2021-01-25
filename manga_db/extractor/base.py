@@ -86,7 +86,7 @@ class BaseMangaExtractor:
         """
         raise NotImplementedError
 
-    def get_cover(self) -> str:
+    def get_cover(self) -> Optional[str]:
         raise NotImplementedError
 
     @classmethod
