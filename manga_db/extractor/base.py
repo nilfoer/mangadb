@@ -17,6 +17,8 @@ class BaseMangaExtractor:
         }
 
     # these need to be re-defined by sub-classes!!
+    # they are not allowed to changed after the extractor has been added
+    # doing so would require a db migration
     site_name: str = ""
     site_id: int = 0
 
@@ -31,6 +33,57 @@ class BaseMangaExtractor:
         raise NotImplementedError
 
     def get_metadata(self) -> Optional[Dict[str, Any]]:
+        """
+        Expects a dictionary with the following keys:
+        dict(
+            # -- these can't be None --
+
+            # needs at least one of the titles
+            title_eng='Title',
+            title_foreign='Le title',
+            # either language or language_id
+            language_id: 1,  # from LANG_IDS or MangaDB.get_language
+            language: 'English',  # will be added if not present
+            pages=14,
+            status_id=1,  # from STATUS_IDS
+
+            # -- can be None --
+            # these will prob not be needed for extractors
+            chapter_status=None,  # chapter str
+            read_status=None,  # int
+            my_rating=None,  # float
+            note='Test note',
+
+            # expects a list for these, can't be None
+            category=['Manga'],
+            collection=['Example Collection'],
+            groups=[],
+            artist=['Artemis'],
+            parody=[],
+            character=['Lara Croft'],
+            tag=['Sole Male', 'Ahegao', 'Large Breasts'],
+
+            # optional, other than 'nsfw' these should prob not be set by the extractor
+            list=[],
+            favorite=0,  # 0 or 1
+            nsfw=1,  # 0 or 1
+
+            # ExternalInfo data
+
+            # these can't be None
+            url='https://mangadex.org/title/1342',
+            id_onpage=1342,
+            imported_from=3,  # extractor's site_id
+            censor_id=1,  # from CENSOR_IDS
+            upload_date=datetime.date.min,  # datetime.date
+
+            # these can be None
+            uploader=None,
+            rating=4.5,
+            ratings=423,
+            favorites=1240,
+            )
+        """
         raise NotImplementedError
 
     def get_cover(self) -> str:

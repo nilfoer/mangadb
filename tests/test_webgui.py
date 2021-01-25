@@ -16,6 +16,7 @@ from manga_db.webGUI import create_app
 from manga_db.ext_info import ExternalInfo
 from manga_db.webGUI.mdb import t_local
 from manga_db.webGUI.json_custom import to_serializable
+from manga_db.constants import LANG_IDS
 from utils import all_book_info, gen_hash_from_file, load_db_from_sql_file
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -458,7 +459,8 @@ def test_apply_upd_changes(app_setup):
         assert lists[1] == "Added List;ListAdded"
         book_row = db_con.execute("SELECT * FROM Books WHERE id = 7").fetchone()
         assert book_row["status_id"] == 3
-        assert book_row["language_id"] == 2
+        # one after default langs
+        assert book_row["language_id"] == (len(LANG_IDS) / 2 + 1)
         assert book_row["pages"] == 27
 
 
@@ -486,7 +488,8 @@ def test_edit_book(app_setup):
                 "note": "Testnote 123\n235423",
                 "tag": ["Anal", "Nakadashi", "Blowjob", "X-ray", "Ahegao", "Huge Penis",
                         "Incest", "Loli", "Maledom", "Niece", "Slut", "Stockings"],
-                "list": ["to-read", "test"]
+                "list": ["to-read", "test"],
+                "nsfw": 1,
                 }
         resp = client.post(
                 url_for("main.edit_book", book_id=9),
@@ -499,7 +502,8 @@ def test_edit_book(app_setup):
                                  detect_types=sqlite3.PARSE_DECLTYPES)
         db_con.row_factory = sqlite3.Row
         brow = all_book_info(db_con, book_id=9)
-        for col in ("title_eng", "title_foreign", "my_rating", "status_id", "pages", "note"):
+        for col in ("title_eng", "title_foreign", "my_rating", "status_id", "pages", "note",
+                    "nsfw"):
             assert brow[col] == data[col]
         assert sorted(brow["tags"].split(";")) == sorted(data["tag"])
         assert sorted(brow["artists"].split(";")) == sorted(data["artist"])
@@ -774,7 +778,7 @@ def test_add_book(app_setup):
     "Inseki", "Large Breasts", "Nakadashi", "Onahole", "Plump", "Smug", "Stockings",
     "Straight Shota", "Tall Girl"], "censor_id": 2, "url":
     "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken", "id_onpage": 43492,
-    "language": "English", "status_id": 1, "imported_from": 1}"""
+    "language": "English", "status_id": 1, "imported_from": 1, "nsfw": 0}"""
     extr_data = json.loads(extr_json)
     tmpdir, app, client = app_setup
     setup_authenticated_sess(app, client)
@@ -790,7 +794,7 @@ def test_add_book(app_setup):
         "language_id": 1,
         "my_rating": 3.4,
         "note": "test",
-        "list": ["to-read", "test"]
+        "list": ["to-read", "test"],
         })
     with open(tmpcov_path, "w") as f:
         f.write("Testcover temp file")
@@ -806,9 +810,9 @@ def test_add_book(app_setup):
         assert os.path.isfile(os.path.join(tmpdir, "thumbs", "18_0"))
 
         row_expected = ('Mirai Tantei Nankin Jiken', '未来探偵軟禁事件', 1, 31, 1, 3.4,
-                        #                                      chapter, read_status
-                        "test", datetime.date.today(), 0, 0.0, None, None, 'Kakuzatou', 'Doujinshi',
-                        "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
+                        #                                      chapter, read_status, nsfw
+                        "test", datetime.date.today(), 0, 0.0, None, None, 0, 'Kakuzatou',
+                        'Doujinshi', "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
                         "Testpar1;Testpar2",
                         # 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
                         43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175,

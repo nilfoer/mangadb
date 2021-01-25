@@ -51,6 +51,7 @@ class Book(DBRow):
     note = Column(str)
     favorite = Column(int, nullable=False)
     cover_timestamp = Column(float, nullable=False, default=0.0)
+    nsfw = Column(int, nullable=False, default=0)
 
     def __init__(
             self,
@@ -77,6 +78,7 @@ class Book(DBRow):
             note=None,
             favorite=None,
             cover_timestamp=None,
+            nsfw=None,
             in_db=False,
             **kwargs):
         super().__init__(manga_db, in_db, **kwargs)
@@ -101,9 +103,8 @@ class Book(DBRow):
         self.last_change = last_change
         self.note = note
         self.favorite = favorite
-        # @CleanUp should be handled by Column class when saving
-        self.cover_timestamp = (cover_timestamp if cover_timestamp is not None
-                                else Book.cover_timestamp.default)
+        self.cover_timestamp = cover_timestamp
+        self.nsfw = nsfw
         if in_db:
             # load associated columns
             # TODO lazy loading

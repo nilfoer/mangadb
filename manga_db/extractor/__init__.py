@@ -35,6 +35,7 @@ modules: List[str] = [f[:-3] for f in os.listdir(module_dir) if not f.startswith
 # holds extractor classes already imported extractor modules
 _cache: List[Type[BaseMangaExtractor]] = []
 
+# these should never be changed, only new ones can be added!
 SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         # site id, site name
         1: "tsumino.com",
@@ -44,7 +45,7 @@ SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         "tsumino.com": 1,
         "nhentai.net": 2,
         "MangaDex": 3,
-        }
+}
 
 
 def find(url: str) -> Type[BaseMangaExtractor]:

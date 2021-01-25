@@ -51,7 +51,12 @@ class Column:
             # use name (== name of assigned attribute) to access value on INSTANCE's __dict__
             # so we can have unhashable types as instances (e.g. subclass of list or classes that
             # define __eq__ but not __hash__ (ExternalInfo)
-            return instance.__dict__[self.name]
+            #
+            # return default if we have one and the value is None
+            val = instance.__dict__[self.name]
+            if self.default is not None and val is None:
+                return self.default
+            return val
         except KeyError:
             return ColumnValue.NO_VALUE
 

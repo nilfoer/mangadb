@@ -15,7 +15,7 @@ from .db.loading import load_instance
 from .db.id_map import IndentityMap
 from .manga import Book
 from .ext_info import ExternalInfo
-from .constants import CENSOR_IDS, STATUS_IDS
+from .constants import CENSOR_IDS, STATUS_IDS, LANG_IDS
 
 
 configure_logging("manga_db.log")
@@ -46,7 +46,7 @@ class MangaDB:
 
     VALID_SEARCH_COLS = {"title", "language", "language_id", "status", "favorite",
                          "category", "artist", "parody", "character", "collection", "groups",
-                         "tag", "list", "status", "status_id"}
+                         "tag", "list", "status", "status_id", "nsfw"}
 
     def __init__(self, root_dir, db_path, read_only=False, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path, read_only)
@@ -86,9 +86,10 @@ class MangaDB:
         return result
 
     # used in extractor to get language id if language isnt in db itll be added
-    def get_language(self, language, create_unpresent=False):
-        # add language if its not a language_id
-        if language not in self.language_map and type(language) == str:
+    def get_language(self, language: str, create_unpresent: bool = False) -> Optional[int]:
+        try:
+            return self.language_map[language]
+        except KeyError:
             if create_unpresent:
                 with self.db_con:
                     c = self.db_con.execute("INSERT OR IGNORE INTO Languages (name) VALUES (?)",
@@ -99,11 +100,13 @@ class MangaDB:
                 return c.lastrowid
             else:
                 return None
-        else:
-            try:
-                return self.language_map[language]
-            except KeyError:
-                logger.warning("Invalid language_id: %d", language)
+
+    def get_language_by_id(self, lang_id: int) -> Optional[str]:
+        try:
+            return self.language_map[lang_id]
+        except KeyError:
+            logger.warning("Invalid language_id: %d", lang_id)
+            return None
 
     @staticmethod
     def download_cover(url, filename, overwrite=False):
@@ -506,15 +509,19 @@ class MangaDB:
                     name TEXT UNIQUE NOT NULL
                 );
                      """)
+
         c.executemany("INSERT INTO Sites(id, name) VALUES (?, ?)",
                       [(key, val) for key, val in extractor.SUPPORTED_SITES.items()
                        if isinstance(key, int)])
-        c.execute("INSERT INTO Languages(name) VALUES (?)", ("English",))
-        cen_stats = [("Unknown",), ("Censored",), ("Decensored",), ("Uncensored",)]
-        c.executemany("INSERT INTO Censorship(name) VALUES (?)", cen_stats)
-        status = [("Unknown",), ("Ongoing",), ("Completed",), ("Unreleased",),
-                  ("Hiatus",)]
-        c.executemany("INSERT INTO Status(name) VALUES (?)", status)
+
+        id_lang = [(i, v) for i, v in LANG_IDS.items() if type(i) is int]
+        c.executemany("INSERT INTO Languages(id, name) VALUES (?, ?)", id_lang)
+
+        cen_stats = [(i, v) for i, v in CENSOR_IDS.items() if type(i) is int]
+        c.executemany("INSERT INTO Censorship(id, name) VALUES (?, ?)", cen_stats)
+
+        status = [(i, v) for i, v in STATUS_IDS.items() if type(i) is int]
+        c.executemany("INSERT INTO Status(id, name) VALUES (?, ?)", status)
 
         # foreign key book_id is linked to id column in Books table
         # also possible to set actions on UPDATE/DELETE
@@ -545,6 +552,7 @@ class MangaDB:
                     last_change DATE NOT NULL,
                     favorite INTEGER NOT NULL,
                     cover_timestamp REAL NOT NULL DEFAULT 0,
+                    nsfw INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (language_id) REFERENCES Languages(id)
                        ON DELETE RESTRICT,
                     FOREIGN KEY (status_id) REFERENCES Status(id)

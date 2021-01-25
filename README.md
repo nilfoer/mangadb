@@ -58,21 +58,32 @@ The search bar matches the input string against the book's english and foreign t
 
 Additionally you can search the following fields:
 
-| Field         | search keyword |
-|:------------- |:-------------- |
-| Tags          | tag            |
-| Artist        | artist         |
-| Language      | language       |
-| Group         | groups         |
-| List          | list           |
-| Collection    | collection     |
-| (Title)       | title          |
+| Field          | search keyword |
+|:-------------- |:-------------- |
+| Tags           | tag            |
+| Artist         | artist         |
+| Language       | language       |
+| Group          | groups         |
+| List           | list           |
+| Collection     | collection     |
+| Category       | category       |
+| Status         | status         |
+| Parody         | parody         |
+| Character      | character      |
+| Favorite       | favorite       |
+| Content Rating | nsfw           |
+| (Title)        | title          |
 
 All of these fields can be combined in one search. When the search string for a specific keyword contains spaces, it needs to be escaped with quotes. To search for multiple items that have to be present, separate them with semicolons.
 
 E.g. this string searches for a book that has the tags Seinen and "Martial Arts" and is in the list "good":
 ```
 list:good tag:"Seinen;Martial Arts"
+```
+
+Search for sfw favorites in the 'Manga' (search is **case-sensitive**) category:
+```
+category:Manga favorite:1 nsfw:0
 ```
 #### Location of DB and thumbnails
 To backup your installation of MangaDB you only need to copy the instance folder in the directory where either the `MangaDB.exe` or the `run_manga_db.py` is located. The 'instance' directory is where your login info, all thumbnails and the database file is saved.

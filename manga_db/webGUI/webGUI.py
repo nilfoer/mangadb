@@ -656,6 +656,8 @@ def book_form_to_dic(form):
             val = int(val.strip()) if val != "" else val
         elif col == "my_rating":
             val = float(val.strip()) if val != "" else val
+        elif col == "nsfw":
+            val = int(val)
 
         if not isinstance(val, str):
             result[col] = val
@@ -676,6 +678,7 @@ def edit_book(book_id):
     book = get_mdb().get_book(book_id)
 
     update_dic = book_form_to_dic(request.form)
+    update_dic['nsfw'] = int(update_dic['nsfw'])
 
     book.update_from_dict(update_dic)
 

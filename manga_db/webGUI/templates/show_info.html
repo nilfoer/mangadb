@@ -188,6 +188,12 @@
                             {{ book.title_foreign }}
                         </td>
                     </tr>
+                    <tr>
+                        <th>Content Rating</th>
+                        <td id="ContentRating">
+                            {{ 'nsfw' if book.nsfw else 'sfw' }}
+                        </td>
+                    </tr>
                     {% if book.pages > 0 %}
                     <tr>
                         <th>Pages</th>
@@ -629,13 +635,14 @@
                             </td>
                         </tr>
                         {% endif %}
+                        {% if book.nsfw %}
                         <tr>
-                            {# TODO hide this for sfw mangas? #}
                             <th>Censorship</th>
                             <td id="Censorship">
                                 {{ ext_info.censorship }}
                             </td>
                         </tr>
+                        {% endif %}
                         <tr>
                             <th>Downloaded</th>
                             <td id="Downloaded">

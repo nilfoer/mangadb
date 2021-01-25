@@ -1,3 +1,8 @@
+- change to 10 star rating so don't have to use half-stars?
+- change externalinfo table to allow null for upload_date so we can track regular mangas
+  that often don't have one?
+- add chapter system?
+
 - update unchanged vals from db when loading instance?    
     or at least make sure that e.g. when we save external info with book_id but without adding it to book
     book will be modified to match state in db?

@@ -8,6 +8,7 @@ from utils import setup_mdb_dir, all_book_info, load_db_from_sql_file, TESTS_DIR
 from manga_db.manga_db import MangaDB
 from manga_db.manga import Book
 from manga_db.ext_info import ExternalInfo
+from manga_db.constants import LANG_IDS
 
 @pytest.mark.parametrize("title_eng, title_foreign, expected", [
     ("English", "Foreign", "English / Foreign"),
@@ -444,6 +445,7 @@ def test_save_book(monkeypatch, setup_mdb_dir, caplog):
             note=None,
             favorite=None,
             cover_timestamp=None,
+            nsfw=1
             )
     b1 = Book(mdb, **b1_data)
     # since we later check that cover_timestamp gets saved as 0.0 if None
@@ -482,15 +484,17 @@ def test_save_book(monkeypatch, setup_mdb_dir, caplog):
     assert eis[1]["id_onpage"] == 43506
 
     # add book with new lang
-    b2 = Book(mdb, title_eng="Test2", favorite=1, pages=11, status_id=1)
+    b2 = Book(mdb, title_eng="Test2", favorite=1, pages=11, status_id=1, nsfw=0)
     b2.language = "Krababbl"
     bid, _ = b2.save()
     assert bid == 19
     assert b2.id == 19
-    assert b2.language_id == 2
+    # /2 since we have double indirection id->name name->id
+    expected_lang_id = len(LANG_IDS) / 2 + 1
+    assert b2.language_id == expected_lang_id
     lang = db_con.execute("SELECT id FROM Languages WHERE name = 'Krababbl'").fetchall()
     assert lang
-    assert lang[0][0] == 2
+    assert lang[0][0] == expected_lang_id
     brow = db_con.execute("SELECT title_eng, favorite FROM Books WHERE id = 19").fetchone()
     assert brow[0] == "Test2"
     assert brow["favorite"] == 1

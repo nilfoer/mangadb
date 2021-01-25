@@ -72,7 +72,7 @@ CREATE TABLE Books(
                         my_rating REAL,
                         note TEXT,
                         last_change DATE NOT NULL,
-                        favorite INTEGER NOT NULL, cover_timestamp REAL NOT NULL DEFAULT 0, chapter_status TEXT,
+                        favorite INTEGER NOT NULL, cover_timestamp REAL NOT NULL DEFAULT 0, chapter_status TEXT, nsfw INTEGER NOT NULL DEFAULT 0,
                         FOREIGN KEY (language_id) REFERENCES Languages(id)
                            ON DELETE RESTRICT,
                         FOREIGN KEY (status_id) REFERENCES Status(id)
@@ -446,23 +446,23 @@ INSERT INTO "BookTag" VALUES
 (17,32),
 (17,92);
 INSERT INTO "Books" VALUES
-(1,'Shukujo no Tashinami | The Lady''s Taste','淑女のたしなみ',1,24,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(2,'Kinoko Matsuri | Mushroom Festival','キノコ祭',1,26,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(3,'Dolls -Yoshino Izumi Hen- | Dolls -Yoshino Izumi''s Story- Ch. 2','ドールズ -芳乃泉編- Ch. 2',1,25,1,23,NULL,NULL,'2018-11-14',0,0.0,NULL),
-(4,'Sore wa Kurokute Suketeita | What’s Tight and Black and Sheer All Over?','それは黒くて透けていた',1,25,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(5,'Top Princess Bottom Princess','攻め姫受け姫',1,19,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(6,'Martina Onee-chan no Seikatsu | Big Sis Martina''s Sex Life','マルティナお姉ちゃんの性活',1,27,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(7,'Tanin ni Naru Kusuri | Medicine to Possess Another Person','他人になるクスリ',1,23,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(8,'Gyaru Ijime','ギャルいぢめ',1,21,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(9,'Toretate Amapetit','とれたて♥甘プ痴',1,22,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(10,'Takabisha Elf Kyousei Konin!! 3','高飛車エルフ強制婚姻!! 3',1,28,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(11,'Sono Shiroki Utsuwa ni Odei o Sosogu','その白き器に汚泥を注ぐ',1,20,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(12,'The Female Knight is brown and a 30 year old virgin, and on top of being a shotacon, she loves blonde princes.','女騎士は褐色で三十路処女ショタコンの上、金髪王子がお好き。',1,27,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(13,'Venus Nights',NULL,1,6,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(14,'Dolls Ch. 8','ドールズ 第8話',1,31,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(15,'Kangofu-san ni Kintama Sakusei Saremashita','看護婦さんにキンタマ搾精されました',1,23,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(16,'Futari no Futaba','フタリノフタバ',1,26,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL),
-(17,'Toshiue Zukushi Jukushita Sanshimai 1 -Hoshigari Miboujin to Ore- | The Three Older, Mature Sisters Next Door 1 -The Frustrated Widow and Me-','年上づくし熟した三姉妹1 -欲しがり未亡人と俺-',1,27,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL);
+(1,'Shukujo no Tashinami | The Lady''s Taste','淑女のたしなみ',1,24,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(2,'Kinoko Matsuri | Mushroom Festival','キノコ祭',1,26,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(3,'Dolls -Yoshino Izumi Hen- | Dolls -Yoshino Izumi''s Story- Ch. 2','ドールズ -芳乃泉編- Ch. 2',1,25,1,23,NULL,NULL,'2018-11-14',0,0.0,NULL,0),
+(4,'Sore wa Kurokute Suketeita | What’s Tight and Black and Sheer All Over?','それは黒くて透けていた',1,25,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(5,'Top Princess Bottom Princess','攻め姫受け姫',1,19,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,1),
+(6,'Martina Onee-chan no Seikatsu | Big Sis Martina''s Sex Life','マルティナお姉ちゃんの性活',1,27,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(7,'Tanin ni Naru Kusuri | Medicine to Possess Another Person','他人になるクスリ',1,23,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(8,'Gyaru Ijime','ギャルいぢめ',1,21,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(9,'Toretate Amapetit','とれたて♥甘プ痴',1,22,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(10,'Takabisha Elf Kyousei Konin!! 3','高飛車エルフ強制婚姻!! 3',1,28,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(11,'Sono Shiroki Utsuwa ni Odei o Sosogu','その白き器に汚泥を注ぐ',1,20,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(12,'The Female Knight is brown and a 30 year old virgin, and on top of being a shotacon, she loves blonde princes.','女騎士は褐色で三十路処女ショタコンの上、金髪王子がお好き。',1,27,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(13,'Venus Nights',NULL,1,6,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(14,'Dolls Ch. 8','ドールズ 第8話',1,31,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(15,'Kangofu-san ni Kintama Sakusei Saremashita','看護婦さんにキンタマ搾精されました',1,23,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(16,'Futari no Futaba','フタリノフタバ',1,26,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0),
+(17,'Toshiue Zukushi Jukushita Sanshimai 1 -Hoshigari Miboujin to Ore- | The Three Older, Mature Sisters Next Door 1 -The Frustrated Widow and Me-','年上づくし熟した三姉妹1 -欲しがり未亡人と俺-',1,27,1,NULL,NULL,NULL,'2018-10-24',0,0.0,NULL,0);
 INSERT INTO "Category" VALUES
 (1,'Doujinshi'),
 (2,'Manga');
@@ -514,11 +514,45 @@ INSERT INTO "Groups" VALUES
 (7,'Dokumushi Shokeitai'),
 (8,'Maidoll');
 INSERT INTO "Languages" VALUES
-(1,'English');
+(1,'English'),
+(2,'Japanese'),
+(3,'Chinese'),
+(4,'Korean'),
+(5,'Arabic'),
+(6,'Bengali'),
+(7,'Bulgarian'),
+(8,'Burmese'),
+(9,'Catalan'),
+(10,'Czech'),
+(11,'Danish'),
+(12,'Dutch'),
+(13,'Filipino'),
+(14,'Finnish'),
+(15,'French'),
+(16,'German'),
+(17,'Greek'),
+(18,'Hungarian'),
+(19,'Indonesian'),
+(20,'Italian'),
+(21,'Lithuanian'),
+(22,'Malay'),
+(23,'Mongolian'),
+(24,'Persian'),
+(25,'Polish'),
+(26,'Portuguese'),
+(27,'Romanian'),
+(28,'Russian'),
+(29,'Serbo-Croatian'),
+(30,'Spanish'),
+(31,'Swedish'),
+(32,'Thai'),
+(33,'Turkish'),
+(34,'Ukrainian'),
+(35,'Vietnamese');
 INSERT INTO "List" VALUES
 (1,'to-read');
 INSERT INTO "MDB_Version" VALUES
-(1,0);
+(2,0);
 INSERT INTO "Parody" VALUES
 (1,'Girls und Panzer / ガールズ&パンツァー'),
 (2,'Monster Hunter World / モンスターハンター：ワールド'),
@@ -528,13 +562,16 @@ INSERT INTO "Parody" VALUES
 (6,'Dead or Alive / デッド・オア・アライブ'),
 (7,'Persona 5 / ペルソナ5');
 INSERT INTO "Sites" VALUES
-(1,'tsumino.com');
+(1,'tsumino.com'),
+(2,'nhentai.net'),
+(3,'MangaDex');
 INSERT INTO "Status" VALUES
 (1,'Unknown'),
 (2,'Ongoing'),
 (3,'Completed'),
 (4,'Unreleased'),
-(5,'Hiatus');
+(5,'Hiatus'),
+(6,'Cancelled');
 INSERT INTO "Tag" VALUES
 (1,'Anal'),
 (2,'Chastity Belt'),

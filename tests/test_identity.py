@@ -72,7 +72,7 @@ def test_load_instance(monkeypatch, setup_mdb_dir):
     mdb = MangaDB(tmpdir, mdb_file)
 
     b_man = Book(mdb, title_eng="Testbook", language_id=1, pages=11, status_id=1,
-                 favorite=0, list=["to-read"])
+                 favorite=0, list=["to-read"], nsfw=0)
     bid, _ = b_man.save()
     b_man_loaded = get_book_row(mdb, bid)
     b_man_loaded = load_instance(mdb, Book, b_man_loaded)

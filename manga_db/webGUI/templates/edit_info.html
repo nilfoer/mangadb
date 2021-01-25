@@ -168,6 +168,15 @@ $(document).ready(function() {
                         </td>
                     </tr>
                     <tr>
+                        <th>Content Rating</th>
+                        <td id="ContentRating">
+                            <select required name="nsfw" class="selectized select-single" placeholder="Select the content rating...">
+                                <option value=1 {{'selected' if book.nsfw else ''}}>nsfw</option>
+                                <option value=0 {{'selected' if not book.nsfw else ''}}>sfw</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Pages</th>
                         <td id="Pages">
                             <input required type="text" class="selectize-input" name="pages" id="PagesInp"
