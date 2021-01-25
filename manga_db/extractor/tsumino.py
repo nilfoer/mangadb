@@ -134,6 +134,8 @@ class TsuminoExtractor(BaseMangaExtractor):
         result["language"] = "English"
         result["status_id"] = STATUS_IDS["Unknown"]
         result["imported_from"] = self.site_id
+        # assume tsumino content is nsfw - there is a Non-h tag but that is no guarantee
+        result["nsfw"] = 1
 
         return result
 

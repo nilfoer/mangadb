@@ -202,6 +202,9 @@ class NhentaiExtractor(BaseMangaExtractor):
         else:
             result["language"] = "Unknown"
 
+        # assume nhentai content is nsfw - there is a Non-h tag but that is no guarantee
+        result["nsfw"] = 1
+
         return result
 
     def get_cover(self):

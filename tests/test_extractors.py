@@ -34,7 +34,8 @@ manual_tsumino = {
         "groups": ["Gakuen Yuushabu"],
         "artist": ["Tsurugi Yasuyuki"],
         "parody": ["Mahou Sensei Negima! / 魔法先生ネギま！"],
-        "character": ["Ayaka Yukihiro", "Negi Springfield"]
+        "character": ["Ayaka Yukihiro", "Negi Springfield"],
+        "nsfw": 1,
         }
 
 
@@ -99,7 +100,8 @@ manual_nhentai = {
                  "(Rebis, Chinbotsu)] Zecchou Trans Poison (Street Fighter X Tekken) "
                  "[English] [Pineapples R' Us + Doujin-Moe.us]' Foreign '(ふたけっと8) "
                  "[アルセノテリス (Rebis＆沈没)] 絶頂トランスポイズン "
-                 "(ストリートファイター×鉄拳) [英訳]'")
+                 "(ストリートファイター×鉄拳) [英訳]'"),
+        'nsfw': 1,
         }
 
 
