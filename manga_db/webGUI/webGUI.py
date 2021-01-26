@@ -43,12 +43,30 @@ def thumb_static(filename):
     return send_from_directory(current_app.config['THUMBS_FOLDER'], fn)
 
 
-def get_books(query=None):
-    order_by_col = request.args.get('sort_col', "id", type=str)
-    # validate our sorting col otherwise were vulnerable to sql injection
+def handle_search_sort():
+    user_sort_col, user_sort_dir = session.get('user_search_pref', (None, None))
+    # prioritize get args over user settings stored in session cookie
+    order_by_col = request.args.get('sort_col', None, type=str) or user_sort_col
+    asc_desc = request.args.get('order', None, type=str) or user_sort_dir
+
+    new_search_pref = bool(order_by_col or asc_desc)
+    # in case one of them is None
+    order_by_col = order_by_col or "id"
+    asc_desc = asc_desc or "DESC"
+    # validate our sorting prefs otherwise were vulnerable to sql injection
     if not validate_order_by_str(order_by_col):
         order_by_col = "id"
-    asc_desc = "ASC" if request.args.get('order', "DESC", type=str) == "ASC" else "DESC"
+    if not validate_order_by_str(asc_desc):
+        asc_desc = "DESC"
+
+    if new_search_pref:
+        session['user_search_pref'] = (order_by_col, asc_desc)
+
+    return order_by_col, asc_desc
+
+
+def get_books(query=None):
+    order_by_col, asc_desc = handle_search_sort()
     order_by = f"Books.{order_by_col} {asc_desc}"
     # dont need to validate since we pass them in with SQL param substitution
     after = request.args.getlist("after", None)

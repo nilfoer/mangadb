@@ -1,5 +1,8 @@
 import os.path
 import functools
+
+from datetime import timedelta
+
 from flask import (
         Blueprint, request, redirect, url_for,
         render_template, flash, session, current_app
@@ -58,6 +61,11 @@ def login():
             # clear session on login (among others for security reasons e.g.
             # if per-session-csrf token is used)
             session.clear()
+            # permanent session so session cookie doesn't expire when the browser closes
+            session.permanent = True
+            # expire session cookie 10 days after the login
+            current_app.permanent_session_lifetime = timedelta(days=10)
+
             # only one user atm so we only care that hes logged in
             session['authenticated'] = True
             return redirect(url_for('main.show_entries'))
