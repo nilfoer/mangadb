@@ -21,8 +21,16 @@ globs = ['manga_db/**/*.py', 'manga_db/webGUI/static/**/*.*',
 
 # relpaths so we can replicate them more easily
 if len(sys.argv) < 3:
-    print("Usage: build_dir_dist project_root output_file")
+    print("Usage: build_dir_dist project_root output_file [--noconfirm]")
     sys.exit(1)
+
+try:
+    del_idx = sys.argv.index('--noconfirm')
+except ValueError:
+    noconfirm = False
+else:
+    noconfirm = True
+    del sys.argv[del_idx]
 
 root_dir = os.path.abspath(sys.argv[1])
 out_zip_file = os.path.abspath(sys.argv[2])
@@ -32,12 +40,13 @@ os.chdir(root_dir)
 
 if os.path.exists(out_zip_file):
     print("Output file '", out_zip_file, "' will be deleted!")
-    ans = input("Proceed(y/n)?")
-    if ans.lower() not in ('y', 'yes'):
-        print("Stopping!")
-        sys.exit(1)
-    else:
-        os.remove(out_zip_file)
+    if not noconfirm:
+        ans = input("Proceed(y/n)?")
+        if ans.lower() not in ('y', 'yes'):
+            print("Stopping!")
+            sys.exit(1)
+
+    os.remove(out_zip_file)
 else:
     os.makedirs(out_dir, exist_ok=True)
 
