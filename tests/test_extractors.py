@@ -315,3 +315,23 @@ def test_extr_mangadex_tag_retry(monkeypatch, caplog):
     assert extr.get_metadata() is None
     assert len(caplog.messages) == 1
     assert "Failed to get tag map from MangaDex" in caplog.messages[0]
+
+
+def test_extr_mangadex_tag_retry_if_map_success(monkeypatch):
+    # make sure we don't run out of retries if the map is already valid
+
+    MangaDexExtractor._tag_map = {x: {'name': f"tag{x}"} for x in (8, 20, 22, 23, 24, 31, 36, 44, 45)}
+    MangaDexExtractor._tag_map_retries_left = 3
+    orig_get_html = MangaDexExtractor.get_html
+
+    def patched_get_html(*args):
+        return orig_get_html(build_testsdir_furl('extr_files/mangadex_111.json'))
+
+    monkeypatch.setattr('manga_db.extractor.mangadex.MangaDexExtractor.get_html',
+                        patched_get_html)
+
+    for _ in range(6):
+        url = "https://mangadex.org/title/111/escaped-title-123"
+        extr = MangaDexExtractor(url)
+        assert extr.get_metadata() is not None
+    assert MangaDexExtractor._tag_map_retries_left == 3
