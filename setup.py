@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="UTF-8") as fh:
 
 setuptools.setup(
     name="MangaDB",
-    version="0.21.0",
+    version="0.21.1",
     description="Organize your manga reading habits",
     long_description=long_description,
     long_description_content_type="text/markdown",
