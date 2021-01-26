@@ -38,9 +38,11 @@
                                 <div class="overlay-title">
                                     {{ book.title_eng or book.title_foreign }}
                                 </div>
+                                {% if book.pages > 0 %}
                                 <div class="overlay-pages">
                                     {{ book.pages }} pages
                                 </div>
+                                {% endif %}
                                 {% if book.my_rating %}
                                 <div class="overlay-rate blue-fcolor">
                                     {# To cast to a string in an expression, you use x|string() instead of str(x) #}
