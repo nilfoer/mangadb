@@ -271,7 +271,7 @@ def test_extr_mangadex(monkeypatch):
 def test_extr_mangadex_tag_retry(monkeypatch, caplog):
 
     MangaDexExtractor._tag_map = None
-    MangaDexExtractor._tag_map_tries_left = 3
+    MangaDexExtractor._tag_map_retries_left = 3
     orig_get_html = MangaDexExtractor.get_html
     i = 0
 
@@ -287,7 +287,8 @@ def test_extr_mangadex_tag_retry(monkeypatch, caplog):
         if url.endswith('/tag'):
             nonlocal i
             i += 1
-            if i == 2:
+            # one initial call and then 3 retries
+            if i == 4:
                 return orig_get_html(build_testsdir_furl('extr_files/mangadex_tag.json'))
             else:
                 return None

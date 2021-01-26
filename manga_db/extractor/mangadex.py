@@ -56,7 +56,7 @@ class MangaDexExtractor(BaseMangaExtractor):
     # so we don't have to fetch it for every manga or query for every tag name
     # one by one
     _tag_map: ClassVar[Optional[Dict[int, Dict[str, Any]]]] = None
-    _tag_map_tries_left: ClassVar[int] = 3
+    _tag_map_retries_left: ClassVar[int] = 3
 
     id_onpage: int
     escaped_title: Optional[str]
@@ -104,10 +104,10 @@ class MangaDexExtractor(BaseMangaExtractor):
                 return None
 
         # getting the tag map fails sporadicly with error 500
-        tag_map = None
-        while tag_map is None and MangaDexExtractor._tag_map_tries_left > 0:
+        tag_map = MangaDexExtractor._get_tag_map()
+        while tag_map is None and MangaDexExtractor._tag_map_retries_left > 0:
             tag_map = MangaDexExtractor._get_tag_map()
-            MangaDexExtractor._tag_map_tries_left -= 1
+            MangaDexExtractor._tag_map_retries_left -= 1
             time.sleep(0.5)
         if tag_map is None:
             logger.warning("Failed to get tag map from MangaDex after 3 tries. "
