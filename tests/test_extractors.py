@@ -2,13 +2,15 @@ import datetime
 import logging
 import json
 import pytest
+import os.path
 
+from manga_db.extractor.base import BaseMangaExtractor
 from manga_db.extractor.tsumino import TsuminoExtractor
 from manga_db.extractor.nhentai import NhentaiExtractor
 from manga_db.extractor.mangadex import MangaDexExtractor
 from manga_db.constants import CENSOR_IDS, STATUS_IDS
 
-from utils import build_testsdir_furl
+from utils import build_testsdir_furl, TESTS_DIR
 
 
 manual_tsumino = {
@@ -166,9 +168,9 @@ manual_mangadex = {
         "url": "https://mangadex.org/title/111/escaped-title-123",
         "pages": 0,
         "id_onpage": 111,
-        "rating": 8.54 / 2,
+        "rating": 8.53 / 2,
         "ratings": 128,  # 128 from api 131 on page??
-        "favorites": 1751,
+        "favorites": 1752,
         "uploader": None,
         "upload_date": datetime.date.min,
         "title_eng": "Cheese in the Trap",
@@ -192,8 +194,57 @@ manual_mangadex = {
                  "later?")
         }
 
+manual_mangadex2 = {
+        "url": "https://mangadex.org/title/52391/the-garden-of-red-flowers",
+        "pages": 0,
+        "id_onpage": 52391,
+        "rating": 7.89 / 2,
+        "ratings": 293,  # 128 from api 131 on page??
+        "favorites": 12588,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "The Garden of Red Flowers",
+        "title_foreign": "붉은 꽃의 정원",
+        "tag": ['Full Color', 'Long Strip', 'Web Comic', 'Comedy', 'Drama', 'Fantasy',
+                'Isekai', 'Romance', 'Sci-Fi', 'Reincarnation'],
+        "censor_id": CENSOR_IDS['Unknown'],
+        "language": "Korean",
+        "status_id": STATUS_IDS['Ongoing'],
+        "imported_from": MangaDexExtractor.site_id,
+        "category": ["Manga"],
+        "groups": [],
+        "artist": ["Maru (마루)"],
+        "parody": [],
+        "character": [],
+        'note': ("Description: A story that reincarnates as a happy "
+                 "&lt;supporting&gt; in a friend's novel, but takes on the misery of "
+                 "&lt;the main character&gt;.")
+        }
 
-def test_extr_mangadex():
+
+def test_extr_mangadex(monkeypatch):
+
+    orig_get_html = MangaDexExtractor.get_html
+
+    def patched_get_html(*args):
+        # a classmethod calling a patched classmethod doesn't seem to work
+        # as it doesn't recoginze cls as the first arg
+        if (isinstance(args[0], BaseMangaExtractor) or
+                args[0] is MangaDexExtractor or args[0] is BaseMangaExtractor):
+            url = args[1]
+        else:
+            url = args[0]
+
+        if url.endswith('/tag'):
+            return orig_get_html(build_testsdir_furl('extr_files/mangadex_tag.json'))
+        elif '/111' in url:
+            return orig_get_html(build_testsdir_furl('extr_files/mangadex_111.json'))
+        else:
+            return orig_get_html(build_testsdir_furl('extr_files/mangadex_52391.json'))
+
+    monkeypatch.setattr('manga_db.extractor.mangadex.MangaDexExtractor.get_html',
+                        patched_get_html)
+
     url = "https://mangadex.org/title/111/escaped-title-123"
     extr = MangaDexExtractor(url)
     assert extr.id_onpage == 111
@@ -202,9 +253,64 @@ def test_extr_mangadex():
     data = extr.get_metadata()
     assert set(data.keys()) == set(manual_mangadex.keys())
 
-    for k, v in manual_mangadex.items():
-        print(k)
-        if k == 'tag':
-            assert sorted(data[k]) == sorted(v)
+    url = "https://mangadex.org/title/52391/the-garden-of-red-flowers"
+    extr = MangaDexExtractor(url)
+    assert extr.id_onpage == 52391
+    assert extr.escaped_title == 'the-garden-of-red-flowers'
+    assert extr.get_cover() == "https://mangadex.org/images/manga/52391.png"
+    data2 = extr.get_metadata()
+    assert set(data2.keys()) == set(manual_mangadex2.keys())
+
+    for expected, actual in ((manual_mangadex, data), (manual_mangadex2, data2)):
+        for k, v in expected.items():
+            if k == 'tag':
+                assert sorted(actual[k]) == sorted(v)
+            else:
+                assert actual[k] == v
+
+def test_extr_mangadex_tag_retry(monkeypatch, caplog):
+
+    MangaDexExtractor._tag_map = None
+    MangaDexExtractor._tag_map_tries_left = 3
+    orig_get_html = MangaDexExtractor.get_html
+    i = 0
+
+    def patched_get_html(*args):
+        # a classmethod calling a patched classmethod doesn't seem to work
+        # as it doesn't recoginze cls as the first arg
+        if (isinstance(args[0], BaseMangaExtractor) or
+                args[0] is MangaDexExtractor or args[0] is BaseMangaExtractor):
+            url = args[1]
         else:
-            assert data[k] == v
+            url = args[0]
+
+        if url.endswith('/tag'):
+            nonlocal i
+            i += 1
+            if i == 2:
+                return orig_get_html(build_testsdir_furl('extr_files/mangadex_tag.json'))
+            else:
+                return None
+        else:
+            return orig_get_html(build_testsdir_furl('extr_files/mangadex_111.json'))
+
+    monkeypatch.setattr('manga_db.extractor.mangadex.MangaDexExtractor.get_html',
+                        patched_get_html)
+
+    with open(os.path.join(TESTS_DIR, 'extr_files', 'mangadex_tag.json'), 'r') as f:
+        raw_json = f.read()
+    tag_map = {int(k): v for k, v in json.loads(raw_json)['data'].items()}
+
+    url = "https://mangadex.org/title/111/escaped-title-123"
+    extr = MangaDexExtractor(url)
+    assert extr.get_metadata() is not None
+    assert MangaDexExtractor._tag_map == tag_map
+
+    caplog.set_level(logging.WARNING)
+    caplog.clear()
+
+    MangaDexExtractor._tag_map = None
+    extr = MangaDexExtractor(url)
+    assert extr.get_metadata() is None
+    assert len(caplog.messages) == 1
+    assert "Failed to get tag map from MangaDex" in caplog.messages[0]

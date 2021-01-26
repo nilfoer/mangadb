@@ -80,10 +80,10 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
             # for id 94465 nothing was added since the same ext info already exists
             # for id 249896 only the ext info was added
             # -> no cover written
-            assert not os.path.isfile(os.path.join(tmpdir, "thumbs", str(row["id"])))
+            assert not os.path.isfile(os.path.join(tmpdir, "thumbs", f"{row['id']}_0"))
             continue
         expected = id_onpagestr_checksum[str(row["id_onpage"])]
-        actual = gen_hash_from_file(os.path.join(tmpdir, "thumbs", str(row["id"])), "sha512")
+        actual = gen_hash_from_file(os.path.join(tmpdir, "thumbs", f"{row['id']}_0"), "sha512")
         assert actual == expected
 
 
