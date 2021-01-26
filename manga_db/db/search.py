@@ -112,12 +112,23 @@ def search_normal_mult_assoc(
     # normal col conditions
     for col, val in normal_col_values.items():
         # use pattern match for title
-        if "title" in col:
+        if col.startswith("title"):
             title_wildcarded = f"%{val}%"
             cond_statements.append(
                     f"{'AND' if cond_statements else 'WHERE'} (Books.title_eng LIKE ? "
                     "OR Books.title_foreign LIKE ?)")
             vals_in_order.extend([title_wildcarded]*2)
+        elif col == "read_status":
+            # TODO include chapter_status?
+            if val == "read":
+                read_cond = "= 0"
+            elif val == "unread":
+                read_cond = "IS NULL"
+            else:
+                read_cond = "> 0"
+
+            cond_statements.append(
+                    f"{'AND' if cond_statements else 'WHERE'} Books.read_status {read_cond}")
         else:
             cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} Books.{col} = ?")
             vals_in_order.append(val)

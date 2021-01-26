@@ -58,21 +58,23 @@ The search bar matches the input string against the book's english and foreign t
 
 Additionally you can search the following fields:
 
-| Field          | search keyword |
-|:-------------- |:-------------- |
-| Tags           | tag            |
-| Artist         | artist         |
-| Language       | language       |
-| Group          | groups         |
-| List           | list           |
-| Collection     | collection     |
-| Category       | category       |
-| Status         | status         |
-| Parody         | parody         |
-| Character      | character      |
-| Favorite       | favorite       |
-| Content Rating | nsfw           |
-| (Title)        | title          |
+| Field          | Search keyword | Possible values               |
+|:-------------- |:-------------- | -----------------------------:|
+| Tags           | tag            |                    Any string |
+| Artist         | artist         |                    Any string |
+| Language       | language       |                    Any string |
+| Group          | groups         |                    Any string |
+| List           | list           |                    Any string |
+| Collection     | collection     |                    Any string |
+| Category       | category       |                    Any string |
+| Status         | status         |   Unknown, Completed, Ongoing |
+|                |                | Unreleased, Hiatus, Cancelled |
+| Parody         | parody         |                    Any string |
+| Character      | character      |                    Any string |
+| Favorite       | favorite       |                        0 or 1 |
+| Content Rating | nsfw           |                        0 or 1 |
+| Read status    | read\_status   |         read, reading, unread |
+| (Title)        | title          |     Any string, partial match |
 
 All of these fields can be combined in one search. When the search string for a specific keyword contains spaces, it needs to be escaped with quotes. To search for multiple items that have to be present, separate them with semicolons.
 
@@ -85,6 +87,15 @@ Search for sfw favorites in the 'Manga' (search is **case-sensitive**) category:
 ```
 category:Manga favorite:1 nsfw:0
 ```
+
+Display 'Seinen' mangas you're currently reading:
+```
+read_status:reading tag:Seinen
+```
+*Note: read\_status currently doesn't respect 'Chapter status'. So in order to mark a book as __'reading'__
+you have to set the 'Read status' to a __non-zero value__. To mark a book as __'read'__ set 'Read status'
+to __zero__.*
+
 #### Location of DB and thumbnails
 To backup your installation of MangaDB you only need to copy the instance folder in the directory where either the `MangaDB.exe` or the `run_manga_db.py` is located. The 'instance' directory is where your login info, all thumbnails and the database file is saved.
 

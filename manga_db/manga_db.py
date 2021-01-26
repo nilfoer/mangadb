@@ -46,7 +46,7 @@ class MangaDB:
 
     VALID_SEARCH_COLS = {"title", "language", "language_id", "status", "favorite",
                          "category", "artist", "parody", "character", "collection", "groups",
-                         "tag", "list", "status", "status_id", "nsfw"}
+                         "tag", "list", "status", "status_id", "nsfw", "read_status"}
 
     def __init__(self, root_dir, db_path, read_only=False, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path, read_only)
