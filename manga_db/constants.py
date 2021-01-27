@@ -1,14 +1,18 @@
+from typing import Dict, Union
 MAX_PATH = 260
 
-CENSOR_IDS = {"Unknown": 1, "Censored": 2, "Decensored": 3, "Uncensored": 4,
-              1: "Unknown", 2: "Censored", 3: "Decensored", 4: "Uncensored"}
+# TODO convert to enum
+CENSOR_IDS: Dict[Union[str, int], Union[str, int]] = {
+    "Unknown": 1, "Censored": 2, "Decensored": 3, "Uncensored": 4,
+    1: "Unknown", 2: "Censored", 3: "Decensored", 4: "Uncensored"
+}
 
-STATUS_IDS = {"Unknown": 1, "Ongoing": 2, "Completed": 3, "Unreleased": 4, "Hiatus": 5,
-              "Cancelled": 6,
-              1: "Unknown", 2: "Ongoing", 3: "Completed", 4: "Unreleased", 5: "Hiatus",
-              6: "Cancelled"}
+STATUS_IDS: Dict[Union[str, int], Union[str, int]] = {
+    "Unknown": 1, "Ongoing": 2, "Completed": 3, "Unreleased": 4, "Hiatus": 5, "Cancelled": 6,
+    1: "Unknown", 2: "Ongoing", 3: "Completed", 4: "Unreleased", 5: "Hiatus", 6: "Cancelled"
+}
 
-LANG_IDS = {
+LANG_IDS: Dict[Union[str, int], Union[str, int]] = {
      1: "English",
      2: "Japanese",
      3: "Chinese",

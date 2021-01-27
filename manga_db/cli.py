@@ -3,6 +3,8 @@ import argparse
 import os.path
 import logging
 
+from typing import Optional
+
 from .webGUI import create_app
 from .manga_db import MangaDB
 from .db.export import export_csv_from_sql
@@ -11,7 +13,7 @@ from .link_collector import LinkCollector
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Command-line interface for MangaDB - A "
                                      "database to keep track of your manga reading habits!")
 
@@ -23,7 +25,7 @@ def main():
                                        help='sub-command help', dest="subcmd")
 
     webgui = subparsers.add_parser("webgui", aliases=["web"])
-    webgui.add_argument("-o", "--open", action="store_true", 
+    webgui.add_argument("-o", "--open", action="store_true",
                         help="Run on you machine's IP and make the webGUI accessible from your LAN")
     webgui.add_argument("-po", "--port", type=int, default=7578,
                         help="Port that the webGUI server should use")
@@ -57,7 +59,7 @@ def main():
                         "exported to")
     export.set_defaults(func=_cl_export)
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
     if len(sys.argv) == 1:
         # default to stdout, but stderr would be better (use sys.stderr, then exit(1))
         parser.print_help()
@@ -77,14 +79,16 @@ def main():
         args.func(args, mdb)
 
 
-def _cl_import_book(args, mdb):
+def _cl_import_book(args: argparse.Namespace, mdb: MangaDB) -> None:
     bid, book, _ = mdb.import_book(args.url, args.list)
 
 
-def _cl_get_info(args, mdb):
-    book, _, _ = MangaDB.retrieve_book_data(args.url)
-    if book is None:
+def _cl_get_info(args: argparse.Namespace, mdb: MangaDB) -> None:
+    extr_data, _ = MangaDB.retrieve_book_data(args.url)
+    if extr_data is None:
         return
+
+    book = mdb.book_from_data(extr_data)
     if args.output_filename:
         exp_str = book.to_export_string()
         with open(args.output_filename, "w", encoding="UTF-8") as w:
@@ -95,7 +99,7 @@ def _cl_get_info(args, mdb):
         print(book.to_export_string())
 
 
-def _cl_show_book(args, mdb):
+def _cl_show_book(args: argparse.Namespace, mdb: MangaDB) -> None:
     b = mdb.get_book(args.id)
     if b:
         print(b.to_export_string())
@@ -103,7 +107,7 @@ def _cl_show_book(args, mdb):
         print("No book with that id!")
 
 
-def _cl_collector(args, mdb):
+def _cl_collector(args: argparse.Namespace, mdb: MangaDB) -> None:
     if args.resume:
         lc = LinkCollector.from_json("link_collect_resume.json", mdb.root_dir,
                                      args.standard_list)
@@ -112,13 +116,13 @@ def _cl_collector(args, mdb):
     lc.cmdloop()
 
 
-def _cl_export(args, mdb):
+def _cl_export(args: argparse.Namespace, mdb: MangaDB) -> None:
     export_csv_from_sql(args.csv_path, mdb.db_con)
     logger.info(f"Exported database at {os.path.join(mdb.root_dir, 'manga_db.sqlite')} to "
                 f"{os.path.abspath(args.csv_path)}!")
 
 
-def _cl_webgui(args, instance_path=None):
+def _cl_webgui(args: argparse.Namespace, instance_path: Optional[str] = None) -> None:
     # use terminal environment vars to set debug etc.
     # windows: set FLASK_ENV=development -> enables debug or set FLASK_DEBUG=1
     app = create_app(instance_path=instance_path)
@@ -131,7 +135,7 @@ def _cl_webgui(args, instance_path=None):
         app.run(threaded=False, port=args.port)
 
 
-def cli_yes_no(question_str):
+def cli_yes_no(question_str: str) -> bool:
     ans = input(f"{question_str} y/n:\n")
     while True:
         if ans == "n":

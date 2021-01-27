@@ -31,9 +31,9 @@ def thread_retrieve_data_or_cover(url_queue: Queue, book_queue: Queue) -> None:
             try:
                 url = data
                 print(f"{current_thread().name}: Getting data for url {url}")
-                extr_data, thumb_url = MangaDB.retrieve_book_data(url)
+                extr_data, thumb_url_opt = MangaDB.retrieve_book_data(url)
                 # also put None in the queue so importer know the link was processed
-                book_queue.put((url, extr_data, thumb_url))
+                book_queue.put((url, extr_data, thumb_url_opt))
             except Exception:
                 # communicate to importer that failed link was processed
                 # so importer can terminate properly
@@ -52,7 +52,9 @@ def thread_retrieve_data_or_cover(url_queue: Queue, book_queue: Queue) -> None:
         elif task == DOWNLOAD_COVER:
             try:
                 book_id: int
-                # defined from ln34 thumb_url: str
+                # 'thumb_url: str' was defined from ln34 in other if branch
+                # since a function is one scope -> need to rename
+                thumb_url: str
                 cover_dir_path: str
                 book_id, thumb_url, cover_dir_path = data
                 print(f"{current_thread().name}: Downloading cover from {thumb_url}")
