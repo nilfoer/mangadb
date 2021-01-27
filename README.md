@@ -5,11 +5,11 @@ Local database including a web front-end for managing mangas/doujinshi.
 The previews are taken from a desktop PC, but the site is responsive and can be used just as well on a mobile device!
 
 ### Main page
-![MangaDB webGUI main page](https://i.imgur.com/c0Za7oG.jpg)
+![MangaDB webGUI main page](https://i.imgur.com/QXftvSW.png)
 
 
 ### Book page
-![MangaDB book page](https://i.imgur.com/6JUEQfJ.png)
+![MangaDB book page](https://i.imgur.com/Ly6CNSe.png)
 
 ## Installation
 Download the latest release  of your choice [here](https://github.com/nilfoer/mangadb/releases) (the standalone version is recommended for not so tech-savy people). For more advanced users that want to clone this repo: Keep in mind that third-party dependencies as well as the `.css` file that was generated from SASS are **not** checked into git!
