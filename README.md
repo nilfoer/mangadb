@@ -1,5 +1,5 @@
 # MangaDB
-Local database including a web front-end for managing mangas/doujins.
+Local database including a web front-end for managing mangas/doujinshi.
 
 ## WebGUI preview
 The previews are taken from a desktop PC, but the site is responsive and can be used just as well on a mobile device!
@@ -99,7 +99,7 @@ to __zero__.*
 #### Location of DB and thumbnails
 To backup your installation of MangaDB you only need to copy the instance folder in the directory where either the `MangaDB.exe` or the `run_manga_db.py` is located. The 'instance' directory is where your login info, all thumbnails and the database file is saved.
 
-### Importing a lot of different mangas/doujins
+### Importing a lot of different mangas/doujinshi
 Use:
 ```
 MangaDB.exe link_collector
