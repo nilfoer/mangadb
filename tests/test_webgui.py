@@ -616,14 +616,15 @@ def test_upload_cover(app_setup):
 tsu_extr_data = {
         'title_eng': 'Sono Shiroki Utsuwa ni Odei o Sosogu', 'title_foreign': 'その白き器に汚泥を注ぐ',
         'uploader': 'MrOverlord12', 'upload_date': datetime.date(2018, 10, 13), 'pages': 20,
-        'rating': 4.13, 'ratings': 39, 'favorites': 420, 'my_rating': None, 'category': ['Manga'],
+        'rating': 4.13, 'ratings': 39, 'favorites': 420, 'category': ['Manga'],
         'collection': None, 'groups': None, 'artist': ['Taniguchi-san'], 'parody': None,
         'character': None,
         'tag': ['Ahegao', 'Body Swap', 'Bondage', 'Dark Skin', 'Defloration', 'Elf', 'Filming',
                 'Futa on Female', 'Futanari', 'Gender Bender', 'Large Breasts', 'Nakadashi'],
         'censor_id': 2,
         'url': 'https://www.tsumino.com/entry/43460',
-        'id_onpage': 43460, 'language': 'English', 'status_id': 1, 'imported_from': 1
+        'id_onpage': 43460, 'language': 'English', 'status_id': 1, 'imported_from': 1,
+        'nsfw': 1, 'note': None,
         }
 
 
@@ -707,6 +708,8 @@ def test_import_book(app_setup, monkeypatch):
 
         # check ext info from json since its rebuilt from that
         ei = json.loads(kwargs_show_add["extr_data"])
+        print(kwargs_show_add["extr_data"])
+        print(ei, type(ei))
         # assert ei["url"] == row_expected[17]
         assert ei["id_onpage"] == row_expected[17]
         assert ei["imported_from"] == row_expected[18]

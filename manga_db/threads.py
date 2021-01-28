@@ -4,11 +4,12 @@ import logging
 from threading import Thread, current_thread
 from queue import Queue
 
-from typing import List, Sequence, Dict, TYPE_CHECKING
+from typing import List, Sequence, Dict, TYPE_CHECKING, Tuple, Union, Optional
 
 from .manga_db import MangaDB
 from .manga import Book
 from .ext_info import ExternalInfo
+from .extractor.base import MangaExtractorData
 
 if TYPE_CHECKING:
     from .link_collector import UrlList, ImportData
@@ -86,14 +87,8 @@ def single_thread_import(data_path: str, url_lists: 'UrlList', to_process: int,
             if extr_data is None:
                 continue
             print(f"{current_thread().name}: Adding book at {url}")
-            # @Cleanup @Temporary convert lanugage in data to id
-            extr_data["language_id"] = mdb.get_language(extr_data["language"],
-                                                        create_unpresent=True)
-            del extr_data["language"]
 
-            book = Book(mdb, **extr_data)
-            ext_info = ExternalInfo(mdb, book, **extr_data)
-            book.ext_infos = [ext_info]
+            book, ext_info = mdb.book_and_ei_from_data(extr_data)
             book.list = url_lists[url]["lists"]
             ext_info.downloaded = 1 if url_lists[url]["downloaded"] else 0
 
@@ -129,7 +124,7 @@ def single_thread_import(data_path: str, url_lists: 'UrlList', to_process: int,
             book_queue.task_done()
 
 
-def import_multiple(data_path: str, url_lists: 'UrlList'):
+def import_multiple(data_path: str, url_lists: 'UrlList') -> None:
     data_path = os.path.realpath(data_path)
     # make sure db file and thumbs folder exists
     if not os.path.isfile(os.path.join(data_path, "manga_db.sqlite")):
@@ -137,8 +132,10 @@ def import_multiple(data_path: str, url_lists: 'UrlList'):
         return
     os.makedirs(os.path.join(data_path, "thumbs"), exist_ok=True)
 
-    url_queue: Queue = Queue()
-    book_queue: Queue = Queue()
+    # type annotation not possible without putting it in str
+    # errors with type obj not subscriptable
+    url_queue: "Queue[Tuple[Optional[int], Optional[Union[str, Tuple[int, str, str]]]]]" = Queue()
+    book_queue: "Queue[Tuple[Optional[str], Optional[MangaExtractorData], Optional[str]]]" = Queue()
     print("** Filling URL Queue! **")
     for url, url_data in url_lists.items():
         url_queue.put((RETRIEVE_BOOK_DATA, url))

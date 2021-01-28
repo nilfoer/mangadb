@@ -1,14 +1,55 @@
 import urllib.request
 import urllib.error
 import logging
+import datetime
 
-from typing import Dict, Tuple, Optional, Any, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Dict, Tuple, Optional, Any, TYPE_CHECKING, Literal, List
 
 if TYPE_CHECKING:
     from ..ext_info import ExternalInfo
 
 logger = logging.getLogger(__name__)
 
+
+# could also use TypedDict which means it would accept regular dicts that use only
+# __and__ all the required keys of the correct type
+@dataclass
+class MangaExtractorData:
+    # NOTE: !IMPORTANT! needs at least one of the titles
+    title_eng: Optional[str]
+    title_foreign: Optional[str]
+    language: str  # will be added if not present
+    pages: int
+    status_id: int  # from STATUS_IDS
+    nsfw: Literal[0, 1]
+
+    note: Optional[str]
+
+    category: List[str]
+    collection: List[str]
+    groups: List[str]
+    artist: List[str]
+    parody: List[str]
+    character: List[str]
+    tag: List[str]
+
+    # ExternalInfo data
+    url: str
+    id_onpage: int
+    imported_from: int  # extractor's site_id
+    censor_id: int  # from CENSOR_IDS
+    upload_date: datetime.date
+
+    uploader: Optional[str]
+    rating: Optional[float]
+    ratings: Optional[int]
+    favorites: Optional[int]
+
+    # run last in generated __init__
+    def __post_init__(self):
+        assert self.title_eng or self.title_foreign
+    
 
 class BaseMangaExtractor:
     headers: Dict[str, str] = {
@@ -32,65 +73,14 @@ class BaseMangaExtractor:
         """
         raise NotImplementedError
 
-    def get_metadata(self) -> Optional[Dict[str, Any]]:
-        """
-        Expects a dictionary with the following keys:
-        dict(
-            # -- these can't be None --
-
-            # needs at least one of the titles
-            title_eng='Title',
-            title_foreign='Le title',
-            # either language or language_id
-            language_id: 1,  # from LANG_IDS or MangaDB.get_language
-            language: 'English',  # will be added if not present
-            pages=14,
-            status_id=1,  # from STATUS_IDS
-
-            # -- can be None --
-            # these will prob not be needed for extractors
-            chapter_status=None,  # chapter str
-            read_status=None,  # int
-            my_rating=None,  # float
-            note='Test note',
-
-            # expects a list for these, can't be None
-            category=['Manga'],
-            collection=['Example Collection'],
-            groups=[],
-            artist=['Artemis'],
-            parody=[],
-            character=['Lara Croft'],
-            tag=['Sole Male', 'Ahegao', 'Large Breasts'],
-
-            # optional, other than 'nsfw' these should prob not be set by the extractor
-            list=[],
-            favorite=0,  # 0 or 1
-            nsfw=1,  # 0 or 1
-
-            # ExternalInfo data
-
-            # these can't be None
-            url='https://mangadex.org/title/1342',
-            id_onpage=1342,
-            imported_from=3,  # extractor's site_id
-            censor_id=1,  # from CENSOR_IDS
-            upload_date=datetime.date.min,  # datetime.date
-
-            # these can be None
-            uploader=None,
-            rating=4.5,
-            ratings=423,
-            favorites=1240,
-            )
-        """
+    def extract(self) -> Optional[MangaExtractorData]:
         raise NotImplementedError
 
     def get_cover(self) -> Optional[str]:
         raise NotImplementedError
 
     @classmethod
-    def split_title(cls, title: str) -> Tuple[str, str]:
+    def split_title(cls, title: str) -> Tuple[Optional[str], Optional[str]]:
         # split tile into english and foreign title
         raise NotImplementedError
 

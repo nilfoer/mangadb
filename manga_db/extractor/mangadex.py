@@ -3,10 +3,11 @@ import json
 import datetime
 import logging
 import time
+import html
 
 from typing import cast, Match, Optional, Dict, Any, Tuple, Pattern, ClassVar, List, TYPE_CHECKING
 
-from .base import BaseMangaExtractor
+from .base import BaseMangaExtractor, MangaExtractorData
 from ..constants import CENSOR_IDS, STATUS_IDS
 
 if TYPE_CHECKING:
@@ -97,7 +98,7 @@ class MangaDexExtractor(BaseMangaExtractor):
 
         return cls._tag_map
 
-    def get_metadata(self) -> Optional[Dict[str, Any]]:
+    def extract(self) -> Optional[MangaExtractorData]:
         if not self.api_reponse:
             self.api_reponse = self._get_manga_json()
             if not self.api_reponse:
@@ -118,47 +119,56 @@ class MangaDexExtractor(BaseMangaExtractor):
 
         manga_data = self.api_reponse['data']
 
-        result = {
-            'imported_from': self.site_id,
-            'url': self.manga_url_from_id(self.id_onpage, self.escaped_title),
-            'id_onpage': self.id_onpage,
-            'title_eng': manga_data['title'],
-            # TODO @CleanUp contains bbcode
-            'note': f"Description: {manga_data['description']}",
+        result = MangaExtractorData(
+            # for unescaping html entities in the title/description
+            title_eng = html.unescape(manga_data['title']),
+            title_foreign = None,
+            language = ABBR_LANG_MAP.get(manga_data['publication']['language'], 'Unknown'),
             # @CleanUp mb add volumes/chapters?
-            'pages': 0,
-            # use follows as favories
-            'favorites': manga_data['follows'],
-            # MangaDex uses max 10 rating
-            'rating': (manga_data['rating']['bayesian'] / 2
-                       if manga_data['rating']['bayesian'] > 0 else 0.0),
-            'ratings': manga_data['rating']['users'],
-            'uploader': None,
-            # @CleanUp cant be None due to db constraint; use min date for now
-            'upload_date': datetime.date.min,
-            'tag': [],
-            'censor_id': CENSOR_IDS['Unknown'],
-            'language': ABBR_LANG_MAP.get(manga_data['publication']['language'], 'Unknown'),
-            'status_id': self.STATUS_MAP[manga_data['publication']['status']],
+            pages = 0,
+            status_id = cast(int, self.STATUS_MAP[manga_data['publication']['status']]),
+            nsfw = 1 if manga_data['isHentai'] else 0,
+
+            # TODO @CleanUp contains bbcode
+            note = f"Description: {html.unescape(manga_data['description'])}",
+
+            category = ['Manga'],
+            collection = [],
+            groups = [],
             # deduplicate if author and artist are the same
-            'artist': list(set(manga_data['artist']).union(manga_data['author'])),
-            'category': ['Manga'],
-            'character': [],
-            'groups': [],
-            'parody': [],
-        }
+            artist = list(set(manga_data['artist']).union(manga_data['author'])),
+            parody = [],
+            character = [],
+            tag = [],
+
+            # ExternalInfo data
+            url = self.manga_url_from_id(self.id_onpage, self.escaped_title),
+            id_onpage = self.id_onpage,
+            imported_from = self.site_id,
+            censor_id = cast(int, CENSOR_IDS['Unknown']),
+            # @CleanUp cant be None due to db constraint; use min date for now
+            upload_date = datetime.date.min,
+
+            uploader = None,
+            # MangaDex uses max 10 rating
+            rating = (manga_data['rating']['bayesian'] / 2
+                      if manga_data['rating']['bayesian'] > 0 else 0.0),
+            ratings = manga_data['rating']['users'],
+            # use follows as favories
+            favorites = manga_data['follows'],
+        )
         if 'altTitles' in manga_data and manga_data['altTitles']:
             # multiple titles with no way to easy way to get the language
             # jp seems to be last mostly so use that
-            result['title_foreign'] = manga_data['altTitles'][-1]
+            result.title_foreign = html.unescape(manga_data['altTitles'][-1])
         if tag_map:
-            result['tag'] = [
+            result.tag = [
                     tag_map[mdex_tag_id]['name'] for mdex_tag_id in manga_data['tags']]
 
             # demographic 0 in api means none assigned
             demographic_tag = self.DEMOGRAPHIC_MAP[manga_data['publication']['demographic']]
             if demographic_tag is not None:
-                result['tag'].append(demographic_tag)
+                result.tag.append(demographic_tag)
 
         return result
 

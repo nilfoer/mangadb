@@ -2,6 +2,8 @@ import os
 import logging
 import datetime
 
+from typing import TYPE_CHECKING
+
 from .db.loading import load_instance
 from .db.row import DBRow
 from .db.column import Column, ColumnWithCallback
@@ -11,6 +13,10 @@ from .ext_info import ExternalInfo
 from .constants import STATUS_IDS
 from .db.util import joined_col_name_to_query_names
 from .util import diff_update
+
+if TYPE_CHECKING:
+    from .manga_db import MangaDB
+    from .extractor.base import MangaExtractorData
 
 logger = logging.getLogger(__name__)
 
@@ -606,3 +612,26 @@ class Book(DBRow):
                       (book_id,))
 
         logger.debug("Removed '%s' from associated column '%s'", values, table_name)
+
+    @classmethod
+    def from_manga_extr_data(cls, mdb: 'MangaDB', data: 'MangaExtractorData') -> 'Book':
+        # @Cleanup @Temporary convert lanugage in data to id
+        language_id = mdb.get_language(data.language, create_unpresent=True)
+
+        return cls(
+            manga_db=mdb,
+            title_eng=data.title_eng,
+            title_foreign=data.title_foreign,
+            language_id=language_id,
+            pages=data.pages,
+            status_id=data.status_id,
+            nsfw=data.nsfw,
+            note=data.note,
+            category=data.category,
+            collection=data.collection,
+            groups=data.groups,
+            artist=data.artist,
+            parody=data.parody,
+            character=data.character,
+            tag=data.tag,
+        )

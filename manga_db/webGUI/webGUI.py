@@ -9,6 +9,8 @@ import re
 import time
 import datetime
 
+from typing import Optional, Dict, Any
+
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
         render_template, flash, send_from_directory,
@@ -20,6 +22,7 @@ from .json_custom import to_serializable
 from ..constants import STATUS_IDS
 from ..manga_db import MangaDB
 from ..manga import Book
+from ..extractor.base import MangaExtractorData
 from ..db.search import validate_order_by_str
 from ..ext_info import ExternalInfo
 from .. import extractor
@@ -151,11 +154,16 @@ def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None,
 
 
 @main_bp.route('/import', methods=["POST"])
-def import_book(url=None, force_new=False):
+def import_book(url: Optional[str] = None, force_new: bool = False):
     if url is None:
         url = request.form['ext_url']
+
     mdb = get_mdb()
+    extr_data: Optional[Dict[str, Any]]
+    thumb_url: Optional[str]
     extr_data, thumb_url = None, None
+    book: Book
+
     # whether the import should be added as external link to an existing book instead
     add_ext_info = False
     if "extr_data_json" in request.form:
@@ -168,6 +176,8 @@ def import_book(url=None, force_new=False):
             force_new = True
         else:
             add_ext_info = True
+        # @CleanUp indirection needed here?
+        book = mdb.book_from_data(MangaExtractorData(**extr_data))
     else:
         extr_data, thumb_url = mdb.retrieve_book_data(url)
         if extr_data is None:
@@ -177,11 +187,7 @@ def import_book(url=None, force_new=False):
             flash(f"URL was: {url}")
             flash("Check the logs for more details!", "info")
             return redirect(url_for("main.show_entries"))
-    book = mdb.book_from_data(extr_data)
-    # convert data to json so we can rebuilt ext_info when we add it to DB
-    # as we have to take all data from edit_info page or store a json serialized ExternalInfo
-    # in session; jsonify return flask.Response i just need a str
-    extr_data_json = json.dumps(extr_data, default=to_serializable)
+        book = mdb.book_from_data(extr_data)
 
     bid = mdb.get_book_id(book.title_eng, book.title_foreign) if not force_new else None
     if add_ext_info:
@@ -195,7 +201,12 @@ def import_book(url=None, force_new=False):
 
         flash(f"Added external link at '{ext_info.url}' to book!")
         return show_info(bid, show_outdated=eid if outdated else None)
-    elif bid is not None:
+
+    # convert data to json so we can rebuilt ext_info when we add it to DB
+    # as we have to take all data from edit_info page or store a json serialized ExternalInfo
+    # in session; jsonify return flask.Response i just need a str
+    extr_data_json = json.dumps(extr_data, default=to_serializable)
+    if bid is not None:
         # book was alrdy in DB
         # show prompt to add extinfo or add as a new book
         return show_info(bid, add_ei_or_new_book_prompt=(url, extr_data_json, thumb_url))

@@ -8,6 +8,7 @@ from typing import Optional, Tuple, Any, Dict, List, overload
 
 from .logging_setup import configure_logging
 from . import extractor
+from .extractor.base import MangaExtractorData
 from .exceptions import MangaDBException
 from .db import migrate
 from .db import search
@@ -134,26 +135,28 @@ class MangaDB:
             return None
 
     @staticmethod
-    def retrieve_book_data(url: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-        extractor_cls = extractor.find(url)
-        extr = extractor_cls(url)
-        data = extr.get_metadata()
+    def retrieve_book_data(url: str) -> Tuple[Optional[MangaExtractorData], Optional[str]]:
+        try:
+            extractor_cls = extractor.find(url)
+            extr = extractor_cls(url)
+            data = extr.extract()
+        except Exception:
+            # logger.exception add exception info automatically
+            logger.exception("Exception while extracting '%s'", url)
+            return None, None
+
         if data:
             return data, extr.get_cover()
         else:
             logger.warning("No book data recieved! URL was '%s'!", url)
             return None, None
 
-    def book_from_data(self, data: Dict[str, Any]) -> Book:
-        # @Cleanup @Temporary convert lanugage in data to id
-        data["language_id"] = self.get_language(data["language"], create_unpresent=True)
-        del data["language"]
+    def book_from_data(self, data: MangaExtractorData) -> Book:
+        return Book.from_manga_extr_data(self, data)
 
-        return Book(self, **data)
-
-    def book_and_ei_from_data(self, data: Dict[str, Any]) -> Tuple[Book, ExternalInfo]:
+    def book_and_ei_from_data(self, data: MangaExtractorData) -> Tuple[Book, ExternalInfo]:
         book = self.book_from_data(data)
-        ext_info = ExternalInfo(self, book, **data)
+        ext_info = ExternalInfo.from_manga_extr_data(self, book, data)
         book.ext_infos = [ext_info]
         return book, ext_info
 
@@ -164,13 +167,13 @@ class MangaDB:
     # use mypy to make sure both extr_data as well as the thumb_url are supplied
     @overload
     def import_book(self, url: str, lists: List[str],
-                    extr_data: Dict[str, Any], thumb_url: str) -> Tuple[
+                    extr_data: MangaExtractorData, thumb_url: str) -> Tuple[
                             Optional[int], Optional[Book], Optional[int]]: ...
 
     # NOTE: !IMPORTANT also change single_thread_import in threads when this
     # gets changed as well as webGUI/webGUI.py:import_book
     def import_book(self, url: str, lists: List[str],
-                    extr_data: Optional[Dict[str, Any]] = None,
+                    extr_data: Optional[MangaExtractorData] = None,
                     thumb_url: Optional[str] = None) -> Tuple[
                             Optional[int], Optional[Book], Optional[int]]:
         """

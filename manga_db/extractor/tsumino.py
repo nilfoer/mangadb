@@ -4,11 +4,14 @@ import re
 
 import bs4
 
-from typing import cast, Match, Optional
+from typing import cast, Match, Optional, TYPE_CHECKING, Tuple, Dict, Any
 
-from .base import BaseMangaExtractor
+from .base import BaseMangaExtractor, MangaExtractorData
 from ..util import is_foreign
 from ..constants import CENSOR_IDS, STATUS_IDS
+
+if TYPE_CHECKING:
+    from ..ext_info import ExternalInfo
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +25,17 @@ class TsuminoExtractor(BaseMangaExtractor):
     URL_FORMAT = "https://www.tsumino.com/entry/{id_onpage}"
     READ_URL_FORMAT = "https://www.tsumino.com/Read/Index/{id_onpage}"
     RATING_FULL_RE = re.compile(r"(\d\.\d{1,2}|\d) \((\d+) users / (\d+) favs\)")
-    metadata_helper = {  # attribute/col in db: key in metadata extracted from tsumino
-            "title": "Title", "uploader": "Uploader", "upload_date": "Uploaded",
-            "pages": "Pages", "rating": "Rating", "my_rating": "My Rating",
-            "category": "Category", "collection": "Collection", "groups": "Group",
-            "artist": "Artist", "parody": "Parody", "character": "Character",
-            "tag": "Tag", "url": None, "id_onpage": None
-            }
 
-    def __init__(self, url):
+    def __init__(self, url: str):
         super().__init__(url.strip("-"))
-        self.id_onpage = TsuminoExtractor.book_id_from_url(url)
-        self.thumb_url = f"https://content.tsumino.com/thumbs/{self.id_onpage}/1"
-        self.html = None
-        self.metadata = None
+        self.id_onpage: int = TsuminoExtractor.book_id_from_url(url)
+        self.thumb_url: str = f"https://content.tsumino.com/thumbs/{self.id_onpage}/1"
+        self.html: Optional[str] = None
+        self.data: Optional[MangaExtractorData] = None
 
-    def __repr__(self):
-        if self.metadata:
-            metastring = ', '.join((f"{k}: '{v}'" for k, v in self.metadata.items()))
+    def __repr__(self) -> str:
+        if self.data:
+            metastring = ', '.join((f"{k}: '{v}'" for k, v in self.data.__dict__.items()))
             return f"TsuminoExtractor('{self.url}', {metastring})"
         else:
             return f"TsuminoExtractor('{self.url}')"
@@ -49,16 +45,19 @@ class TsuminoExtractor(BaseMangaExtractor):
         return bool(cls.URL_PATTERN_RE.match(url))
 
     @classmethod
-    def url_from_ext_info(cls, ext_info):
+    def url_from_ext_info(cls, ext_info: 'ExternalInfo') -> str:
         return cls.URL_FORMAT.format(id_onpage=ext_info.id_onpage)
 
     @classmethod
-    def read_url_from_ext_info(cls, ext_info):
+    def read_url_from_ext_info(cls, ext_info: 'ExternalInfo') -> str:
         return cls.READ_URL_FORMAT.format(id_onpage=ext_info.id_onpage)
 
     @classmethod
-    def split_title(cls, value):
+    def split_title(cls, value: str) -> Tuple[Optional[str], Optional[str]]:
         title = re.match(cls.TITLE_RE, value)
+        title_eng: Optional[str]
+        title_foreign: Optional[str]
+
         if title:
             title_eng = title.group(1)
             title_foreign = title.group(2)
@@ -71,71 +70,81 @@ class TsuminoExtractor(BaseMangaExtractor):
                 title_foreign = None
         return title_eng, title_foreign
 
-    def get_metadata(self):
-        if self.metadata is None:
+    def extract(self) -> Optional[MangaExtractorData]:
+        if self.data is None:
             if self.html is None:
                 self.html = TsuminoExtractor.get_html(self.url)
                 if not self.html:
                     logger.warning("Extraction failed! HTML was empty for url '%s'", self.url)
                     return None
-            self.metadata = self.transform_metadata(TsuminoExtractor.extract_info(self.html))
-        return self.metadata
+            self.data = self.transform_data(TsuminoExtractor.extract_info(self.html))
+        return self.data
 
-    def transform_metadata(self, metadata):
+    def transform_data(self, data_dic: Dict[str, Any]) -> MangaExtractorData:
         """
-        Transform metadata parsed from tsumino.com into DB format
+        Transform data parsed from tsumino.com into DB format
         """
-        result = {}
-        value = None
-        for attr, key in self.metadata_helper.items():
-            # pop(key, default)
-            value = metadata.pop(key, None)
-            # not every key present on every book page (e.g. "Parody", "Group"..)
-            if attr == "url":
-                result[attr] = self.url
-            elif attr == "pages":
-                result[attr] = int(value)
-            elif attr == "id_onpage":
-                result[attr] = self.book_id_from_url(self.url)
-            elif attr == "rating":
-                rat_full = self.RATING_FULL_RE.match(value)
-                result[attr] = float(rat_full.group(1))
-                result["ratings"] = int(rat_full.group(2))
-                result["favorites"] = int(rat_full.group(3))
-            elif attr == "uploader":
-                if isinstance(value, list):
-                    if len(value) > 1:
-                        logger.error("More than one uploader: %s", value)
-                    result["uploader"] = value[0]
-                else:
-                    result["uploader"] = value
-            elif attr == "upload_date":
-                result[attr] = datetime.datetime.strptime(value, "%Y %B %d").date()
-            elif attr == "title":
-                result["title_eng"], result["title_foreign"] = self.split_title(value)
-            elif attr == "tag":
-                result[attr] = value
-                if value is None:
-                    censor_id = CENSOR_IDS["Unknown"]
-                else:
-                    if "Decensored" in value:
-                        censor_id = CENSOR_IDS["Decensored"]
-                    elif "Uncensored" in value:
-                        censor_id = CENSOR_IDS["Uncensored"]
-                    else:
-                        censor_id = CENSOR_IDS["Censored"]
-                result["censor_id"] = censor_id
+        title_eng, title_foreign = self.split_title(data_dic['Title'])
+
+        uploaders = data_dic['Uploader']
+        if isinstance(uploaders, list):
+            if len(uploaders) > 1:
+                logger.info("More than one uploader: %s", data_dic['Uploader'])
+            uploader = uploaders[0]
+        else:
+            uploader = uploaders
+
+        rating_str = data_dic['Rating']
+        rat_full = self.RATING_FULL_RE.match(rating_str)
+        rating, ratings, favorites = None, None, None
+        if rat_full:
+            rating = float(rat_full.group(1))
+            ratings = int(rat_full.group(2))
+            favorites = int(rat_full.group(3))
+
+        tags = data_dic['Tag']
+        if tags is None:
+            censor_id = CENSOR_IDS["Unknown"]
+        else:
+            if "Decensored" in tags:
+                censor_id = CENSOR_IDS["Decensored"]
+            elif "Uncensored" in tags:
+                censor_id = CENSOR_IDS["Uncensored"]
             else:
-                result[attr] = value
-        if metadata:
-            logger.warning("There are still metadata keys left! The HTML on tsumino.com"
-                           "probably changed! Keys left over: %s", ", ".join(metadata.keys()))
+                censor_id = CENSOR_IDS["Censored"]
 
-        result["language"] = "English"
-        result["status_id"] = STATUS_IDS["Unknown"]
-        result["imported_from"] = self.site_id
-        # assume tsumino content is nsfw - there is a Non-h tag but that is no guarantee
-        result["nsfw"] = 1
+        result = MangaExtractorData(
+            title_eng=title_eng,
+            title_foreign=title_foreign,
+            language="English",
+            pages=int(data_dic['Pages']),
+            status_id=cast(int, STATUS_IDS["Unknown"]),
+            # assume tsumino content is nsfw - there is a Non-h tag but that is no guarantee
+            nsfw=1,
+
+            note=None,
+
+            # not every key present on every book page (e.g. "Parody", "Group"..)
+            category=data_dic.get('Category', []),
+            collection=data_dic.get('Collection', []),
+            groups=data_dic.get('Group', []),
+            artist=data_dic.get('Artist', []),
+            parody=data_dic.get('Parody', []),
+            character=data_dic.get('Character', []),
+            tag=tags,
+
+            # ExternalInfo data
+            url=self.url,
+            id_onpage=self.book_id_from_url(self.url),
+            imported_from=self.site_id,
+            censor_id=cast(int, censor_id),
+            upload_date=datetime.datetime.strptime(data_dic['Uploaded'], "%Y %B %d").date(),
+
+            uploader=uploader,
+            rating=rating,
+            ratings=ratings,
+            favorites=favorites,
+        )
 
         return result
 
@@ -143,7 +152,7 @@ class TsuminoExtractor(BaseMangaExtractor):
         return self.thumb_url
 
     @classmethod
-    def extract_info(cls, html):
+    def extract_info(cls, html: str) -> Dict[str, Any]:
         result_dict = {}
 
         soup = bs4.BeautifulSoup(html, "html.parser")

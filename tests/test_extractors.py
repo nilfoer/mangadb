@@ -4,7 +4,9 @@ import json
 import pytest
 import os.path
 
-from manga_db.extractor.base import BaseMangaExtractor
+from typing import Dict, Any
+
+from manga_db.extractor.base import BaseMangaExtractor, MangaExtractorData
 from manga_db.extractor.tsumino import TsuminoExtractor
 from manga_db.extractor.nhentai import NhentaiExtractor
 from manga_db.extractor.mangadex import MangaDexExtractor
@@ -30,7 +32,6 @@ manual_tsumino = {
         "language": "English",
         "status_id": 1,
         "imported_from": 1,
-        "my_rating": None,
         "category": ["Doujinshi"],
         "collection": ["Negimatic Paradise!"],
         "groups": ["Gakuen Yuushabu"],
@@ -38,6 +39,7 @@ manual_tsumino = {
         "parody": ["Mahou Sensei Negima! / 魔法先生ネギま！"],
         "character": ["Ayaka Yukihiro", "Negi Springfield"],
         "nsfw": 1,
+        "note": None,
         }
 
 
@@ -46,9 +48,9 @@ def test_extr_tsu(monkeypatch, caplog):
     t = TsuminoExtractor(url)
     t.html = TsuminoExtractor.get_html(
             build_testsdir_furl("extr_files/tsumino_43357_negimatic-paradise-05-05.html"))
-    res = t.get_metadata()
+    res = t.extract()
 
-    assert res == manual_tsumino
+    assert res == MangaExtractorData(**manual_tsumino)
     assert t.get_cover() == "https://content.tsumino.com/thumbs/43357/1"
 
     # test no data receieved
@@ -57,7 +59,7 @@ def test_extr_tsu(monkeypatch, caplog):
                         lambda x: None)
     caplog.clear()
     t = TsuminoExtractor(url)
-    assert t.get_metadata() is None
+    assert t.extract() is None
     assert caplog.record_tuples == [
             ("manga_db.extractor.tsumino", logging.WARNING,
              # url without last dash
@@ -104,6 +106,10 @@ manual_nhentai = {
                  "[アルセノテリス (Rebis＆沈没)] 絶頂トランスポイズン "
                  "(ストリートファイター×鉄拳) [英訳]'"),
         'nsfw': 1,
+        'collection': [],
+        'uploader': None,
+        'rating': None,
+        'ratings': None,
         }
 
 
@@ -113,17 +119,17 @@ def test_extr_nhent(monkeypatch, caplog):
     t = NhentaiExtractor(url)
     t.json = json.loads(t.get_json_from_html(
         NhentaiExtractor.get_html(build_testsdir_furl("extr_files/nhentai_251287.html"))))
-    res = t.get_metadata()
-    assert res["censor_id"] == CENSOR_IDS["Decensored"]
-    assert res["status_id"] == STATUS_IDS["Ongoing"]
+    res = t.extract()
+    assert res.censor_id == CENSOR_IDS["Decensored"]
+    assert res.status_id == STATUS_IDS["Ongoing"]
 
     t = NhentaiExtractor(url)
     html_str = NhentaiExtractor.get_html(build_testsdir_furl("extr_files/nhentai_77052.html"))
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html",
                         lambda x: html_str)
-    res = t.get_metadata()
+    res = t.extract()
 
-    assert res == manual_nhentai
+    assert res == MangaExtractorData(**manual_nhentai)
     assert t.get_cover() == "https://t.nhentai.net/galleries/501421/cover.jpg"
 
     # test no data receieved
@@ -134,7 +140,7 @@ def test_extr_nhent(monkeypatch, caplog):
                         lambda x: None)
     caplog.clear()
     t = NhentaiExtractor(url)
-    assert t.get_metadata() is None
+    assert t.extract() is None
     assert args == ["https://nhentai.net/g/77052/"]
     assert caplog.record_tuples == [
             ("manga_db.extractor.nhentai", logging.WARNING,
@@ -191,7 +197,9 @@ manual_mangadex = {
                  "of a suspiciously perfect senior named Yoo Jung. From then on, her "
                  "life took a turn for the worse - and Sul was almost certain it was "
                  "all Jung's doing. So why is he suddenly acting so friendly a year "
-                 "later?")
+                 "later?"),
+        'nsfw': 0,
+        'collection': [],
         }
 
 manual_mangadex2 = {
@@ -203,7 +211,7 @@ manual_mangadex2 = {
         "favorites": 12588,
         "uploader": None,
         "upload_date": datetime.date.min,
-        "title_eng": "The Garden of Red Flowers",
+        "title_eng": "The Garden of Red’s Flowers",
         "title_foreign": "붉은 꽃의 정원",
         "tag": ['Full Color', 'Long Strip', 'Web Comic', 'Comedy', 'Drama', 'Fantasy',
                 'Isekai', 'Romance', 'Sci-Fi', 'Reincarnation'],
@@ -217,8 +225,10 @@ manual_mangadex2 = {
         "parody": [],
         "character": [],
         'note': ("Description: A story that reincarnates as a happy "
-                 "&lt;supporting&gt; in a friend's novel, but takes on the misery of "
-                 "&lt;the main character&gt;.")
+                 "<supporting> in a friend's novel, but takes on the misery of "
+                 "<the main character>."),
+        'nsfw': 0,
+        'collection': [],
         }
 
 
@@ -250,23 +260,17 @@ def test_extr_mangadex(monkeypatch):
     assert extr.id_onpage == 111
     assert extr.escaped_title == 'escaped-title-123'
     assert extr.get_cover() == "https://mangadex.org/images/manga/111.jpg"
-    data = extr.get_metadata()
-    assert set(data.keys()) == set(manual_mangadex.keys())
+    data = extr.extract()
+    comp_dict_manga_extr_data(manual_mangadex, data)
 
     url = "https://mangadex.org/title/52391/the-garden-of-red-flowers"
     extr = MangaDexExtractor(url)
     assert extr.id_onpage == 52391
     assert extr.escaped_title == 'the-garden-of-red-flowers'
     assert extr.get_cover() == "https://mangadex.org/images/manga/52391.png"
-    data2 = extr.get_metadata()
-    assert set(data2.keys()) == set(manual_mangadex2.keys())
+    data2 = extr.extract()
+    comp_dict_manga_extr_data(manual_mangadex2, data2)
 
-    for expected, actual in ((manual_mangadex, data), (manual_mangadex2, data2)):
-        for k, v in expected.items():
-            if k == 'tag':
-                assert sorted(actual[k]) == sorted(v)
-            else:
-                assert actual[k] == v
 
 def test_extr_mangadex_tag_retry(monkeypatch, caplog):
 
@@ -304,7 +308,7 @@ def test_extr_mangadex_tag_retry(monkeypatch, caplog):
 
     url = "https://mangadex.org/title/111/escaped-title-123"
     extr = MangaDexExtractor(url)
-    assert extr.get_metadata() is not None
+    assert extr.extract() is not None
     assert MangaDexExtractor._tag_map == tag_map
 
     caplog.set_level(logging.WARNING)
@@ -312,7 +316,7 @@ def test_extr_mangadex_tag_retry(monkeypatch, caplog):
 
     MangaDexExtractor._tag_map = None
     extr = MangaDexExtractor(url)
-    assert extr.get_metadata() is None
+    assert extr.extract() is None
     assert len(caplog.messages) == 1
     assert "Failed to get tag map from MangaDex" in caplog.messages[0]
 
@@ -333,5 +337,15 @@ def test_extr_mangadex_tag_retry_if_map_success(monkeypatch):
     for _ in range(6):
         url = "https://mangadex.org/title/111/escaped-title-123"
         extr = MangaDexExtractor(url)
-        assert extr.get_metadata() is not None
+        assert extr.extract() is not None
     assert MangaDexExtractor._tag_map_retries_left == 3
+
+
+def comp_dict_manga_extr_data(dic: Dict[str, Any], data: MangaExtractorData) -> None:
+    for attr in data.__dataclass_fields__.keys():
+        expected = dic[attr]
+        actual = getattr(data, attr)
+        if isinstance(actual, (list, tuple)):
+            assert sorted(expected) == sorted(actual)
+        else:
+            assert expected == actual

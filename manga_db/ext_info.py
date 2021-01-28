@@ -10,7 +10,9 @@ from .constants import CENSOR_IDS
 from .extractor import SUPPORTED_SITES, find_by_site_id
 
 if TYPE_CHECKING:
+    from .manga_db import MangaDB
     from .manga import Book
+    from .extractor.base import MangaExtractorData
 
 logger = logging.getLogger(__name__)
 
@@ -324,3 +326,20 @@ class ExternalInfo(DBRow):
         with mdb.db_con:
             mdb.db_con.execute("UPDATE ExternalInfo SET downloaded = ? WHERE id = ?",
                                (intbool, ext_info_id))
+
+    @classmethod
+    def from_manga_extr_data(cls, mdb: 'MangaDB', book: 'Book',
+                             data: 'MangaExtractorData') -> 'ExternalInfo':
+        return cls(
+            manga_db=mdb,
+            book=book,
+            url=data.url,
+            id_onpage=data.id_onpage,
+            imported_from=data.imported_from,
+            censor_id=data.censor_id,
+            upload_date=data.upload_date,
+            uploader=data.uploader,
+            rating=data.rating,
+            ratings=data.ratings,
+            favorites=data.favorites
+        )
