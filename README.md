@@ -5,11 +5,13 @@ Local database including a web front-end for managing mangas/doujinshi.
 The previews are taken from a desktop PC, but the site is responsive and can be used just as well on a mobile device!
 
 ### Main page
-![MangaDB webGUI main page](https://i.imgur.com/QXftvSW.png)
+![MangaDB webGUI main page](https://i.imgur.com/1swDFbE.png)
 
 
 ### Book page
-![MangaDB book page](https://i.imgur.com/Ly6CNSe.png)
+![MangaDB book page](https://i.imgur.com/FAlKwTY.png)
+
+See the bottom of the README for links to the arwork (before I butchered some of them).
 
 ## Installation
 Download the latest release  of your choice [here](https://github.com/nilfoer/mangadb/releases) (the standalone version is recommended for not so tech-savy people). For more advanced users that want to clone this repo: Keep in mind that third-party dependencies as well as the `.css` file that was generated from SASS are **not** checked into git!
@@ -133,3 +135,49 @@ remove URL/r(ecent)
 Use `p(rint)` with no argmuent to print the most recent book, `p URL` to print the book with that URL or `p all` to print all books.
 
 When your're finished use `import` to start importing books.
+
+## Sources
+
+Cover art main page (top to bottom, left to right) all from [Pixabay](https://pixabay.com/):
+
+- [Image](https://pixabay.com/illustrations/cartoon-painting-fantasy-creativity-5265167/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/people-girl-woman-face-portrait-2013447/)
+  by [Alexandra Haynak](https://pixabay.com/users/tsukiko-kiyomidzu-1850874/)
+- [Image](https://pixabay.com/illustrations/moe-cute-anime-3734213/)
+  by [Akane-K](https://pixabay.com/users/akane-k-8075952/)
+- [Image](https://pixabay.com/illustrations/illumination-imagination-creativity-5173540/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/fantasy-night-ladder-universe-4063619/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/dinosaur-katana-japan-ninja-5178645/)
+  by [Akiko Nagamatsu](https://pixabay.com/users/akikionagamatsu-16400508/)
+- [Image](https://pixabay.com/illustrations/couple-students-anime-love-5711220/)
+  by [Châu Nguyễn](https://pixabay.com/users/kittypinkart-4024560/)
+- [Image](https://pixabay.com/illustrations/cartoon-drawing-manga-comic-5190962/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/reading-girl-leisure-woman-5173530/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/moe-boy-healthy-anime-vtuber-3669744/)
+  by [Akane-K](https://pixabay.com/users/akane-k-8075952/)
+- [Image](https://pixabay.com/illustrations/turn-pen-manga-anime-digital-design-976930/)
+  by [Willian Yuki Fujii Memmo](https://pixabay.com/users/willianfujii-1276991/)
+- [Image](https://pixabay.com/illustrations/cartoon-painting-fantasy-5123446/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/cartoon-drawing-manga-comic-5190955/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/illustration-women-beauty-fantasy-4424064/)
+  by [Diana aka Loony\_Rabbit](https://pixabay.com/users/loony_rabbit-9685066/)
+- [Image](https://pixabay.com/illustrations/fantasy-lighting-man-one-man-show-4065924/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/hand-girl-light-surreal-cartoon-5879027/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+- [Image](https://pixabay.com/illustrations/moe-rice-eat-burger-breakfast-3336882/)
+  by [Akane-K](https://pixabay.com/users/akane-k-8075952/)
+- [Image](https://pixabay.com/illustrations/man-underwater-chopsticks-food-5879120/)
+  by [愚木混株 Cdd20](https://pixabay.com/users/cdd20-1193381/)
+
+Cover art book page:
+
+- [Image](https://pixabay.com/illustrations/dinosaur-katana-japan-ninja-5178645/)
+  by [Akiko Nagamatsu](https://pixabay.com/users/akikionagamatsu-16400508/) from [Pixabay](https://pixabay.com/)
