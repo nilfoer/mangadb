@@ -235,9 +235,9 @@ class NhentaiExtractor(BaseMangaExtractor):
 
     # mb move to baseclass? but mb not able to get id from url
     @classmethod
-    def book_id_from_url(cls, url: str) -> int:
+    def book_id_from_url(cls, url: str) -> str:
         try:
-            return int(cast(Match, re.search(cls.URL_PATTERN_RE, url)).group(1))
+            return cast(Match, re.search(cls.URL_PATTERN_RE, url)).group(1)
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

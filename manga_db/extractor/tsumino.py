@@ -28,7 +28,7 @@ class TsuminoExtractor(BaseMangaExtractor):
 
     def __init__(self, url: str):
         super().__init__(url.strip("-"))
-        self.id_onpage: int = TsuminoExtractor.book_id_from_url(url)
+        self.id_onpage: str = TsuminoExtractor.book_id_from_url(url)
         self.thumb_url: str = f"https://content.tsumino.com/thumbs/{self.id_onpage}/1"
         self.html: Optional[str] = None
         self.data: Optional[MangaExtractorData] = None
@@ -180,9 +180,9 @@ class TsuminoExtractor(BaseMangaExtractor):
 
     # mb move to baseclass? but mb not able to get id from url
     @classmethod
-    def book_id_from_url(cls, url: str) -> int:
+    def book_id_from_url(cls, url: str) -> str:
         try:
-            return int(cast(Match, re.search(cls.URL_PATTERN_RE, url)).group(1))
+            return cast(Match, re.search(cls.URL_PATTERN_RE, url)).group(1)
         except IndexError:
             logger.warning("No book id could be extracted from \"%s\"!", url)
             # reraise or continue and check if bookid returned in usage code?

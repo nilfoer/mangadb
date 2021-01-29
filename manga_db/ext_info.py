@@ -23,7 +23,7 @@ class ExternalInfo(DBRow):
 
     id = Column(int, primary_key=True)
     book_id = Column(int, nullable=False)
-    id_onpage = Column(int, nullable=False)
+    id_onpage = Column(str, nullable=False)
     imported_from = Column(int, nullable=False)
     upload_date = Column(datetime.date, nullable=False)
     uploader = Column(str)
@@ -182,7 +182,7 @@ class ExternalInfo(DBRow):
         outdated = c.fetchall()
         if outdated:
             logger.warning("External info(s) with (id_onpage, imported_from): "
-                           "(%d, %d) were already in DB which means it's/their "
+                           "(%s, %d) were already in DB which means it's/their "
                            "link(s) are outdated! Probably means a new version is "
                            "available!:\n%s", self.id_onpage, self.imported_from,
                            "\n".join((str(o[1]) for o in outdated)))

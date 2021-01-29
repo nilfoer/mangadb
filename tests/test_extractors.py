@@ -18,7 +18,7 @@ from utils import build_testsdir_furl, TESTS_DIR
 manual_tsumino = {
         "url": "https://www.tsumino.com/entry/43357",
         "pages": 23,
-        "id_onpage": 43357,
+        "id_onpage": '43357',
         "rating": 4.57,
         "ratings": 7,
         "favorites": 211,
@@ -69,10 +69,10 @@ def test_extr_tsu(monkeypatch, caplog):
 
 def test_extr_tsu_bookidfromurl():
     urls = {
-            "http://www.tsumino.com/entry/43357": 43357,
-            "http://www.tsumino.com/entry/1337": 1337,
-            "http://www.tsumino.com/Read/Index/43357": 43357,
-            "http://www.tsumino.com/Read/Index/1337": 1337,
+            "http://www.tsumino.com/entry/43357": '43357',
+            "http://www.tsumino.com/entry/1337": '1337',
+            "http://www.tsumino.com/Read/Index/43357": '43357',
+            "http://www.tsumino.com/Read/Index/1337": '1337',
             }
     for u, i in urls.items():
         assert TsuminoExtractor.book_id_from_url(u) == i
@@ -81,7 +81,7 @@ def test_extr_tsu_bookidfromurl():
 manual_nhentai = {
         "url": "https://nhentai.net/g/77052/",
         "pages": 26,
-        "id_onpage": 77052,
+        "id_onpage": '77052',
         "favorites": 6865,
         "upload_date": datetime.datetime.strptime("2014-06-29", "%Y-%m-%d").date(),
         "title_eng": "Zecchou Trans Poison",
@@ -151,20 +151,20 @@ def test_extr_nhent(monkeypatch, caplog):
 
 def test_extr_nhentai_bookid_from_url():
     urls = {
-            "https://nhentai.net/g/77052/": 77052,
-            "https://nhentai.net/g/97725/": 97725,
-            "https://nhentai.net/g/158268/": 158268
+            "https://nhentai.net/g/77052/": '77052',
+            "https://nhentai.net/g/97725/": '97725',
+            "https://nhentai.net/g/158268/": '158268'
             }
     for u, i in urls.items():
         assert NhentaiExtractor.book_id_from_url(u) == i
 
 
 @pytest.mark.parametrize('inp, expected', [
-    ('https://mangadex.org/title/358239/escaped-title-123', 358239),
-    ('https://www.mangadex.org/title/12464/escaped-title-123', 12464),
-    ('https://mangadex.cc/title/358239/escaped-title-123', 358239),
-    ('http://mangadex.org/title/358239/escaped-title-123', 358239),
-    ('https://mangadex.cc/title/358239', 358239),
+    ('https://mangadex.org/title/358239/escaped-title-123', '358239'),
+    ('https://www.mangadex.org/title/12464/escaped-title-123', '12464'),
+    ('https://mangadex.cc/title/358239/escaped-title-123', '358239'),
+    ('http://mangadex.org/title/358239/escaped-title-123', '358239'),
+    ('https://mangadex.cc/title/358239', '358239'),
     ])
 def test_extr_mangadex_bookid_from_url(inp, expected):
     assert MangaDexExtractor.book_id_from_url(inp) == expected
@@ -173,7 +173,7 @@ def test_extr_mangadex_bookid_from_url(inp, expected):
 manual_mangadex = {
         "url": "https://mangadex.org/title/111/escaped-title-123",
         "pages": 0,
-        "id_onpage": 111,
+        "id_onpage": '111',
         "rating": 8.53 / 2,
         "ratings": 128,  # 128 from api 131 on page??
         "favorites": 1752,
@@ -205,7 +205,7 @@ manual_mangadex = {
 manual_mangadex2 = {
         "url": "https://mangadex.org/title/52391/the-garden-of-red-flowers",
         "pages": 0,
-        "id_onpage": 52391,
+        "id_onpage": '52391',
         "rating": 7.89 / 2,
         "ratings": 293,  # 128 from api 131 on page??
         "favorites": 12588,
@@ -257,7 +257,7 @@ def test_extr_mangadex(monkeypatch):
 
     url = "https://mangadex.org/title/111/escaped-title-123"
     extr = MangaDexExtractor(url)
-    assert extr.id_onpage == 111
+    assert extr.id_onpage == '111'
     assert extr.escaped_title == 'escaped-title-123'
     assert extr.get_cover() == "https://mangadex.org/images/manga/111.jpg"
     data = extr.extract()
@@ -265,7 +265,7 @@ def test_extr_mangadex(monkeypatch):
 
     url = "https://mangadex.org/title/52391/the-garden-of-red-flowers"
     extr = MangaDexExtractor(url)
-    assert extr.id_onpage == 52391
+    assert extr.id_onpage == '52391'
     assert extr.escaped_title == 'the-garden-of-red-flowers'
     assert extr.get_cover() == "https://mangadex.org/images/manga/52391.png"
     data2 = extr.extract()

@@ -148,9 +148,9 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     assert ([b.id for b in list(mdb.get_books(
             {"url": "http://www.tsumino.com/entry/43506"}))]
             == [8])
-    assert ([b.id for b in list(mdb.get_books({"id_onpage": 43460, "imported_from": 1}))]
+    assert ([b.id for b in list(mdb.get_books({"id_onpage": '43460', "imported_from": 1}))]
             == [11])
-    assert ([b.id for b in list(mdb.get_books({"id_onpage": 43454, "imported_from": 1}))]
+    assert ([b.id for b in list(mdb.get_books({"id_onpage": '43454', "imported_from": 1}))]
             == [16, 10])
 
     # search_syntax_parser

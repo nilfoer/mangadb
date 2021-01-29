@@ -27,8 +27,6 @@ def new_get_cover(self):
     return "file:///" + fpath
 
 
-# run python -m pytest -m "not slow" to deselect slow tests
-@pytest.mark.slow
 def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     tmpdir = setup_mdb_dir
 
@@ -76,7 +74,7 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
     id_onpagestr_checksum = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                                      "chksms.json"))
     for row in rows:
-        if row["id_onpage"] in (94465, 249896):
+        if row["id_onpage"] in ('94465', '249896'):
             # for id 94465 nothing was added since the same ext info already exists
             # for id 249896 only the ext info was added
             # -> no cover written

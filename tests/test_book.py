@@ -410,7 +410,7 @@ def test_save_book(monkeypatch, setup_mdb_dir, caplog):
                 id=None,
                 book_id=None,
                 url="http://test1.com",
-                id_onpage=1111,
+                id_onpage='1111',
                 imported_from=1,
                 upload_date=datetime.date(2018, 4, 13),
                 uploader="Uploader",
@@ -453,7 +453,7 @@ def test_save_book(monkeypatch, setup_mdb_dir, caplog):
     ei1 = ExternalInfo(mdb, b1, **ei_data)
     ei2 = ExternalInfo(mdb, b1, **ei_data)
     # will outdate extinfo 8
-    ei2.id_onpage = 43506
+    ei2.id_onpage = '43506'
     b1.ext_infos = [ei1, ei2]
     assert b1._in_db is False
 
@@ -480,8 +480,8 @@ def test_save_book(monkeypatch, setup_mdb_dir, caplog):
     assert len(eis) == 2
     assert eis[0]["book_id"] == 18
     assert eis[1]["book_id"] == 18
-    assert eis[0]["id_onpage"] == 1111
-    assert eis[1]["id_onpage"] == 43506
+    assert eis[0]["id_onpage"] == '1111'
+    assert eis[1]["id_onpage"] == '43506'
 
     # add book with new lang
     b2 = Book(mdb, title_eng="Test2", favorite=1, pages=11, status_id=1, nsfw=0)

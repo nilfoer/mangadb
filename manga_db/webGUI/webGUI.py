@@ -515,7 +515,7 @@ def set_downloaded(book_id, ext_info_id, intbool):
 
 @main_bp.route("/outdated", methods=["GET"])
 def show_outdated_links():
-    id_onpage = request.args.get("id_onpage", None, type=int)
+    id_onpage = request.args.get("id_onpage", None, type=str)
     imported_from = request.args.get("imported_from", None, type=int)
     if id_onpage and imported_from:
         books = get_mdb().get_outdated(id_onpage, imported_from)

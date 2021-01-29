@@ -623,7 +623,7 @@ tsu_extr_data = {
                 'Futa on Female', 'Futanari', 'Gender Bender', 'Large Breasts', 'Nakadashi'],
         'censor_id': 2,
         'url': 'https://www.tsumino.com/entry/43460',
-        'id_onpage': 43460, 'language': 'English', 'status_id': 1, 'imported_from': 1,
+        'id_onpage': '43460', 'language': 'English', 'status_id': 1, 'imported_from': 1,
         'nsfw': 1, 'note': None,
         }
 
@@ -683,7 +683,7 @@ def test_import_book(app_setup, monkeypatch):
             'Blowjob;Big Ass;Happy Sex;Impregnation;Incest;Stockings;Huge Breasts;'
             'Tall Girl;BBW;Hotpants;Inseki;Onahole;Plump;Smug;Comedy;Imouto;Sex Toys'),
             'Kakuzatou', 'Doujinshi',
-            None, None, 'Kakuzato-ichi', None, None, 43492, 1, datetime.date(2018, 10, 13),
+            None, None, 'Kakuzato-ichi', None, None, '43492', 1, datetime.date(2018, 10, 13),
             'Scarlet Spy', 2, 4.49, 324, 3430, 0, datetime.date.today(), 0
             )
         # compare book
@@ -780,7 +780,7 @@ def test_add_book(app_setup):
     "Femdom", "Handjob", "Happy Sex", "Hotpants", "Huge Breasts", "Impregnation", "Incest",
     "Inseki", "Large Breasts", "Nakadashi", "Onahole", "Plump", "Smug", "Stockings",
     "Straight Shota", "Tall Girl"], "censor_id": 2, "url":
-    "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken", "id_onpage": 43492,
+    "http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken", "id_onpage": "43492",
     "language": "English", "status_id": 1, "imported_from": 1, "nsfw": 0}"""
     extr_data = json.loads(extr_json)
     tmpdir, app, client = app_setup
@@ -818,7 +818,7 @@ def test_add_book(app_setup):
                         'Doujinshi', "Char1;Char 2", "Testcol", 'Kakuzato-ichi', "to-read;test",
                         "Testpar1;Testpar2",
                         # 'http://www.tsumino.com/Book/Info/43492/mirai-tantei-nankin-jiken',
-                        43492, 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175,
+                        '43492', 1, datetime.date(2018, 10, 13), 'Scarlet Spy', 2, 4.46, 175,
                         1703, 0, datetime.date.today(), 0)
 
         db_con = sqlite3.connect(os.path.join(tmpdir, "manga_db.sqlite"),

@@ -59,14 +59,14 @@ class MangaDexExtractor(BaseMangaExtractor):
     _tag_map: ClassVar[Optional[Dict[int, Dict[str, Any]]]] = None
     _tag_map_retries_left: ClassVar[int] = 3
 
-    id_onpage: int
+    id_onpage: str
     escaped_title: Optional[str]
     api_reponse: Optional[Dict[str, Any]]
 
     def __init__(self, url: str):
         super().__init__(url)
         match = cast(Match, self.URL_PATTERN_RE.match(url))
-        self.id_onpage = int(match.group(1))
+        self.id_onpage = match.group(1)
         if len(match.groups()) > 1:
             self.escaped_title = match.group(2)
         else:
@@ -74,7 +74,7 @@ class MangaDexExtractor(BaseMangaExtractor):
         self.api_reponse = None
 
     @classmethod
-    def manga_url_from_id(cls, id: int, escaped_title: Optional[str] = None) -> str:
+    def manga_url_from_id(cls, id: str, escaped_title: Optional[str] = None) -> str:
         if escaped_title:
             return f"{cls.BASE_URL}/title/{id}/{escaped_title}"
         else:
@@ -183,8 +183,8 @@ class MangaDexExtractor(BaseMangaExtractor):
         return self.api_reponse['data']['mainCover']
 
     @classmethod
-    def book_id_from_url(cls, url: str) -> int:
-        return int(cast(Match, cls.URL_PATTERN_RE.match(url)).group(1))
+    def book_id_from_url(cls, url: str) -> str:
+        return cast(Match, cls.URL_PATTERN_RE.match(url)).group(1)
 
     @classmethod
     def url_from_ext_info(cls, ext_info: 'ExternalInfo') -> str:

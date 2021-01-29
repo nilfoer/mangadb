@@ -4,7 +4,7 @@ import logging
 import datetime
 
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional, Any, TYPE_CHECKING, Literal, List
+from typing import Dict, Tuple, Optional, Any, TYPE_CHECKING, Literal, List, ClassVar
 
 if TYPE_CHECKING:
     from ..ext_info import ExternalInfo
@@ -36,7 +36,7 @@ class MangaExtractorData:
 
     # ExternalInfo data
     url: str
-    id_onpage: int
+    id_onpage: str
     imported_from: int  # extractor's site_id
     censor_id: int  # from CENSOR_IDS
     upload_date: datetime.date
@@ -60,8 +60,8 @@ class BaseMangaExtractor:
     # these need to be re-defined by sub-classes!!
     # they are not allowed to changed after the extractor has been added
     # doing so would require a db migration
-    site_name: str = ""
-    site_id: int = 0
+    site_name: ClassVar[str] = ""
+    site_id: ClassVar[int] = 0
 
     def __init__(self, url: str):
         self.url = url
@@ -85,7 +85,7 @@ class BaseMangaExtractor:
         raise NotImplementedError
 
     @classmethod
-    def book_id_from_url(cls, url: str) -> int:
+    def book_id_from_url(cls, url: str) -> str:
         raise NotImplementedError
 
     @classmethod

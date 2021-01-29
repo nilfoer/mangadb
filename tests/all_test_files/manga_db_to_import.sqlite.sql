@@ -95,26 +95,26 @@ CREATE TABLE Collection(
                     name TEXT UNIQUE NOT NULL
                 );
 CREATE TABLE ExternalInfo(
-                        id INTEGER PRIMARY KEY ASC,
-                        book_id INTEGER NOT NULL,
-                        id_onpage INTEGER NOT NULL,
-                        imported_from INTEGER NOT NULL,
-                        upload_date DATE NOT NULL,
-                        uploader TEXT,
-                        censor_id INTEGER NOT NULL,
-                        rating REAL,
-                        ratings INTEGER, -- number of users that rated the book
-                        favorites INTEGER,
-                        downloaded INTEGER NOT NULL,
-                        last_update DATE NOT NULL,
-                        outdated INTEGER NOT NULL,
-                        FOREIGN KEY (book_id) REFERENCES Books(id)
-                           ON DELETE CASCADE,
-                        FOREIGN KEY (imported_from) REFERENCES Sites(id)
-                           ON DELETE RESTRICT,
-                        FOREIGN KEY (censor_id) REFERENCES Censorship(id)
-                           ON DELETE RESTRICT
-                    );
+        id INTEGER PRIMARY KEY ASC,
+        book_id INTEGER NOT NULL,
+        id_onpage TEXT NOT NULL,
+        imported_from INTEGER NOT NULL,
+        upload_date DATE NOT NULL,
+        uploader TEXT,
+        censor_id INTEGER NOT NULL,
+        rating REAL,
+        ratings INTEGER, -- number of users that rated the book
+        favorites INTEGER,
+        downloaded INTEGER NOT NULL,
+        last_update DATE NOT NULL,
+        outdated INTEGER NOT NULL,
+        FOREIGN KEY (book_id) REFERENCES Books(id)
+           ON DELETE CASCADE,
+        FOREIGN KEY (imported_from) REFERENCES Sites(id)
+           ON DELETE RESTRICT,
+        FOREIGN KEY (censor_id) REFERENCES Censorship(id)
+           ON DELETE RESTRICT
+    );
 CREATE TABLE Groups(
                     id INTEGER PRIMARY KEY ASC,
                     name TEXT UNIQUE NOT NULL
@@ -574,28 +574,28 @@ INSERT INTO "Collection" VALUES
 (1,'Dolls'),
 (2,'Takabisha Elf Kyousei Konin!!');
 INSERT INTO "ExternalInfo" VALUES
-(1,1,43559,1,'2018-10-20','gezio',2,3.85,34,353,0,'2018-10-24',0),
-(2,2,43551,1,'2018-10-20','MrOverlord12',3,4.67,55,709,0,'2018-10-24',0),
-(3,3,43542,1,'2018-10-20','gezio',2,3.84,63,713,0,'2018-10-24',0),
-(4,4,43528,1,'2018-10-18','Scarlet Spy',2,4.7,141,1180,0,'2018-10-24',0),
-(5,5,43572,1,'2018-10-17','Scarlet Spy',2,4.23,101,1020,0,'2018-10-24',0),
-(6,6,43516,1,'2018-10-17','Scarlet Spy',2,4.52,56,946,0,'2018-10-24',0),
-(7,7,43538,1,'2018-10-18','MrOverlord12',2,3.8,69,694,0,'2018-10-24',0),
-(8,8,43506,1,'2018-10-17','Scarlet Spy',2,4.23,92,1014,0,'2018-10-24',0),
-(9,9,43455,1,'2018-10-11','DiceOL',2,4.69,237,2021,0,'2018-10-24',0),
-(10,10,43454,1,'2018-10-11','DiceOL',2,4.15,84,823,0,'2018-10-24',0),
-(11,11,43460,1,'2018-10-13','MrOverlord12',2,4.13,39,420,0,'2018-10-24',0),
-(12,12,43445,1,'2018-10-11','Scarlet Spy',2,3.86,86,928,0,'2018-10-24',0),
-(13,13,43432,1,'2018-10-11','gezio',2,3.76,34,532,0,'2018-10-24',0),
-(14,14,43431,1,'2018-10-11','gezio',2,3.79,85,997,0,'2018-10-24',0),
-(15,15,43419,1,'2018-10-10','gezio',2,4.33,106,1119,0,'2018-10-24',0),
-(16,16,43453,1,'2018-10-11','DiceOL',2,4.49,81,930,0,'2018-10-24',0),
-(17,17,43418,1,'2018-10-10','gezio',2,4.64,141,1857,0,'2018-10-24',0),
-(18,16,43454,1,'2018-10-11','DiceOL',2,4.49,81,930,0,'2018-10-24',0),
-(19,18,43493,1,'2018-10-14','Scarlet Spy',2,4.51,84,1137,0,'2018-10-24',0),
-(20,19,43514,1,'2018-10-17','Scarlet Spy',2,4.53,34,334,0,'2018-10-24',0),
-(21,20,43494,1,'2018-10-14','gezio',3,4.35,148,1710,0,'2018-10-24',0),
-(22,21,43492,1,'2018-10-13','Scarlet Spy',2,4.46,175,1703,0,'2018-10-24',0);
+(1,1,'43559',1,'2018-10-20','gezio',2,3.85,34,353,0,'2018-10-24',0),
+(2,2,'43551',1,'2018-10-20','MrOverlord12',3,4.67,55,709,0,'2018-10-24',0),
+(3,3,'43542',1,'2018-10-20','gezio',2,3.84,63,713,0,'2018-10-24',0),
+(4,4,'43528',1,'2018-10-18','Scarlet Spy',2,4.7,141,1180,0,'2018-10-24',0),
+(5,5,'43572',1,'2018-10-17','Scarlet Spy',2,4.23,101,1020,0,'2018-10-24',0),
+(6,6,'43516',1,'2018-10-17','Scarlet Spy',2,4.52,56,946,0,'2018-10-24',0),
+(7,7,'43538',1,'2018-10-18','MrOverlord12',2,3.8,69,694,0,'2018-10-24',0),
+(8,8,'43506',1,'2018-10-17','Scarlet Spy',2,4.23,92,1014,0,'2018-10-24',0),
+(9,9,'43455',1,'2018-10-11','DiceOL',2,4.69,237,2021,0,'2018-10-24',0),
+(10,10,'43454',1,'2018-10-11','DiceOL',2,4.15,84,823,0,'2018-10-24',0),
+(11,11,'43460',1,'2018-10-13','MrOverlord12',2,4.13,39,420,0,'2018-10-24',0),
+(12,12,'43445',1,'2018-10-11','Scarlet Spy',2,3.86,86,928,0,'2018-10-24',0),
+(13,13,'43432',1,'2018-10-11','gezio',2,3.76,34,532,0,'2018-10-24',0),
+(14,14,'43431',1,'2018-10-11','gezio',2,3.79,85,997,0,'2018-10-24',0),
+(15,15,'43419',1,'2018-10-10','gezio',2,4.33,106,1119,0,'2018-10-24',0),
+(16,16,'43453',1,'2018-10-11','DiceOL',2,4.49,81,930,0,'2018-10-24',0),
+(17,17,'43418',1,'2018-10-10','gezio',2,4.64,141,1857,0,'2018-10-24',0),
+(18,16,'43454',1,'2018-10-11','DiceOL',2,4.49,81,930,0,'2018-10-24',0),
+(19,18,'43493',1,'2018-10-14','Scarlet Spy',2,4.51,84,1137,0,'2018-10-24',0),
+(20,19,'43514',1,'2018-10-17','Scarlet Spy',2,4.53,34,334,0,'2018-10-24',0),
+(21,20,'43494',1,'2018-10-14','gezio',3,4.35,148,1710,0,'2018-10-24',0),
+(22,21,'43492',1,'2018-10-13','Scarlet Spy',2,4.46,175,1703,0,'2018-10-24',0);
 INSERT INTO "Groups" VALUES
 (1,'Kaiki Nisshoku'),
 (2,'IRON GRIMOIRE'),
@@ -648,7 +648,7 @@ INSERT INTO "Languages" VALUES
 INSERT INTO "List" VALUES
 (1,'to-read');
 INSERT INTO "MDB_Version" VALUES
-(2,0);
+(3,0);
 INSERT INTO "Parody" VALUES
 (1,'Girls und Panzer / ガールズ&パンツァー'),
 (2,'Monster Hunter World / モンスターハンター：ワールド'),
@@ -792,10 +792,7 @@ CREATE UNIQUE INDEX "idx_collection_name" ON "Collection" (
 CREATE UNIQUE INDEX "idx_groups_name" ON "Groups" (
 	"name"
 );
-CREATE INDEX "idx_id_onpage_imported_from" ON "ExternalInfo" (
-	"id_onpage",
-	"imported_from"
-);
+CREATE INDEX idx_id_onpage_imported_from ON ExternalInfo (id_onpage, imported_from);
 CREATE UNIQUE INDEX "idx_list_name" ON "List" (
 	"name"
 );

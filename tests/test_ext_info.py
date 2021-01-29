@@ -84,7 +84,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     b13 = DummyBook(13, "Venus Nights")
     data = dict(
             book_id=None,  # url="http://tsumino.com/Book/Info/112233/test-url",
-            id_onpage=112233, imported_from=1, upload_date=datetime.date(2018, 1, 5),
+            id_onpage='112233', imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=None, last_update=datetime.date(2018, 5, 9), outdated=None
             )
@@ -110,7 +110,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
                         "看護婦さんにキンタマ搾精されました")
     data = dict(
             book_id=15,   # url="http://tsumino.com/Book/Info/112233/test-url",
-            id_onpage=112233, imported_from=1, upload_date=datetime.date(2018, 1, 5),
+            id_onpage='112233', imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=1
             )
@@ -139,7 +139,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     b13 = DummyBook(None, "Venus Nights")
     data = dict(
             book_id=13,   # url="http://tsumino.com/Book/Info/112233/test-url",
-            id_onpage=43460, imported_from=1, upload_date=datetime.date(2018, 1, 5),
+            id_onpage='43460', imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=200, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=1
             )
@@ -161,7 +161,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     # ei.id, ei.url
     # 11 http://www.tsumino.com/Book/Info/43460/sono-shiroki-utsuwa-ni-odei-o-sosogu
     assert outdated[0][0] == 11
-    assert outdated[0][1] == 43460
+    assert outdated[0][1] == '43460'
     # assert outdated[0][1] == ("http://www.tsumino.com/Book/Info/43460/sono-shiroki-"
     #                           "utsuwa-ni-odei-o-sosogu")
     ei_row = get_ei_row(mdb, ei_id)
@@ -174,7 +174,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
                         "エロすぎる会社日常にセックスが溶け込んだ世界")
     data = dict(
             book_id=20,   # url="http://tsumino.com/Book/Info/9999/test-url",
-            id_onpage=9999, imported_from=1, upload_date=datetime.date(2018, 1, 5),
+            id_onpage='9999', imported_from=1, upload_date=datetime.date(2018, 1, 5),
             uploader="Testuploader", censor_id=1, rating=3.85, ratings=105,
             favorites=175, downloaded=1, last_update=datetime.date(2018, 5, 9), outdated=0
             )

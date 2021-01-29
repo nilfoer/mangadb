@@ -625,7 +625,7 @@ class MangaDB:
             CREATE TABLE ExternalInfo(
                     id INTEGER PRIMARY KEY ASC,
                     book_id INTEGER NOT NULL,
-                    id_onpage INTEGER NOT NULL,
+                    id_onpage TEXT NOT NULL,
                     imported_from INTEGER NOT NULL,
                     upload_date DATE NOT NULL,
                     uploader TEXT,
