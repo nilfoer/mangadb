@@ -586,6 +586,149 @@ def test_db_migration(setup_tmpdir, monkeypatch, caplog):
     migrated_db_bu.close()
 
 
+@pytest.fixture
+def setup_migrations(setup_tmpdir, monkeypatch):
+    tmpdir = setup_tmpdir
+    test_files = os.path.join(TESTS_DIR, 'db_schemas_test_files')
+
+    migrations_dirname = 'migrations'
+    tmp_migrations = os.path.join(tmpdir, migrations_dirname)
+    # so importlib finds our 'package'
+    sys.path.insert(0, tmpdir)
+    monkeypatch.setattr("manga_db.db.migrate.MODULE_DIR", tmpdir)
+    monkeypatch.setattr("manga_db.db.migrate.MIGRATIONS_PATH", tmp_migrations)
+    monkeypatch.setattr("manga_db.db.migrate.LATEST_VERSION", -1)
+
+    tmp_db_fn = os.path.join(tmpdir, 'test.sqlite')
+    db = load_db_from_sql_file(os.path.join(test_files, 'manga_db.sqlite.sql'),
+                               tmp_db_fn)
+    db.close()
+
+    unpatched_load_module = migrate.Migration.load_module
+
+    # NOTE: IMPORTANT remember to change this mock if unpatched version changes
+    def patched_load_module(self):
+        self.module = importlib.import_module(
+                f"{migrations_dirname}.{self.filename.rsplit('.', 1)[0]}")
+        self.loaded = True
+        self.date = self.module.date
+        self.requires_foreign_keys_off = self.module.requires_foreign_keys_off
+        self.upgrade = self.module.upgrade
+
+    monkeypatch.setattr("manga_db.db.migrate.Migration.load_module", patched_load_module)
+
+    os.makedirs(tmp_migrations)
+
+    return tmpdir, test_files, tmp_db_fn, tmp_migrations, unpatched_load_module
+
+
+def test_db_migration_rollback_notices_dirty(setup_migrations, monkeypatch, caplog):
+    tmpdir, test_files, tmp_db_fn, tmp_migrations, unpatched_load_module = setup_migrations
+
+    monkeypatch.setattr("manga_db.db.migrate.LATEST_VERSION", 0)
+    migration_0_fn = '0000_commits.py'
+    with open(os.path.join(tmp_migrations, migration_0_fn), "w") as f:
+        f.write("""
+date = '2021-01-29'
+requires_foreign_keys_off = False
+
+def upgrade(db_con, db_filename):
+    # accidental use of executescript that auto-commits
+    db_con.executescript(
+        "DROP TABLE ExternalInfo;"
+        "CREATE TABLE foobar(id INT PRIMARY KEY ASC, name TEXT);"
+        "INSERT INTO foobar VALUES (1, 'test'), (2, 'baz');")
+    # then exception happens
+    raise Exception("should remain dirty")
+""")
+
+    m = migrate.Database(tmp_db_fn)
+    m._create_version_table()
+    m.transaction_in_progress = True
+    m._commit()
+    assert m.is_versionized is True
+    assert m.transaction_in_progress is False
+
+    assert m.is_dirty is False
+    assert m.version == -1
+
+    with pytest.raises(Exception, match=r'should remain dirty'):
+        m.upgrade_to_latest()
+
+    # rollback recognizes that migration script commited and doesn't reset dirty etc.
+    assert m.is_dirty is True
+    assert m.transaction_in_progress is True
+    assert m.version == -1
+
+
+def test_db_migration_foreign_keys(setup_migrations, monkeypatch, caplog):
+    tmpdir, test_files, tmp_db_fn, tmp_migrations, unpatched_load_module = setup_migrations
+
+    monkeypatch.setattr("manga_db.db.migrate.LATEST_VERSION", 0)
+    migration_0_fn = '0000_foreign_keys.py'
+    # use copyfile instead of copy so we don't run into permission errors
+    # on linux, since copy tries to copy those
+    with open(os.path.join(tmp_migrations, migration_0_fn), "w") as f:
+        f.write("""
+date = '2021-01-29'
+requires_foreign_keys_off = False
+
+def upgrade(db_con, db_filename):
+    # need foreign_keys to be off
+    db_con.execute("DELETE FROM Sites")
+""")
+
+    m = migrate.Database(tmp_db_fn)
+    m._create_version_table()
+    m.transaction_in_progress = True
+    m._commit()
+    assert m.is_versionized is True
+    assert m.transaction_in_progress is False
+
+    assert m.is_versionized is True
+    assert m.is_dirty is False
+    assert m.version == -1
+
+    with pytest.raises(sqlite3.IntegrityError, match=r'FOREIGN KEY constraint failed'):
+        m.upgrade_to_latest()
+
+    assert m.is_dirty is False
+    assert m.transaction_in_progress is False
+    assert m.version == -1
+    del m
+
+    #
+    # script asks for fk off
+    #
+    m = migrate.Database(tmp_db_fn)
+    assert m.is_versionized is True
+    assert m.is_dirty is False
+
+    # NOTE: new file so we dont get rolled by the cache
+    migration_0_fn = '0000_foreign_keys_off.py'
+    with open(os.path.join(tmp_migrations, migration_0_fn), "w") as f:
+        f.write("""
+date = '2021-01-29'
+requires_foreign_keys_off = True
+
+def upgrade(db_con, db_filename):
+    # check that fks are off here @Hack but this works without mocking
+    assert db_con.execute("PRAGMA foreign_keys").fetchone()[0] == 0
+
+    # need foreign_keys to be off
+    db_con.execute("DELETE FROM Sites")
+""")
+
+    m.upgrade_to_latest()
+
+    # turned fks on again
+    assert m.db_con.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+    other_con = load_db(tmp_db_fn)
+    sites = other_con.execute("SELECT * FROM Sites").fetchall()
+    assert not sites
+
+
 def test_gather_migrations(setup_tmpdir, monkeypatch):
     tmpdir = setup_tmpdir
 

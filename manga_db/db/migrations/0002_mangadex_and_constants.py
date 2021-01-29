@@ -3,6 +3,7 @@ from ...extractor import SUPPORTED_SITES
 from ...constants import STATUS_IDS, LANG_IDS
 
 date = '2021-01-24'
+requires_foreign_keys_off = False
 
 
 def upgrade(db_con, db_filename):

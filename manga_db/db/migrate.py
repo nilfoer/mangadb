@@ -21,7 +21,9 @@ MIGRATIONS_PATH = os.path.join(MODULE_DIR, MIGRATIONS_DIRNAME)
 # a migration file only needs 2 things:
 # a module-level variable 'date' with an iso8601 date string
 # and an upgrade function that takes the db connection as its only parameter
-# NOTE: IMPORANT migration scripts should never commit themselves!
+# NOTE: IMPORANT migration scripts should __never__ commit themselves!
+# but the script will detect if changes were commited if an exception is raised
+# and will not reset the dirty flag
 
 # NOTE: if you change these you will have to also change the rest of the code
 VERSION_TABLE_SQL = f"""
@@ -62,6 +64,11 @@ class Database:
     def __init__(self, filename):
         self.filename = filename
         self.db_con = sqlite3.connect(filename)
+        # make sure foreign_keys are activated (PRAGMA statements unless explicitly
+        # stated otherwise only have an influence on the current connection and are
+        # not saved)
+        self.db_con.execute("PRAGMA foreign_keys=on")
+
         self.is_versionized = self._is_versionized()
         # NOTE: no prev version = -1
         self.version, self.is_dirty = self.get_version()
@@ -120,8 +127,13 @@ class Database:
     def _rollback(self):
         if self.transaction_in_progress:
             self.db_con.rollback()
-            self.transaction_in_progress = False
-            self.is_dirty = False
+
+            _, dirty = self.get_version()
+            # NOTE: migration script commited explictily or used a statement that
+            # auto-commited like PRAGMA... => we're still dirty
+            if dirty == 0 or dirty is None:
+                self.transaction_in_progress = False
+                self.is_dirty = False
         else:
             raise DatabaseError("No transaction in progress")
 
@@ -150,6 +162,10 @@ class Database:
         else:
             migration.load_module()
 
+            # script tells us that it can't upgrad without disabled fk constraints
+            if migration.requires_foreign_keys_off:
+                self.db_con.execute("PRAGMA foreign_keys=off")
+
             self._begin_transaction()
             self.is_dirty = True
             c = self.db_con.execute(UPDATE_VERSION_SQL,
@@ -169,6 +185,10 @@ class Database:
                                date=migration.date, dirty=0))
                 self._commit()
                 self.version = version
+
+                if migration.requires_foreign_keys_off:
+                    self.db_con.execute("PRAGMA foreign_keys=on")
+
                 return True
 
     def upgrade_to_latest(self):
@@ -241,6 +261,15 @@ class Migration:
         self.loaded = False
         self.date = None
         self.upgrade = None
+        # PRAGMA foreign_keys: This pragma is a no-op within a transaction;
+        # foreign key constraint enforcement may only be enabled or disabled
+        # when there is no pending BEGIN or SAVEPOINT
+        # => so the scripts needs to tell us to disable the fk constraints
+        # so we can do that before a start the transaction
+        # otherwise the migration script would have to end the transaction
+        # change foreign_keys
+        # @Improvement mb let the script use a pre- and post function?
+        self.requires_foreign_keys_off = False
 
     def load_module(self):
         if not self.loaded:
@@ -253,6 +282,7 @@ class Migration:
 
             self.loaded = True
             self.date = self.module.date
+            self.requires_foreign_keys_off = self.module.requires_foreign_keys_off
             self.upgrade = self.module.upgrade
 
 

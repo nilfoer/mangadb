@@ -513,6 +513,15 @@ class MangaDB:
         # after row factory change otherwise cursor will still use tuples!
         c = conn.cursor()
 
+        # make sure foreign key support is activated
+        # NOTE: even though i was setting PRAGMA foreign_keys=on in the db creation
+        # script it still had the foreign_keys turned off somehow
+        # => PRAGMAs are never saved. With the exception of those with the
+        # explicit purpose of setting a file's metadata, they always just have
+        # an effect on the current connection
+        # => so this also does not need to be commited
+        c.execute("PRAGMA foreign_keys=on")
+
         return conn, c
 
     @staticmethod

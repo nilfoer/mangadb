@@ -1,6 +1,7 @@
 import os
 
 date = '2020-12-23'
+requires_foreign_keys_off = False
 
 
 def upgrade(db_con, db_filename):
