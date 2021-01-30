@@ -36,6 +36,7 @@ class MangaExtractorData:
 
     # ExternalInfo data
     url: str
+    # if there are mutliple parts, separate them with '##'
     id_onpage: str
     imported_from: int  # extractor's site_id
     censor_id: int  # from CENSOR_IDS

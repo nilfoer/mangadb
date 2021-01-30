@@ -41,10 +41,14 @@ SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         1: "tsumino.com",
         2: "nhentai.net",
         3: "MangaDex",
+        4: "Manganelo",
+        5: "Toonily",
         # site name, id
         "tsumino.com": 1,
         "nhentai.net": 2,
         "MangaDex": 3,
+        "Manganelo": 4,
+        "Toonily": 5,
 }
 
 
