@@ -1,16 +1,107 @@
 import sqlite3
-from ...extractor import SUPPORTED_SITES
-from ...constants import STATUS_IDS, LANG_IDS
+
+from typing import Dict, Union
 
 date = '2021-01-24'
-requires_foreign_keys_off = False
+# so we can del rows with foreign key constraints and re-insert them
+requires_foreign_keys_off = True
 
 
-def upgrade(db_con, db_filename):
+# NOTE: should not import data structures here since they will get updated
+# which could break the migration script
+SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
+        # site id, site name
+        1: "tsumino.com",
+        2: "nhentai.net",
+        3: "MangaDex",
+        # site name, id
+        "tsumino.com": 1,
+        "nhentai.net": 2,
+        "MangaDex": 3,
+}
+
+STATUS_IDS: Dict[Union[str, int], Union[str, int]] = {
+    "Unknown": 1, "Ongoing": 2, "Completed": 3, "Unreleased": 4, "Hiatus": 5, "Cancelled": 6,
+    1: "Unknown", 2: "Ongoing", 3: "Completed", 4: "Unreleased", 5: "Hiatus", 6: "Cancelled"
+}
+
+LANG_IDS: Dict[Union[str, int], Union[str, int]] = {
+     1: "English",
+     2: "Japanese",
+     3: "Chinese",
+     4: "Korean",
+     5: "Arabic",
+     6: "Bengali",
+     7: "Bulgarian",
+     8: "Burmese",
+     9: "Catalan",
+    10: "Czech",
+    11: "Danish",
+    12: "Dutch",
+    13: "Filipino",
+    14: "Finnish",
+    15: "French",
+    16: "German",
+    17: "Greek",
+    18: "Hungarian",
+    19: "Indonesian",
+    20: "Italian",
+    21: "Lithuanian",
+    22: "Malay",
+    23: "Mongolian",
+    24: "Persian",
+    25: "Polish",
+    26: "Portuguese",
+    27: "Romanian",
+    28: "Russian",
+    29: "Serbo-Croatian",
+    30: "Spanish",
+    31: "Swedish",
+    32: "Thai",
+    33: "Turkish",
+    34: "Ukrainian",
+    35: "Vietnamese",
+
+    "English": 1,
+    "Japanese": 2,
+    "Chinese": 3,
+    "Korean": 4,
+    "Arabic": 5,
+    "Bengali": 6,
+    "Bulgarian": 7,
+    "Burmese": 8,
+    "Catalan": 9,
+    "Czech": 10,
+    "Danish": 11,
+    "Dutch": 12,
+    "Filipino": 13,
+    "Finnish": 14,
+    "French": 15,
+    "German": 16,
+    "Greek": 17,
+    "Hungarian": 18,
+    "Indonesian": 19,
+    "Italian": 20,
+    "Lithuanian": 21,
+    "Malay": 22,
+    "Mongolian": 23,
+    "Persian": 24,
+    "Polish": 25,
+    "Portuguese": 26,
+    "Romanian": 27,
+    "Russian": 28,
+    "Serbo-Croatian": 29,
+    "Spanish": 30,
+    "Swedish": 31,
+    "Thai": 32,
+    "Turkish": 33,
+    "Ukrainian": 34,
+    "Vietnamese": 35,
+}
+
+
+def upgrade(db_con: sqlite3.Connection, db_filename: str):
     c = db_con.cursor()
-
-    # so we can del rows with foreign key constraints and re-insert them
-    c.execute("PRAGMA foreign_keys = OFF")
 
     #
     # add nsfw column to Books
@@ -34,33 +125,27 @@ def upgrade(db_con, db_filename):
     # add new default languages
     #
     id_lang = [(i, v) for i, v in LANG_IDS.items() if type(i) is int]
-    default_langs = {name for name in LANG_IDS if type(name) is str}
-    # re-insert languages that were added by the user beyond our reserved languages
-    # and update the respective foreign keys in the Books table
-    lang_db = c.execute("SELECT * FROM Languages").fetchall()
-    if len(lang_db) > 1:
-        max_lang_id = max(id_lang, key=lambda x: x[0])[0]
-        new_id_start = max_lang_id + 1
-        for i, row in enumerate(lang_db[1:]):
-            # account for custom language being in default_langs
-            if row[1] in default_langs:
-                new_id = LANG_IDS[row[1]]
-            else:
-                new_id = new_id_start + i
-                # del old otherwise we violate unique constraint
-                c.execute("DELETE FROM Languages WHERE id = ?", (row[0],))
-                c.execute("INSERT INTO Languages(id, name) VALUES (?, ?)", (new_id, row[1]))
+    book_id_lang_name = c.execute("""
+    SELECT Books.id, Languages.name FROM Books
+    JOIN Languages ON Languages.id = Books.language_id""").fetchall()
 
-            # update foreign keys in Books table
-            c.execute("UPDATE Books SET language_id = ? WHERE language_id = ?", (new_id, row[0]))
+    c.execute("DELETE FROM Languages")
+    c.executemany("INSERT INTO Languages(id, name) VALUES (?, ?)", id_lang)
+    lang_map = {k: v for k, v in LANG_IDS.items() if type(k) is str}
+    # update language_id based on name one by one, since updating them in bulk
+    # gets too complicated for a simple migration
+    for book_id, lang_name in book_id_lang_name:
+        # check for custom lang
+        if lang_name not in lang_map:
+            c.execute("INSERT INTO Languages(name) VALUES (?)", (lang_name,))
+            lang_map[lang_name] = c.lastrowid
 
-        # delete all language entries but the previous default (1, 'English')
-        # and re-inserted user langs
-        c.execute("DELETE FROM Languages WHERE id > 1 AND id <= 35")
+        lang_id = lang_map[lang_name]
+        c.execute("UPDATE Books SET language_id = ? WHERE id = ?", (lang_id, book_id))
 
-    # skip 'English'
-    c.executemany("INSERT INTO Languages(id, name) VALUES (?, ?)", id_lang[1:])
-    assert c.execute("SELECT * FROM Languages WHERE id <= 35").fetchall() == id_lang
+
+    assert c.execute(
+            "SELECT * FROM Languages WHERE id <= ?", (len(id_lang),)).fetchall() == id_lang
 
     #
     # add mangadex
@@ -72,5 +157,3 @@ def upgrade(db_con, db_filename):
     start = len(prev_sites)
     c.executemany("INSERT INTO Sites(id, name) VALUES (?, ?)", site_id_name[start:])
     assert c.execute("SELECT * FROM Sites").fetchall() == site_id_name
-
-    c.execute("PRAGMA foreign_keys = ON")

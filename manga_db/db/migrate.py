@@ -25,6 +25,9 @@ MIGRATIONS_PATH = os.path.join(MODULE_DIR, MIGRATIONS_DIRNAME)
 # but the script will detect if changes were commited if an exception is raised
 # and will not reset the dirty flag
 
+# NOTE: IMPORTANT migrations scripts should not import data structures since those
+# will get updated which could break the migration script
+
 # NOTE: if you change these you will have to also change the rest of the code
 VERSION_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS {VERSION_TABLE} (
