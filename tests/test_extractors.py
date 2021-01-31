@@ -4,12 +4,14 @@ import json
 import pytest
 import os.path
 
-from typing import Dict, Any
+from typing import Dict, Any, Set
 
 from manga_db.extractor.base import BaseMangaExtractor, MangaExtractorData
 from manga_db.extractor.tsumino import TsuminoExtractor
 from manga_db.extractor.nhentai import NhentaiExtractor
 from manga_db.extractor.mangadex import MangaDexExtractor
+from manga_db.extractor.manganelo import ManganeloExtractor
+from manga_db.extractor.toonily import ToonilyExtractor
 from manga_db.constants import CENSOR_IDS, STATUS_IDS
 
 from utils import build_testsdir_furl, TESTS_DIR
@@ -260,6 +262,8 @@ def test_extr_mangadex(monkeypatch):
     assert extr.id_onpage == '111'
     assert extr.escaped_title == 'escaped-title-123'
     assert extr.get_cover() == "https://mangadex.org/images/manga/111.jpg"
+    # make sure get_cover calls extract and sets api_response
+    assert extr.api_response is not None
     data = extr.extract()
     comp_dict_manga_extr_data(manual_mangadex, data)
 
@@ -341,11 +345,226 @@ def test_extr_mangadex_tag_retry_if_map_success(monkeypatch):
     assert MangaDexExtractor._tag_map_retries_left == 3
 
 
-def comp_dict_manga_extr_data(dic: Dict[str, Any], data: MangaExtractorData) -> None:
+def comp_dict_manga_extr_data(dic: Dict[str, Any], data: MangaExtractorData,
+                              ignore_attrs: Set[str] = []) -> None:
     for attr in data.__dataclass_fields__.keys():
+        if attr in ignore_attrs:
+            continue
         expected = dic[attr]
         actual = getattr(data, attr)
         if isinstance(actual, (list, tuple)):
             assert sorted(expected) == sorted(actual)
         else:
             assert expected == actual
+
+
+@pytest.mark.parametrize('inp, expected', [
+    ('https://chap.manganelo.com/manga-hc121796', 'hc121796'),
+    ('https://m.manganelo.com/manga-hc121796', 'hc121796'),
+    ('https://chap.manganelo.com/manga-gb120921/chapter-22', 'gb120921'),
+    ('https://chap.manganelo.com/manga-cy116918/chapter-46', 'cy116918'),
+    ])
+def test_extr_manganelo_bookid_from_url(inp, expected):
+    assert ManganeloExtractor.book_id_from_url(inp) == expected
+
+
+# on chap. subdomain == no rating
+manual_manganelo_chap = {
+        "url": "https://chap.manganelo.com/manga-hc121796",
+        "pages": 0,
+        "id_onpage": 'hc121796',
+        "rating": None,
+        "ratings": None,
+        "favorites": None,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "Sword Sheath's Child",
+        "title_foreign": "칼집의 아이",
+        "tag": ['Action'],
+        "censor_id": CENSOR_IDS['Unknown'],
+        "language": "Unknown",
+        "status_id": STATUS_IDS['Ongoing'],
+        "imported_from": ManganeloExtractor.site_id,
+        "category": ["Webtoon"],
+        "groups": [],
+        "artist": ["Hyung Min Kim"],
+        "parody": [],
+        "character": [],
+        'note': ("\nDescription :\nBira is a kid who loves fishing, living and wandering in the wilderness with his dwarf grandfather. One day, his grandfather tells Bira to wait for him at the Northern part of the forest and disappears. Bira waits for many years living in forest while befriending a family of bears and staying away from humans, just as his grandfather had warned him to do. By chance, he meets and saves Tanyu’s life and later becomes friends with him. Upon hearing his friend going on a dangerous mission, Bira leaves the forest for the world outside to save his Tanyu.\n"),
+        'nsfw': 0,
+        'collection': [],
+}
+
+# on m. subdomain == rating
+manual_manganelo_m = {
+        # always use chap subdomain!
+        "url": "https://chap.manganelo.com/manga-gh120927",
+        "pages": 0,
+        "id_onpage": 'gh120927',
+        "rating": 4.78,
+        "ratings": 1328,
+        "favorites": None,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "Let's Buy The Land And Cultivate In Different World",
+        "title_foreign": ("Isekai de Tochi o Katte Noujou o Tsukurou,"
+                          "Isekai de Tochi wo Katte Noujou wo Tsukurou,"
+                          "異世界で土地を買って農場を作ろう,"
+                          "이세계에서 토지를 사서 농장을 만들자"),
+        "tag": ['Action', 'Adventure',  'Comedy', 'Ecchi', 'Fantasy', 'Romance', 'Shounen'],
+        "censor_id": CENSOR_IDS['Unknown'],
+        "language": "Unknown",
+        "status_id": STATUS_IDS['Ongoing'],
+        "imported_from": ManganeloExtractor.site_id,
+        "category": ["Manga"],
+        "groups": [],
+        "artist": ["Jun Sasameyuki", "Murakami Yuichi", "Rokujuuyon Okazawa"],
+        "parody": [],
+        "character": [],
+        'note': ("\nDescription :\nAs our humble corporatist Itonami Norio is suddenly summoned to another world, it would look as if he'll be sent to a battlefield-- he, however, holds no skill to speak of, and as he is deemed to be useless. He negotiates with The King and receives a plot of land -- an empty, deserted plot of land, with no inhabitant in sight. Norio holds something he couldn't bring himself to tell anyone: The Master of Supremacy, a gift which will grant him the most comfortable of lives in this world. Hereby begins the Norio's colorful story -- having a mermaid he fishes declare herself his wife, becoming neighbors with the Undead King, this is his busy but enjoyable life -- and now a dragon appears ?! "),
+        'nsfw': 1,
+        'collection': [],
+}
+
+
+def abs_delta(a, b):
+    return abs(a - b)
+
+
+def test_extr_manganelo():
+    expected = manual_manganelo_chap
+    extr = ManganeloExtractor(expected['url'])
+    assert extr.id_onpage == 'hc121796'
+    # make sure get_cover calls extract and sets export_data
+    assert extr.get_cover() == "https://avt.mkklcdnv6.com/31/r/20-1583502246.jpg"
+    assert extr.export_data is not None
+    data = extr.extract()
+    assert extr.export_data == data
+    comp_dict_manga_extr_data(expected, data)
+
+    # NOTE: we alywas use chap subdomain even if we get an url from m.
+    url = 'https://m.manganelo.com/manga-gh120927'
+    expected = manual_manganelo_m
+    extr = ManganeloExtractor(url)
+    assert extr.id_onpage == 'gh120927'
+    # make sure get_cover calls extract and sets export_data
+    assert extr.get_cover() == "https://avt.mkklcdnv6.com/49/b/19-1583500958.jpg"
+    assert extr.export_data is not None
+    data = extr.extract()
+    assert extr.export_data == data
+    comp_dict_manga_extr_data(expected, data, ignore_attrs={'rating', 'ratings'})
+    # since we check this from the online src we can only check if it's within a threshold
+    assert abs_delta(data.rating, expected['rating']) <= 0.5
+    assert data.ratings >= expected['ratings']
+
+
+@pytest.mark.parametrize('inp, expected', [
+    ('https://toonily.com/webtoon/leviathan-0002/', 'leviathan-0002'),
+    ('http://toonily.com/webtoon/leviathan-0002/chapter-138/', 'leviathan-0002'),
+    ('https://toonily.com/webtoon/my-high-school-bully', 'my-high-school-bully'),
+    ('https://toonily.com/webtoon/meisters/', 'meisters'),
+    ])
+def test_extr_toonily_bookid_from_url(inp, expected):
+    assert ToonilyExtractor.book_id_from_url(inp) == expected
+
+
+manual_toonily1 = {
+        # always use chap subdomain!
+        "url": "https://toonily.com/webtoon/missing-o/",
+        "pages": 0,
+        "id_onpage": 'missing-o',
+        "rating": 4.3,
+        "ratings": 262,
+        "favorites": 1100,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "The Missing O",
+        "title_foreign": "안주는 남자",
+        "tag": ['Adult', 'Comedy', 'Drama', 'Mature', 'Romance'],
+        "censor_id": CENSOR_IDS['Censored'],
+        "language": "English",
+        "status_id": STATUS_IDS['Completed'],
+        "imported_from": ToonilyExtractor.site_id,
+        "category": ["Manhwa"],
+        "groups": [],
+        "artist": ["Face Park"],
+        "parody": [],
+        "character": [],
+        'note': ("Summary: Sex can be amazing, not to mention ecstasy inducingly mind-blowing. And Eunsung knows that because 7 years ago, she had good sex (an understatement). She felt the universe crack open to show her its secrets. Too bad she hasn’t had a decent orgasm since. It’s been a long journey, but everyone knows, before you get to “P,” you have to go through “O.”"),
+        'nsfw': 1,
+        'collection': [],
+}
+
+manual_toonily2 = {
+        # always use chap subdomain!
+        "url": "https://toonily.com/webtoon/golden-scale/",
+        "pages": 0,
+        "id_onpage": 'golden-scale',
+        "rating": 4.1,
+        "ratings": 272,
+        "favorites": 1700,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "Golden Scale",
+        "title_foreign": "金鳞岂是池中物",
+        "tag": ['Action', 'Adult', 'Mature', 'Psychological', 'Uncensored'],
+        "censor_id": CENSOR_IDS['Uncensored'],
+        "language": "English",
+        "status_id": STATUS_IDS['Ongoing'],
+        "imported_from": ToonilyExtractor.site_id,
+        "category": ["Manhua"],
+        "groups": [],
+        "artist": ["MONKEY(Hou LongTao)"],
+        "parody": [],
+        "character": [],
+        'note': ("Note : This content is UNCENSORED\nA little Beijing hooligan who finished college in the United States was lucky enough to win the California State Lottery. He bribed the General Manager of a Multinational Investment Company and got the opportunity to return back to the Beijing Branch as the manager of the investment department. During his encounter with all kind of beauties, he also encountered many crises, but he relied on his relationship and luck to turn the dangers into opportunities becoming this generation’s Business Giant"),
+        'nsfw': 1,
+        'collection': [],
+}
+
+
+def test_extr_toonily():
+    expected = manual_toonily1
+    extr = ToonilyExtractor(expected['url'])
+    assert extr.id_onpage == 'missing-o'
+    # make sure get_cover calls extract and sets export_data
+    assert extr.get_cover() == (
+            "https://toonily.com/wp-content/uploads/2019/12/The-Missing-O-193x278.jpg")
+    assert extr.export_data is not None
+    data = extr.extract()
+    assert extr.export_data == data
+    comp_dict_manga_extr_data(expected, data, ignore_attrs={'rating', 'ratings', 'favorites'})
+    # since we check this from the online src we can only check if it's within a threshold
+    assert abs_delta(data.rating, expected['rating']) <= 0.5
+    assert data.ratings >= expected['ratings']
+    assert data.favorites >= expected['favorites']
+
+    #
+    # uncensored detected
+    # manhua category
+    #
+    expected = manual_toonily2
+    extr = ToonilyExtractor(expected['url'])
+    assert extr.id_onpage == 'golden-scale'
+    # make sure get_cover calls extract and sets export_data
+    assert extr.get_cover() == (
+            "https://toonily.com/wp-content/uploads/2020/11/Read-Golden-Scale-manhua-"
+            "Read-Golden-Scale-Manhwa-for-free-193x278.jpg")
+    assert extr.export_data is not None
+    data = extr.extract()
+    assert extr.export_data == data
+    comp_dict_manga_extr_data(expected, data, ignore_attrs={'rating', 'ratings', 'favorites'})
+    # since we check this from the online src we can only check if it's within a threshold
+    assert abs_delta(data.rating, expected['rating']) <= 0.5
+    assert data.ratings >= expected['ratings']
+    assert data.favorites >= expected['favorites']
+
+    #
+    # non-nsfw
+    # author != artist
+    url = 'https://toonily.com/webtoon/leviathan-0002/'
+    extr = ToonilyExtractor(url)
+    assert extr.id_onpage == 'leviathan-0002'
+    data = extr.extract()
+    assert data.nsfw == 0
+    assert sorted(data.artist) == ['Lee Gyuntak', 'Noh Miyoung']

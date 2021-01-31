@@ -61,7 +61,7 @@ class MangaDexExtractor(BaseMangaExtractor):
 
     id_onpage: str
     escaped_title: Optional[str]
-    api_reponse: Optional[Dict[str, Any]]
+    api_response: Optional[Dict[str, Any]]
 
     def __init__(self, url: str):
         super().__init__(url)
@@ -71,7 +71,7 @@ class MangaDexExtractor(BaseMangaExtractor):
             self.escaped_title = match.group(2)
         else:
             self.escaped_title = None
-        self.api_reponse = None
+        self.api_response = None
 
     @classmethod
     def manga_url_from_id(cls, id: str, escaped_title: Optional[str] = None) -> str:
@@ -99,9 +99,9 @@ class MangaDexExtractor(BaseMangaExtractor):
         return cls._tag_map
 
     def extract(self) -> Optional[MangaExtractorData]:
-        if not self.api_reponse:
-            self.api_reponse = self._get_manga_json()
-            if not self.api_reponse:
+        if not self.api_response:
+            self.api_response = self._get_manga_json()
+            if not self.api_response:
                 return None
 
         # getting the tag map fails sporadicly with error 500
@@ -117,7 +117,7 @@ class MangaDexExtractor(BaseMangaExtractor):
                            "keeps happening!")
             return None
 
-        manga_data = self.api_reponse['data']
+        manga_data = self.api_response['data']
 
         result = MangaExtractorData(
             # for unescaping html entities in the title/description
@@ -173,14 +173,14 @@ class MangaDexExtractor(BaseMangaExtractor):
         return result
 
     def get_cover(self) -> Optional[str]:
-        if not self.api_reponse:
-            self.api_reponse = self._get_manga_json()
-            if not self.api_reponse:
+        if not self.api_response:
+            self.api_response = self._get_manga_json()
+            if not self.api_response:
                 return None
 
         # might have different extension
         # return f"{self.BASE_URL}/images/manga/{self.id_onpage}.jpg"
-        return self.api_reponse['data']['mainCover']
+        return self.api_response['data']['mainCover']
 
     @classmethod
     def book_id_from_url(cls, url: str) -> str:

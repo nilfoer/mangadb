@@ -44,7 +44,8 @@ class ToonilyExtractor(BaseMangaExtractor):
 
             self.export_data = MangaExtractorData(
                 pages=0,
-                language='Unknown',
+                # seem to only be in english
+                language='English',
                 collection=[],
                 groups=[],
                 parody=[],
@@ -103,7 +104,7 @@ class ToonilyExtractor(BaseMangaExtractor):
         res['category'] = [content[6].text.strip()]
         # OnGoing or Completed
         status_str = content[8].text.strip().capitalize()
-        res['status_id'] = STATUS_IDS[status_str]
+        res['status_id'] = STATUS_IDS['Hiatus'] if status_str == 'On Hiatus' else STATUS_IDS[status_str]
 
         # e.g.: 128 Users bookmarked this
         # e.g.: 128K Users bookmarked this
@@ -121,6 +122,8 @@ class ToonilyExtractor(BaseMangaExtractor):
         return res
 
     def get_cover(self) -> Optional[str]:
+        if self.export_data is None:
+            self.extract()
         return self.cover_url
 
     @classmethod

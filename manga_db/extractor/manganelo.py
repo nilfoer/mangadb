@@ -3,7 +3,7 @@ import datetime
 
 import bs4
 
-from typing import Pattern, Optional, Match, cast, ClassVar, Dict, Any, TYPE_CHECKING
+from typing import Pattern, Optional, Match, cast, ClassVar, Dict, Any, TYPE_CHECKING, Final
 
 from .base import BaseMangaExtractor, MangaExtractorData
 from ..constants import STATUS_IDS, CENSOR_IDS
@@ -17,15 +17,17 @@ class ManganeloExtractor(BaseMangaExtractor):
     site_id: ClassVar[int] = 4
 
     URL_PATTERN_RE: ClassVar[Pattern] = re.compile(
-            r"(?:https?://)?(m\.|chap\.)?manganelo\.com/manga-([a-z]{2}\d+)")
+            r"(?:https?://)?(?:m\.|chap\.)?manganelo\.com/manga-([a-z]{2}\d+)")
 
-    # subdomain = m|chap; you can't use m. for chap. but the other way around works!?!??!
-    BASE_URL: ClassVar[str] = "https://{subdomain}.manganelo.com"
+    # subdomain = m|chap; you can't use m. for chap. but the other way around works
+    # => always use chap. subdomain (needed for chapter urls anyway)
+    BASE_URL: ClassVar[str] = "https://chap.manganelo.com"
     # use double braces to get on brace
     MANGA_URL: ClassVar[str] = f"{BASE_URL}/manga-{{manga_id}}"
 
     def __init__(self, url: str):
-        super().__init__(url)
+        # always use chap subdomain!
+        super().__init__(url.replace('//m.manganelo', '//chap.manganelo', 1))
         self.id_onpage: str = self.book_id_from_url(url)
         self.cover_url: Optional[str] = None
         self.export_data: Optional[MangaExtractorData] = None
@@ -47,7 +49,6 @@ class ManganeloExtractor(BaseMangaExtractor):
             self.export_data = MangaExtractorData(
                 pages=0,
                 language='Unknown',
-                category=['Manga'],
                 collection=[],
                 groups=[],
                 parody=[],
@@ -72,34 +73,48 @@ class ManganeloExtractor(BaseMangaExtractor):
         book_data = soup.select_one("div.panel-story-info div.story-info-right")
         res['title_eng'] = book_data.find("h1").text
 
-        # table_labels = book_data.select("td.table-label")
+        #
+        # data table
+        # some values might be missing on certain mangas
+        # labels: Alternative, Author(s), Status, Genres
+        # ^ all of them suffixed by ' :'
+        table_labels = book_data.select("td.table-label")
         table_vals = book_data.select("td.table-value")
+        table_data = {table_labels[i].text.strip(' :'): table_vals[i]
+                      for i in range(len(table_vals))}
 
-        # assuming the following order in the table: 1. alternative 2. authors 3. status 4. genres
-
-        # separated by ';'
-        alternative_titles = [s.strip() for s in table_vals[0].text.split(';')]
-        if alternative_titles:
-            # @Incomplete take first non-latin title; alnum() supports unicode and thus returns
-            # true for """"alphanumeric"""" japanese symbols !?!?
-            non_latin = [s for s in alternative_titles if ord(s[0]) > 128]
-            if non_latin:
-                res['title_foreign'] = non_latin[0]
-            else:
-                res['title_foreign'] = alternative_titles[0]
+        # no fixed sep, saw ", ; / -"
+        # => can't parse this -> just use the whole string as title_foreing @Hack
+        res['title_foreign'] = table_data['Alternative'].text.strip()
 
         # as anchor text
-        res['artist'] = [anch.text.strip() for anch in table_vals[1].select('a')]
+        res['artist'] = [anch.text.strip() for anch in table_data['Author(s)'].select('a')]
 
-        status = table_vals[2].text
+        status = table_data['Status'].text
         try:
             res['status_id'] = STATUS_IDS[status]
         except KeyError:
             res['status_id'] = STATUS_IDS['Unknown']
 
         # genres
-        res['tag'] = [anch.text.strip() for anch in table_vals[3].select('a')]
-        res['nsfw'] = 1 if ('Ecchi' in res['tag'] or 'Mature' in res['tag']) else 0
+        tags = [anch.text.strip() for anch in table_data['Genres'].select('a')]
+        res['nsfw'] = 1 if ('Ecchi' in tags or 'Mature' in tags) else 0
+
+        possible_categories: Final = ('Webtoons', 'Doujinshi', 'Manhua', 'Manhwa')
+        for cat in possible_categories:
+            if cat in tags:
+                # remove 's' from Webtoons
+                res['category'] = [cat.rstrip('s')]
+                # don't need it as tag if we already have it as category
+                tags.remove(cat)
+                break
+        else:
+            # default type is Manga
+            res['category'] = ['Manga']
+        res['tag'] = tags
+        #
+        # table end
+        #
 
         # could use Updated as upload_date, but it really doesn't have _one_
         res['upload_date'] = datetime.date.min
@@ -125,23 +140,22 @@ class ManganeloExtractor(BaseMangaExtractor):
         return res
 
     def get_cover(self) -> Optional[str]:
+        if self.export_data is None:
+            self.extract()
         return self.cover_url
 
     @classmethod
     def book_id_from_url(cls, url: str) -> str:
         # assumes this is only called on urls that already match the extractor
         match = cast(Match, cls.URL_PATTERN_RE.match(url))
-        # omit '.' at end of subdomain
-        return f"{match.group(1)[:-1]}##{match.group(2)}"
+        return f"{match.group(1)}"
 
     @classmethod
     def url_from_ext_info(cls, ext_info: 'ExternalInfo') -> str:
-        subdomain, manga_id = ext_info.id_onpage.split('##')
-        return cls.MANGA_URL.format(subdomain=subdomain, manga_id=manga_id)
+        return cls.MANGA_URL.format(manga_id=ext_info.id_onpage)
         
     @classmethod
     def read_url_from_ext_info(cls, ext_info: 'ExternalInfo') -> str:
         # @CleanUp just uses first chapter currently
         # must use chap. subdomain for chapter view
-        _, manga_id = ext_info.id_onpage.split('##')
-        return f"{cls.MANGA_URL.format(subdomain='chap', manga_id=manga_id)}/chapter-1"
+        return f"{cls.MANGA_URL.format(manga_id=ext_info.id_onpage)}/chapter-1"
