@@ -4,7 +4,7 @@ import re
 
 import bs4
 
-from typing import cast, Match, Optional, TYPE_CHECKING, Tuple, Dict, Any
+from typing import cast, Match, Optional, TYPE_CHECKING, Tuple, Dict, Any, Union
 
 from .base import BaseMangaExtractor, MangaExtractorData
 from ..util import is_foreign
@@ -86,7 +86,8 @@ class TsuminoExtractor(BaseMangaExtractor):
         """
         title_eng, title_foreign = self.split_title(data_dic['Title'])
 
-        uploaders = data_dic['Uploader']
+        # migh be missing altogether
+        uploaders: Optional[Union[str, list]] = data_dic.get('Uploader')
         if isinstance(uploaders, list):
             if len(uploaders) > 1:
                 logger.info("More than one uploader: %s", data_dic['Uploader'])

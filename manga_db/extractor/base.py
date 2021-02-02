@@ -4,7 +4,7 @@ import logging
 import datetime
 
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional, Any, TYPE_CHECKING, Literal, List, ClassVar
+from typing import Dict, Tuple, Optional, TYPE_CHECKING, Literal, List, ClassVar
 
 if TYPE_CHECKING:
     from ..ext_info import ExternalInfo
@@ -58,6 +58,10 @@ class BaseMangaExtractor:
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
         }
 
+    # assumes that requests are all made to the same domain so we don't
+    # need to have separate dicts per domain
+    cookies: ClassVar[Dict[str, str]] = {}
+
     # these need to be re-defined by sub-classes!!
     # they are not allowed to changed after the extractor has been added
     # doing so would require a db migration
@@ -97,15 +101,36 @@ class BaseMangaExtractor:
     def read_url_from_ext_info(cls, ext_info: 'ExternalInfo') -> str:
         raise NotImplementedError
 
-    # contrary to @staticmethod classmethod has a reference to the class as first parameter
     @classmethod
-    def get_html(cls, url: str) -> Optional[str]:
+    def get_html(cls, url: str, user_agent: Optional[str] = None,
+                 cookies: Optional[Dict[str, str]] = None) -> Optional[str]:
         res = None
 
-        req = urllib.request.Request(url, headers=cls.headers)
+        headers = cls.headers.copy()
+        if user_agent is not None:
+            headers['User-Agent'] = user_agent
+
+        all_cookies = cls.cookies.copy()
+        if cookies is not None:
+            # specific cookies overwrite default class cookies
+            all_cookies.update(cookies)
+        if all_cookies:
+            # cookie_name = cookie_value; cookie_name = cookie_value
+            cookie_str = "; ".join(f"{name} = {value}" for name, value in all_cookies.items())
+            headers['Cookie'] = cookie_str
+
+        # NOTE: passing the headers kwarg means we don't use the headers from the
+        # globally installed opener
+        req = urllib.request.Request(url)
+        for name, val in req.header_items():
+            print(name, '/', val)
+
         try:
             site = urllib.request.urlopen(req)
+            print(type(site))
+            print(site.getheaders())
         except urllib.error.HTTPError as err:
+            # 503 is also sent by cloudflare if we don't pass the js/captcha challenge
             logger.warning("HTTP Error %s: %s: \"%s\"", err.code, err.reason, url)
         else:
             # leave the decoding up to bs4
