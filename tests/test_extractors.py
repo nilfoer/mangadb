@@ -6,6 +6,7 @@ import os.path
 
 from typing import Dict, Any, Set
 
+from manga_db.manga_db import update_cookies_from_file
 from manga_db.extractor.base import BaseMangaExtractor, MangaExtractorData
 from manga_db.extractor.tsumino import TsuminoExtractor
 from manga_db.extractor.nhentai import NhentaiExtractor
@@ -16,6 +17,11 @@ from manga_db.constants import CENSOR_IDS, STATUS_IDS
 
 from utils import build_testsdir_furl, TESTS_DIR
 
+
+# NOTE: IMPORTANT extractor tests that test sites that require special cookies to succeed
+# should be marked with @pytest.mark.requires_cookies
+# and should load the cookies file tests\cookies.txt themselves
+# update_cookies_from_file(os.path.join(TESTS_DIR, 'cookies.txt'))
 
 manual_tsumino = {
         "url": "https://www.tsumino.com/entry/43357",
@@ -523,7 +529,12 @@ manual_toonily2 = {
 }
 
 
+@pytest.mark.requires_cookies
 def test_extr_toonily():
+    # NOTE: IMPORTANT ToonilyExtractor needs a current tests\cookies.txt with cloudflare clearance
+    # cookies and the User-Agent in the comments
+    update_cookies_from_file(os.path.join(TESTS_DIR, 'cookies.txt'))
+
     expected = manual_toonily1
     extr = ToonilyExtractor(expected['url'])
     assert extr.id_onpage == 'missing-o'

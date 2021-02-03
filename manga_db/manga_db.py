@@ -3,8 +3,9 @@ import logging
 import sqlite3
 import re
 import urllib.request
+import http.cookiejar
 
-from typing import Optional, Tuple, Any, Dict, List, overload
+from typing import Optional, Tuple, Any, List, overload, TypedDict, ClassVar
 
 from .logging_setup import configure_logging
 from . import extractor
@@ -22,15 +23,22 @@ from .constants import CENSOR_IDS, STATUS_IDS, LANG_IDS
 configure_logging("manga_db.log")
 logger = logging.getLogger(__name__)
 
-# normal urllib user agent is being blocked by tsumino
-# set user agent to use with urrlib
-opener = urllib.request.build_opener()
-opener.addheaders = [(
-    'User-agent',
-    'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0')
+# setup OpenerDirector to be used for all requests
+# cookiejar stores the cookies and the filecookiejar is able to save/load them to/from a file
+# FileCookieJar is a kind of abstract class (i.e. it has some functionality unimplemented)
+# have to use a specific subclass like MozillaCookieJar
+cookie_jar = http.cookiejar.MozillaCookieJar()
+# handles sending and setting cookies
+cookie_handler = urllib.request.HTTPCookieProcessor(cookie_jar)
+url_opener = urllib.request.build_opener(cookie_handler)
+# these get automatically added to every request that use the opener
+# but will be overwritten by headers that are passed to Request explicitly
+url_opener.addheaders = [
+    ('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'),
 ]
-# ...and install it globally so it can be used with urlretrieve/open
-urllib.request.install_opener(opener)
+# Installing an opener is only necessary if you want urlopen to use that
+# opener; otherwise, simply call OpenerDirector.open() instead of urlopen().
+urllib.request.install_opener(url_opener)
 
 # part of lexical analysis
 # This expression states that a "word" is either (1) non-quote, non-whitespace text
@@ -39,12 +47,61 @@ urllib.request.install_opener(opener)
 WORD_RE = re.compile(r'([^"^\s]+)\s*|"([^"]+)"\s*')
 
 
-class MangaDB:
-    DEFAULT_HEADERS = {
-        'User-Agent':
-        'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
-        }
+def set_default_user_agent(user_agent: str) -> None:
+    new_addheaders = []
+    overwritten = False
+    for name, val in url_opener.addheaders:
+        if name.lower() == 'user-agent':
+            new_addheaders.append(('User-Agent', user_agent))
+            overwritten = True
+        else:
+            new_addheaders.append((name, val))
 
+    # in case there was none previously
+    if not overwritten:
+        new_addheaders.append(('User-Agent', user_agent))
+
+    url_opener.addheaders = new_addheaders
+
+
+def update_cookies_from_file(filename="cookies.txt", has_custom_info: bool = True) -> None:
+    """
+    filename: Path to cookies file
+    has_custom_info: Whether the cookies file has custom information like the User-Agent
+                     stored in commented lines
+    """
+    if not os.path.isfile(filename):
+        return None
+
+    if has_custom_info:
+        user_agent: Optional[str] = None
+        # @Speed (partially) reading same file twice, but FileCookieJar doesn't accept
+        # a stream or text; can only be fixed by handling cookies ourselves
+        with open(filename, "r", encoding='utf-8') as f:
+            lines = f.readlines()
+
+        # file has to start with commented lines, loop breaks at first regular line
+        for ln in lines:
+            # # is a comment, but contains User-Agent in our 'modified' cookies file format
+            if ln.startswith("# User-Agent:"):
+                user_agent = ln.split('User-Agent: ')[1].strip()
+                break
+            elif ln[0] != '#':
+                break
+
+        if user_agent:
+            set_default_user_agent(user_agent)
+
+    # let cookiejar handle loading the cookies
+    # since it can also take care of expiring cookies etc.
+    # nothing loaded until we call .load
+    try:
+        cookie_jar.load(filename=filename)
+    except http.cookiejar.LoadError:
+        logger.warning("Failed to parse cookie file at %s", filename)
+
+
+class MangaDB:
     VALID_SEARCH_COLS = {"title", "language", "language_id", "status", "favorite",
                          "category", "artist", "parody", "character", "collection", "groups",
                          "tag", "list", "status", "status_id", "nsfw", "read_status"}

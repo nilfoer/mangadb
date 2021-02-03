@@ -4,11 +4,69 @@ import logging
 import datetime
 import pytest
 
-from utils import setup_mdb_dir, all_book_info, load_db_from_sql_file
-from manga_db.manga_db import MangaDB
+from utils import setup_mdb_dir, all_book_info, load_db_from_sql_file, setup_tmpdir
+from manga_db.manga_db import (
+     MangaDB, cookie_jar, url_opener,
+     set_default_user_agent, update_cookies_from_file
+)
 
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
+
+
+def test_set_default_user_agent():
+    url_opener.addheaders = []
+    set_default_user_agent('foobar')
+    assert url_opener.addheaders == [('User-Agent', 'foobar')]
+
+    url_opener.addheaders = [
+        ('USeR-aGenT', 'Mozilla 105.0 ...'),
+        ('Accept-Content', 'text/html'),
+        ('User', 'testuser')
+    ]
+
+    set_default_user_agent('foobar')
+    assert url_opener.addheaders == [
+        ('User-Agent', 'foobar'),
+        ('Accept-Content', 'text/html'),
+        ('User', 'testuser')
+    ]
+
+
+def test_update_cookies_from_file(setup_tmpdir):
+    tmpdir = setup_tmpdir
+
+    cookies_fn = os.path.join(tmpdir, "cookies.txt")
+    with open(cookies_fn, 'w') as f:
+        # cookie 'fields' separated by \t
+        # first line requires: # Netscape HTTP Cookie File 
+        f.write("""# Netscape HTTP Cookie File
+# aslkfjldsk
+# asfsa User-Agent: sfdlkajslk
+# User-Agent: Foo 5.0 (Bar 12402)...
+# sdfjslksadf
+.github.com\tTRUE\t/\tTRUE\t1943851586\tcf_clearance\tcookievalue123
+.github.com\tTRUE\t/repo\tTRUE\t1943851586\tuser_id\tuser321cookie
+.mangadex.org\tTRUE\t/\tTRUE\t1943835379\tlogin\t239jfoj32l4k5320ok
+""")
+    
+    default_hdrs = [('User-Agent', 'Mozilla 5.0 (Gecko 1243)...')]
+    url_opener.addheaders = default_hdrs
+    update_cookies_from_file(cookies_fn, has_custom_info=False)
+    # stil on default user-agent
+    assert url_opener.addheaders == default_hdrs
+    # mainly testing that the file still parsed correctly with our custom info
+    # so only testing the cookies are there with the right value
+    assert '.github.com' in cookie_jar._cookies
+    git = cookie_jar._cookies['.github.com']
+    assert git['/']['cf_clearance'].value == 'cookievalue123'
+    assert git['/repo']['user_id'].value == 'user321cookie'
+    assert '.mangadex.org' in cookie_jar._cookies
+    assert cookie_jar._cookies['.mangadex.org']['/']['login'].value == '239jfoj32l4k5320ok'
+
+    # parse user-agent from comment in file
+    update_cookies_from_file(cookies_fn, has_custom_info=True)
+    assert url_opener.addheaders == [('User-Agent', 'Foo 5.0 (Bar 12402)...')]
 
 
 def test_mdb_readonly(monkeypatch, setup_mdb_dir):

@@ -53,20 +53,17 @@ class MangaExtractorData:
     
 
 class BaseMangaExtractor:
-    headers: Dict[str, str] = {
-        'User-Agent':
-        'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'
-        }
-
-    # assumes that requests are all made to the same domain so we don't
-    # need to have separate dicts per domain
-    cookies: ClassVar[Dict[str, str]] = {}
+    # headers that get added when the class makes a request
+    # will overwrite default headers from the opener
+    add_headers: Dict[str, str] = {}
 
     # these need to be re-defined by sub-classes!!
     # they are not allowed to changed after the extractor has been added
     # doing so would require a db migration
     site_name: ClassVar[str] = ""
     site_id: ClassVar[int] = 0
+
+    url: str
 
     def __init__(self, url: str):
         self.url = url
@@ -102,33 +99,25 @@ class BaseMangaExtractor:
         raise NotImplementedError
 
     @classmethod
-    def get_html(cls, url: str, user_agent: Optional[str] = None,
-                 cookies: Optional[Dict[str, str]] = None) -> Optional[str]:
+    def get_html(cls, url: str, add_headers: Optional[Dict[str, str]] = None) -> Optional[str]:
         res = None
 
-        headers = cls.headers.copy()
-        if user_agent is not None:
-            headers['User-Agent'] = user_agent
+        headers = cls.add_headers.copy()
+        if add_headers is not None:
+            headers.update(add_headers)
 
-        all_cookies = cls.cookies.copy()
-        if cookies is not None:
-            # specific cookies overwrite default class cookies
-            all_cookies.update(cookies)
-        if all_cookies:
-            # cookie_name = cookie_value; cookie_name = cookie_value
-            cookie_str = "; ".join(f"{name} = {value}" for name, value in all_cookies.items())
-            headers['Cookie'] = cookie_str
-
-        # NOTE: passing the headers kwarg means we don't use the headers from the
-        # globally installed opener
-        req = urllib.request.Request(url)
-        for name, val in req.header_items():
-            print(name, '/', val)
+        # NOTE: passing the headers kwarg means we will stil use the headers from the opener
+        # but names that already exist in the opener's headers will be overwritten
+        req = urllib.request.Request(url, headers=headers)
+        # removing headers with req.remove_header will not remove the headers installed by
+        # the opener
+        # req.remove_header('User-Agent')
+        # NOTE: after the request has been sent the req.unredirected_hdrs will contain the headers
+        # added by the opener, and req.headers will then contain all the headers including
 
         try:
+            # site = cls.opener.open(req)
             site = urllib.request.urlopen(req)
-            print(type(site))
-            print(site.getheaders())
         except urllib.error.HTTPError as err:
             # 503 is also sent by cloudflare if we don't pass the js/captcha challenge
             logger.warning("HTTP Error %s: %s: \"%s\"", err.code, err.reason, url)

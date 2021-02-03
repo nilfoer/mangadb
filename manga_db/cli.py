@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 from .webGUI import create_app
-from .manga_db import MangaDB
+from .manga_db import MangaDB, update_cookies_from_file
 from .db.export import export_csv_from_sql
 from .link_collector import LinkCollector
 
@@ -21,6 +21,11 @@ def main() -> None:
                         help="Path to directory where user files will be stored "
                              "inside of! MangaDB will be looking for a file named "
                              "'manga_db.sqlite' inside that folder!")
+    parser.add_argument("--cookies", type=str,
+                        help="Cookies that might be needed to access protected websites by "
+                             "services like cloudflare will be read from this path upon start. "
+                             "The User-Agent should be included in the cookies file as a "
+                             "comment of the form: '# User-Agent: Mozilla/5.0...'")
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='sub-command help', dest="subcmd")
 
@@ -76,6 +81,10 @@ def main() -> None:
         mdb_path = mdb_path if mdb_path else os.path.join(os.path.dirname(sys.argv[0]), "instance")
         os.makedirs(mdb_path, exist_ok=True)
         mdb = MangaDB(mdb_path, os.path.join(mdb_path, "manga_db.sqlite"))
+
+        # load cookies file
+        if args.cookies:
+            update_cookies_from_file(args.cookies)
         args.func(args, mdb)
 
 
