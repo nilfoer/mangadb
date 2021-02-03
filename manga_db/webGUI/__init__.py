@@ -4,6 +4,8 @@ import time
 
 from flask import Flask
 
+from ..manga_db import update_cookies_from_file
+
 from .webGUI import main_bp
 from .csrf import init_app as csrf_init_app
 from .auth import auth_bp, init_app as auth_init_app
@@ -126,5 +128,8 @@ def create_app(instance_path=None, test_config=None, **kwargs):
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     auth_init_app(app)
+
+    # reload cookies.txt on startup
+    update_cookies_from_file(os.path.join(app.instance_path, 'cookies.txt'))
 
     return app
