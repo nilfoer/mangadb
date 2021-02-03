@@ -64,15 +64,16 @@ def set_default_user_agent(user_agent: str) -> None:
     url_opener.addheaders = new_addheaders
 
 
-def update_cookies_from_file(filename="cookies.txt", has_custom_info: bool = True) -> None:
+def update_cookies_from_file(filename="cookies.txt", has_custom_info: bool = True) -> bool:
     """
     filename: Path to cookies file
     has_custom_info: Whether the cookies file has custom information like the User-Agent
                      stored in commented lines
     """
     if not os.path.isfile(filename):
-        return None
+        return False
 
+    success = True
     if has_custom_info:
         user_agent: Optional[str] = None
         # @Speed (partially) reading same file twice, but FileCookieJar doesn't accept
@@ -91,6 +92,8 @@ def update_cookies_from_file(filename="cookies.txt", has_custom_info: bool = Tru
 
         if user_agent:
             set_default_user_agent(user_agent)
+        else:
+            success = False
 
     # let cookiejar handle loading the cookies
     # since it can also take care of expiring cookies etc.
@@ -99,6 +102,9 @@ def update_cookies_from_file(filename="cookies.txt", has_custom_info: bool = Tru
         cookie_jar.load(filename=filename)
     except http.cookiejar.LoadError:
         logger.warning("Failed to parse cookie file at %s", filename)
+        return False
+    else:
+        return success and True
 
 
 class MangaDB:

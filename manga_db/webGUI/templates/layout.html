@@ -151,6 +151,20 @@
                         </a>
                     </div>
                     <div class="navbar-item">
+                        <a class="button is-nav-button" id="refresh-cookies-btn"
+                           href="{{ url_for('main.refresh_cookies_file') }}">
+                            {# mx-0 needed since we otherwise get a margin because we are not the last #}
+                            {# child, menu-description is even though it's hidden but it still adds margins #}
+                            {# decided to go for js instead #}
+                            <span class="icon">
+                                <i class="fas fa-cookie-bite"></i>
+                            </span>
+                            <span class="menu-description">
+                                Refresh cookies
+                            </span>
+                        </a>
+                    </div>
+                    <div class="navbar-item">
                         {% if "authenticated" in session %}
                         <a class="button is-nav-button" href="{{ url_for('auth.logout') }}">
                             <span class="icon">

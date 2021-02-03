@@ -20,7 +20,7 @@ from flask import (
 from .mdb import get_mdb
 from .json_custom import to_serializable
 from ..constants import STATUS_IDS
-from ..manga_db import MangaDB
+from ..manga_db import MangaDB, update_cookies_from_file
 from ..manga import Book
 from ..extractor.base import MangaExtractorData
 from ..db.search import validate_order_by_str
@@ -44,6 +44,24 @@ def thumb_static(filename):
     cover_timestamp = request.args.get("cover_timestamp", 0, type=float)
     fn = f"{filename}_{cover_timestamp:.0f}"
     return send_from_directory(current_app.config['THUMBS_FOLDER'], fn)
+
+
+@main_bp.route('/refresh_cookie')
+def refresh_cookies_file():
+    # NOTE: assumes cookie file is at app.instance_path\cookies.txt
+    success = update_cookies_from_file(os.path.join(current_app.instance_path, 'cookies.txt'),
+                                       has_custom_info=True)
+    if success:
+        flash("Cookies updated successfully!", "title")
+    else:
+        flash("Failed updating from cookies file!", "title warning")
+        flash("Either the cookie file was not found at 'instance/cookies.txt' or "
+              "the file is not a valid Netscape HTTP Cookie File", "info")
+        flash("Also make sure you used the Firefox extension NoRobot Exporter. "
+              "It exports all relevant information for authenticating with DDoS "
+              "protection services like Cloudflare from your browser!", "info")
+
+    return redirect(url_for("main.show_entries"))
 
 
 def handle_search_sort():

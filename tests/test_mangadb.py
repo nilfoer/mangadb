@@ -53,7 +53,7 @@ def test_update_cookies_from_file(setup_tmpdir):
     
     default_hdrs = [('User-Agent', 'Mozilla 5.0 (Gecko 1243)...')]
     url_opener.addheaders = default_hdrs
-    update_cookies_from_file(cookies_fn, has_custom_info=False)
+    assert update_cookies_from_file(cookies_fn, has_custom_info=False) is True
     # stil on default user-agent
     assert url_opener.addheaders == default_hdrs
     # mainly testing that the file still parsed correctly with our custom info
@@ -66,8 +66,44 @@ def test_update_cookies_from_file(setup_tmpdir):
     assert cookie_jar._cookies['.mangadex.org']['/']['login'].value == '239jfoj32l4k5320ok'
 
     # parse user-agent from comment in file
-    update_cookies_from_file(cookies_fn, has_custom_info=True)
+    assert update_cookies_from_file(cookies_fn, has_custom_info=True) is True
     assert url_opener.addheaders == [('User-Agent', 'Foo 5.0 (Bar 12402)...')]
+
+    # non-existant file
+    assert update_cookies_from_file(
+            'asdflkjaldsfjlkadsflk5345ksld34534534', has_custom_info=True) is False
+
+    #
+    # has_custom_info=True and we don't find a User-Agent => should return False
+    #
+    with open(cookies_fn, 'w') as f:
+        # cookie 'fields' separated by \t
+        # first line requires: # Netscape HTTP Cookie File 
+        f.write("""# Netscape HTTP Cookie File
+# aslkfjldsk
+# asfsa User-Agent: sfdlkajslk
+# sdfjslksadf
+.github.com\tTRUE\t/\tTRUE\t1943851586\tcf_clearance\tcookievalue123
+.github.com\tTRUE\t/repo\tTRUE\t1943851586\tuser_id\tuser321cookie
+.mangadex.org\tTRUE\t/\tTRUE\t1943835379\tlogin\t239jfoj32l4k5320ok
+""")
+    assert update_cookies_from_file(cookies_fn, has_custom_info=True) is False
+    assert update_cookies_from_file(cookies_fn, has_custom_info=False) is True
+
+    #
+    # wrong cookie format
+    #
+    with open(cookies_fn, 'w') as f:
+        # OMIT required first line: # Netscape HTTP Cookie File 
+        f.write("""# aslkfjldsk
+# asfsa User-Agent: sfdlkajslk
+# sdfjslksadf
+.github.com\tTRUE\t/\tTRUE\t1943851586\tcf_clearance\tcookievalue123
+.github.com\tTRUE\t/repo\tTRUE\t1943851586\tuser_id\tuser321cookie
+.mangadex.org\tTRUE\t/\tTRUE\t1943835379\tlogin\t239jfoj32l4k5320ok
+""")
+    assert update_cookies_from_file(cookies_fn, has_custom_info=True) is False
+    assert update_cookies_from_file(cookies_fn, has_custom_info=False) is False
 
 
 def test_mdb_readonly(monkeypatch, setup_mdb_dir):
