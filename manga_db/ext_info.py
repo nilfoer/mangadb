@@ -121,7 +121,8 @@ class ExternalInfo(DBRow):
             logger.info("Cant update external info without id and assoicated book!")
             return "id_or_book_missing", None
         # TODO mb propagate updates to Book?
-        extr_data, _ = self.manga_db.retrieve_book_data(self.url)
+        # TODO handle 503 http code
+        extr_data, _, _ = self.manga_db.retrieve_book_data(self.url)
         if not extr_data:
             return "no_data", None
 

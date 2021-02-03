@@ -171,6 +171,15 @@ def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None,
         add_ei_or_new_book_prompt=add_ei_or_new_book_prompt)
 
 
+def flash_cookie_update_msg():
+    flash("Failed getting book: Service unavailable!", "title warning")
+    flash("If you can visit the site normally using your browser you probably "
+          "have to create/update the cookies.txt inside you 'instance' folder!", "info")
+    flash("You can do that using the 'NoRobot Exporter' Firefox extension", "info")
+    flash("After updating the file: Hit the 'Refresh cookies' button inside the "
+          "toolbox and then try again!", "info")
+
+
 @main_bp.route('/import', methods=["POST"])
 def import_book(url: Optional[str] = None, force_new: bool = False):
     if url is None:
@@ -197,13 +206,16 @@ def import_book(url: Optional[str] = None, force_new: bool = False):
         # @CleanUp indirection needed here?
         book = mdb.book_from_data(MangaExtractorData(**extr_data))
     else:
-        extr_data, thumb_url = mdb.retrieve_book_data(url)
+        extr_data, thumb_url, err_code = mdb.retrieve_book_data(url)
         if extr_data is None:
-            flash("Failed getting book!", "title warning")
-            flash("Either there was something wrong with the url or the extraction failed!",
-                  "info")
-            flash(f"URL was: {url}")
-            flash("Check the logs for more details!", "info")
+            if err_code == 503:
+                flash_cookie_update_msg()
+            else:
+                flash("Failed getting book!", "title warning")
+                flash("Either there was something wrong with the url or the extraction failed!",
+                      "info")
+                flash(f"URL was: {url}")
+                flash("Check the logs for more details!", "info")
             return redirect(url_for("main.show_entries"))
         book = mdb.book_from_data(extr_data)
 
@@ -558,12 +570,15 @@ def add_ext_info(book_id):
     if not url or not book_title:
         flash("URL empty!")
         return redirect(url_for("main.show_info", book_id=book_id))
-    extr_data, _ = MangaDB.retrieve_book_data(url)
+    extr_data, _, err_code = MangaDB.retrieve_book_data(url)
     if extr_data is None:
-        flash("Adding external link failed!", "title warning")
-        flash("Either there was something wrong with the url or the extraction failed!", "info")
-        flash(f"URL was: {url}")
-        flash("Check the logs for more details!", "info")
+        if err_code == 503:
+            flash_cookie_update_msg()
+        else:
+            flash("Adding external link failed!", "title warning")
+            flash("Either there was something wrong with the url or the extraction failed!", "info")
+            flash(f"URL was: {url}")
+            flash("Check the logs for more details!", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
     mdb = get_mdb()
     book, ext_info = mdb.book_and_ei_from_data(extr_data)

@@ -93,7 +93,7 @@ def _cl_import_book(args: argparse.Namespace, mdb: MangaDB) -> None:
 
 
 def _cl_get_info(args: argparse.Namespace, mdb: MangaDB) -> None:
-    extr_data, _ = MangaDB.retrieve_book_data(args.url)
+    extr_data, _, _ = MangaDB.retrieve_book_data(args.url)
     if extr_data is None:
         return
 

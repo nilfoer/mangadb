@@ -3,6 +3,7 @@ import logging
 import sqlite3
 import re
 import urllib.request
+import urllib.error
 import http.cookiejar
 
 from typing import Optional, Tuple, Any, List, overload, TypedDict, ClassVar
@@ -186,7 +187,7 @@ class MangaDB:
             try:
                 urllib.request.urlretrieve(url,
                                            cover_path)
-            except urllib.request.HTTPError as err:
+            except urllib.error.HTTPError as err:
                 logger.warning("HTTP Error %s: %s: \"%s\"",
                                err.code, err.reason, url)
                 return False
@@ -198,21 +199,30 @@ class MangaDB:
             return None
 
     @staticmethod
-    def retrieve_book_data(url: str) -> Tuple[Optional[MangaExtractorData], Optional[str]]:
+    def retrieve_book_data(url: str) -> Tuple[Optional[MangaExtractorData], Optional[str],
+                                              Optional[int]]:
         try:
             extractor_cls = extractor.find(url)
             extr = extractor_cls(url)
             data = extr.extract()
+        except urllib.error.HTTPError as err:
+            # NOTE: the only error that we should get is on code 503 others will
+            # not be re-raised
+            logger.warning("HTTP Error %s: %s: \"%s\"", err.code, err.reason, url)
+            logger.info("If the site is reachable with your browser then "
+                        "you have to update your cookies.txt")
+            return None, None, err.code
         except Exception:
             # logger.exception add exception info automatically
             logger.exception("Exception while extracting '%s'", url)
-            return None, None
+            return None, None, None
 
         if data:
-            return data, extr.get_cover()
+            return data, extr.get_cover(), None
         else:
             logger.warning("No book data recieved! URL was '%s'!", url)
-            return None, None
+            # @Hack this should also return an error code: enum or http code
+            return None, None, None
 
     def book_from_data(self, data: MangaExtractorData) -> Book:
         return Book.from_manga_extr_data(self, data)
@@ -245,7 +255,7 @@ class MangaDB:
         """
 
         if extr_data is None:
-            extr_data, thumb_url = self.retrieve_book_data(url)
+            extr_data, thumb_url, err_code = self.retrieve_book_data(url)
             if extr_data is None:
                 logger.warning("Importing book failed!")
                 return None, None, None

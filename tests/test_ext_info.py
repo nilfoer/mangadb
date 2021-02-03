@@ -66,7 +66,7 @@ def test_ext_info(setup_tmpdir_param, monkeypatch, caplog):
     assert book.tag[:2] == ["Added Tag", "Added Tag2"]
 
     # patch retrieve_book_data to return None and "no_data" returened by update..
-    monkeypatch.setattr("manga_db.manga_db.MangaDB.retrieve_book_data", lambda x, y: (None, None))
+    monkeypatch.setattr("manga_db.manga_db.MangaDB.retrieve_book_data", lambda x, y: (None, None, None))
     assert ext_info.update_from_url() == ("no_data", None)
 
     # remove

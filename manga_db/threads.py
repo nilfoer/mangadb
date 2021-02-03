@@ -32,7 +32,7 @@ def thread_retrieve_data_or_cover(url_queue: Queue, book_queue: Queue) -> None:
             try:
                 url = data
                 print(f"{current_thread().name}: Getting data for url {url}")
-                extr_data, thumb_url_opt = MangaDB.retrieve_book_data(url)
+                extr_data, thumb_url_opt, _ = MangaDB.retrieve_book_data(url)
                 # also put None in the queue so importer know the link was processed
                 book_queue.put((url, extr_data, thumb_url_opt))
             except Exception:

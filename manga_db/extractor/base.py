@@ -120,7 +120,11 @@ class BaseMangaExtractor:
             site = urllib.request.urlopen(req)
         except urllib.error.HTTPError as err:
             # 503 is also sent by cloudflare if we don't pass the js/captcha challenge
+            # @Hack only re-raising 503 so we can conviently pass that on and tell
+            # a webGUI user to create/update the cookies.txt
             logger.warning("HTTP Error %s: %s: \"%s\"", err.code, err.reason, url)
+            if err.code == 503:
+                raise
         else:
             # leave the decoding up to bs4
             res = site.read()
