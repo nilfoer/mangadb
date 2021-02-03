@@ -9,6 +9,7 @@ from manga_db.manga_db import (
      MangaDB, cookie_jar, url_opener,
      set_default_user_agent, update_cookies_from_file
 )
+from manga_db.constants import LANG_IDS
 
 
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -91,8 +92,8 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     mdb = MangaDB(tmpdir, mdb_file)
 
     # English is added by default
-    assert mdb.get_language("English") == 1
-    assert mdb.get_language(1) == "English"
+    assert mdb.get_language("English") == LANG_IDS['English']
+    assert mdb.get_language(LANG_IDS['English']) == "English"
 
     lang_id = mdb.get_language("Klingonian", create_unpresent=True)
     assert mdb.get_language(lang_id) == "Klingonian"
@@ -238,14 +239,14 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
             ('parody:"!Test and Test2;Test;Incl and incl" pages:25 '
              'tag:"Multi Word Tag;Test1;!Test3;Test2;!Test4" '
              'favorite:0 language:English',
-                [{"favorite": "0", "language_id": 1},
+                [{"favorite": "0", "language_id": LANG_IDS['English']},
                  {"parody": ["Test", "Incl and incl"],
                   "tag": ["Multi Word Tag", "Test1", "Test2"]},
                  {"parody": ["Test and Test2"], "tag": ["Test3", "Test4"]}]),
             ('parody:"!Test and Test2;Test;Incl and incl" title search '
              'tag:!Test3;Test2;!Test4 list:!to-read" '
              'favorite:0 language:English',
-                [{"title": "title search", "favorite": "0", "language_id": 1},
+                [{"title": "title search", "favorite": "0", "language_id": LANG_IDS['English']},
                  {"parody": ["Test", "Incl and incl"],
                   "tag": ["Test2"]},
                  {"parody": ["Test and Test2"], "tag": ["Test3", "Test4"],
@@ -270,7 +271,7 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
 
     dictlike = {"language": "English", "censorship": "Invalid", "status_id": 1}
     mdb.convert_names_to_ids(dictlike)
-    assert dictlike["language_id"] == 1
+    assert dictlike["language_id"] == LANG_IDS['English']
     assert "language" not in dictlike
     assert "censor_id" not in dictlike
     assert "censorship" not in dictlike

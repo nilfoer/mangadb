@@ -690,7 +690,7 @@ def test_import_book(app_setup, monkeypatch):
         b = kwargs_show_add["book"]
         assert b.title_eng == row_expected[0]
         assert b.title_foreign == row_expected[1]
-        assert b.language_id == 1
+        assert b.language_id == LANG_IDS['English']
         assert b.pages == row_expected[3]
         assert b.status_id == row_expected[4]
         assert b.my_rating == row_expected[5]
