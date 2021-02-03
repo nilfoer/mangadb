@@ -53,7 +53,25 @@ Then you can access the WebGUI by going to `localhost:7578` (7578 is the default
 To be able to access the site with e.g. your phone in your LAN use `MangaDB.exe webgui --open` and then browse to http://INSERT.YOUR.IP.HERE:7578/
 
 ### Adding books
-You can either import books from supported sites by pasting their URL into the search field and selecting **Import Book** or press the **+** symbol in the top right to add a book manually.
+You can either import books from supported sites by pasting their URL into the search field and selecting **Import Book** and submitting or press the **Add book** button inside the toolbox in the top right to add a book manually.
+
+#### Error: 503 - Service unavailable
+Importing a book from sites that use DDoS protection by services like Cloudflare might fail
+due to our script getting recognized as a bot.
+
+In order to circumvent that you have to manually visit the page, upon which either your browser has to pass
+a JavaScript challenge or you have to solve a Captcha. After that your browser will be recognized as
+a "real human". On subsequent requests you will be automatically recognized using cookies. These can be exported for use with MangaDB, so that we are able to import books from sites like these.
+
+The most convenient way is to use the
+[NoRobot Extension](https://addons.mozilla.org/de/firefox/addon/norobot-exporter/)
+that automatically gathers all the required information. Save that to a `cookies.txt` in your `instance`
+folder where your DB file etc. are located. This is the path the **webGUI** uses, but you can pass arbitrary
+paths to the **CLI** using `MangaDB.exe --cookies "path\to\cookies.txt"` (e.g. when you're using the
+`link_collector`).
+
+Loading or updating the cookies from the cookie file on the webGUI is done by pressing the **Refresh cookies**
+button in the toolbox.
 
 ### Searching
 The search bar matches the input string against the book's english and foreign title by default (so it if there's a string without a preceeding keyword the title is searched).
