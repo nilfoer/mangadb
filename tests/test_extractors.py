@@ -13,6 +13,7 @@ from manga_db.extractor.nhentai import NhentaiExtractor
 from manga_db.extractor.mangadex import MangaDexExtractor
 from manga_db.extractor.manganelo import ManganeloExtractor
 from manga_db.extractor.toonily import ToonilyExtractor
+from manga_db.extractor.mangasee123 import MangaSee123Extractor
 from manga_db.constants import CENSOR_IDS, STATUS_IDS
 
 from utils import build_testsdir_furl, TESTS_DIR
@@ -579,3 +580,95 @@ def test_extr_toonily():
     data = extr.extract()
     assert data.nsfw == 0
     assert sorted(data.artist) == ['Lee Gyuntak', 'Noh Miyoung']
+
+
+@pytest.mark.parametrize('inp, expected', [
+    ('https://www.mangasee123.com/manga/Parallel-Paradise', 'Parallel-Paradise'),
+    ('https://mangasee123.com/read-online/Minamoto-Kun-Monogatari-chapter-351-page-1.html',
+     'Minamoto-Kun-Monogatari'),
+    ('https://www.mangasee123.com/read-online/Tokyo-05-Revengers-chapter-1-page-1.html',
+     'Tokyo-05-Revengers'),
+    ('https://mangasee123.com/manga/1-Love9', '1-Love9'),
+    ])
+def test_extr_mangasee123_bookid_from_url(inp, expected):
+    assert MangaSee123Extractor.book_id_from_url(inp) == expected
+
+
+manual_mangasee123_2art = {
+        "url": "https://mangasee123.com/manga/Kaifuku-Jutsushi-No-Yarinaoshi",
+        "pages": 0,
+        "id_onpage": 'Kaifuku-Jutsushi-No-Yarinaoshi',
+        "rating": None,
+        "ratings": None,
+        "favorites": 1688,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "Kaifuku Jutsushi no Yarinaoshi",
+        "title_foreign": None,
+        "tag": ['Action', 'Adult', 'Adventure', 'Drama', 'Fantasy', 'Harem', 'Seinen'],
+        "censor_id": CENSOR_IDS['Unknown'],
+        "language": "English",
+        "status_id": STATUS_IDS['Ongoing'],
+        "imported_from": MangaSee123Extractor.site_id,
+        "category": ["Manga"],
+        "groups": [],
+        "artist": ["Haga Souken", "TSUKIYO Rui"],
+        "parody": [],
+        "character": [],
+        'note': ("Description: Healing magicians cannot fight alone.â€™ Keare, who was bound by this common knowledge, was exploited again and again by others.\nBut one day, he noticed what lay beyond healing magic, and was convinced that a healing magician was the strongest class. However, by the time he realized that potential, he was deprived of everything. Thus, he used healing magic on the world itself to go back four years, deciding to redo everything.\nThis is a heroic tale of one healing magician who became the strongest by using knowledge from his past life and healing magic."),
+        'nsfw': 1,
+        'collection': [],
+}
+
+manual_mangasee123_pubscan = {
+        "url": "https://www.mangasee123.com/read-online/Akuma-No-Hanayome-chapter-15-page-1.html", #"https://www.mangasee123.com/manga/Akuma-No-Hanayome",
+        "pages": 0,
+        "id_onpage": 'Akuma-No-Hanayome',
+        "rating": None,
+        "ratings": None,
+        "favorites": 5,
+        "uploader": None,
+        "upload_date": datetime.date.min,
+        "title_eng": "Akuma no Hanayome",
+        "title_foreign": None,
+        "tag": ['Fantasy', 'Horror', 'Psychological', 'Romance', 'Shoujo', 'Supernatural'],
+        "censor_id": CENSOR_IDS['Unknown'],
+        "language": "English",
+        "status_id": STATUS_IDS['Completed'],
+        "imported_from": MangaSee123Extractor.site_id,
+        "category": ["Manga"],
+        "groups": [],
+        "artist": ['ASHIBE Yuuho', 'IKEDA Etsuko'],
+        "parody": [],
+        "character": [],
+        'note': ("Description: Deimos was once a handsome god. He loved a beautiful goddess who returns his sentiments. The problem, well, she is his sister. For their crime against nature they were struck down out of Olympus. The brother is now a demon and the sister a rotting corpse at the bottom of the ocean. Deimos must choose between his sister and her living human incarnation. His sister is jealous. The girl is horrified and unsure of just what to make of her situation."),
+        'nsfw': 0,
+        'collection': [],
+}
+
+
+def test_extr_mangasee123():
+    expected = manual_mangasee123_2art
+    extr = MangaSee123Extractor(expected['url'])
+    assert extr.id_onpage == 'Kaifuku-Jutsushi-No-Yarinaoshi'
+    # make sure get_cover calls extract and sets export_data
+    assert extr.get_cover() == "https://cover.nep.li/cover/Kaifuku-Jutsushi-No-Yarinaoshi.jpg"
+    assert extr.export_data is not None
+    data = extr.extract()
+    assert extr.export_data == data
+    comp_dict_manga_extr_data(expected, data, ignore_attrs={'favorites'})
+    assert abs_delta(expected['favorites'], data.favorites) <= 300
+
+
+    # use (Publish) status which is Complete instead of scan status (Ongoing)
+    expected = manual_mangasee123_pubscan
+    extr = MangaSee123Extractor(expected['url'])
+    assert extr.id_onpage == 'Akuma-No-Hanayome'
+    # make sure get_cover calls extract and sets export_data
+    assert extr.get_cover() == "https://cover.nep.li/cover/Akuma-No-Hanayome.jpg"
+    assert extr.export_data is not None
+    data = extr.extract()
+    assert extr.export_data == data
+    comp_dict_manga_extr_data(expected, data, ignore_attrs={'favorites', 'url'})
+    assert data.url == "https://mangasee123.com/manga/Akuma-No-Hanayome"
+    assert abs_delta(expected['favorites'], data.favorites) <= 50
