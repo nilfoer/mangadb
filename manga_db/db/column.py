@@ -1,31 +1,43 @@
 from weakref import WeakKeyDictionary
+from typing import Generic, TypeVar, Dict, Any, Callable, Optional, Union, Type, overload, Set
 
 from .constants import ColumnValue
 
 
 # callback that sets the current state as commited state on the instance
 # the first time the value is changed after a commit
-def committed_state_callback(instance, col_name, before, after):
+def committed_state_callback(instance, col_name: str, before, after):
     if col_name not in instance._committed_state:
         if before is not ColumnValue.NO_VALUE:
             instance._committed_state[col_name] = before
 
 
-class Column:
+# NOTE: if the descriptor (Column is one, since it defines __get__ etc.) depends
+# on some specific attributes on instance/owner in the descriptor methods
+# (__get, __set, __set_name__ etc.) that it doesn't set itself then it should use
+# two type argument e.g. T and O (O for owner); __get__ would then look like:
+# def __get__(self, instance: O, ower: Type[O]) -> T:
+T = TypeVar('T')
+
+
+# mypy generic classes need to inherit from Generic unless another base class
+# already does
+class Column(Generic[T]):
 
     # set by __set_name__ on instance
-    name = None
+    name: str
 
-    def __init__(self, value_type, default=None, **kwargs):
+    def __init__(self, value_type: Type[T], default: Optional[T] = None, **kwargs):
         self.type = value_type
         self.default = default
-        self.values = WeakKeyDictionary()
-        self.primary_key = kwargs.pop("primary_key", False)
-        self.nullable = kwargs.pop("nullable", True)
+        # TODO what was this for?
+        self.values: WeakKeyDictionary = WeakKeyDictionary()
+        self.primary_key: bool = kwargs.pop("primary_key", False)
+        self.nullable: bool = kwargs.pop("nullable", True)
 
     # new in py3.6: Called at the time the owning class owner is created. The descriptor has been
-    # assigned to name
-    def __set_name__(self, owner, name):
+    # assigned to name (there's an attribute named name on owner, which is a type/class)
+    def __set_name__(self, owner: Type, name: str):
         if self.primary_key:
             # add pk col separately
             try:
@@ -40,7 +52,17 @@ class Column:
                 owner.COLUMNS = [name]
         self.name = name
 
-    def __get__(self, instance, owner):
+    @overload
+    def __get__(self, instance: None, owner: Type) -> 'Column[T]': ...
+
+    @overload
+    def __get__(self, instance: Any, owner: Type) -> Union[T, ColumnValue]: ...
+
+    # Descriptors get invoked by the dot "operator" during attribute lookup. If
+    # a descriptor is accessed indirectly with vars(some_class)[descriptor_name],
+    # the descriptor instance is returned without invoking it.
+    # see: https://docs.python.org/3/howto/descriptor.html
+    def __get__(self, instance: Optional[Any], owner: Type) -> Union['Column[T]', T, ColumnValue]:
         # instance is None when we're being called from class level of instance
         # return self so we can access descriptors methods
         if instance is None:
@@ -53,14 +75,17 @@ class Column:
             # define __eq__ but not __hash__ (ExternalInfo)
             #
             # return default if we have one and the value is None
-            val = instance.__dict__[self.name]
+            # val = instance.__dict__[self.name]
+            # better style to use getattr
+            val = getattr(instance, self.name)
             if self.default is not None and val is None:
                 return self.default
             return val
         except KeyError:
             return ColumnValue.NO_VALUE
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: T) -> None:
+        # TODO is this still neede with mypy?
         if value is not None and not isinstance(value, self.type):
             raise TypeError(f"Value doesn't match the column's ({self.name}) type! Got "
                             f"{type(value)}: {value} epxected {self.type}")
@@ -70,17 +95,20 @@ class Column:
 
         instance.__dict__[self.name] = value
 
-    def __delete__(self, instance):
+    def __delete__(self, instance: Any) -> None:
         del instance.__dict__[self.name]
 
 
-class ColumnWithCallback(Column):
+class ColumnWithCallback(Column[T]):
 
-    def __init__(self, value_type, default=None, **kwargs):
+    # name -> callabck (instance, name, before, after)
+    callbacks: Dict[str, Set[Callable[[Any, str, Optional[T], Optional[T]], None]]]
+
+    def __init__(self, value_type: Type[T], default: Optional[T] = None, **kwargs):
         super().__init__(value_type, default=default, **kwargs)
         self.callbacks = {}
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Optional[T]):
         # @CopyNPaste from base class; move this to an internal func or sth.
         # so we don't repeat the code
         if value is not None and not isinstance(value, self.type):

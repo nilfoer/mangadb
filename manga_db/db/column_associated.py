@@ -1,3 +1,8 @@
+from typing import (
+    Generic, TypeVar, Dict, Any, Callable, Optional, Union, Type,
+    Set, overload, List
+)
+
 from .column import committed_state_callback
 from .constants import ColumnValue, Relationship
 
@@ -47,16 +52,27 @@ def trackable_type(instance, name, base, on_change_callback, *init_args, **init_
     return TrackableObject(*init_args, **init_kwargs)
 
 
-class AssociatedColumnBase:
+# type of tracked column
+T = TypeVar('T')
 
-    def __init__(self, table_name, relationship, **kwargs):
+
+# mypy generic classes need to inherit from Generic unless another base class
+# already does
+class AssociatedColumnBase(Generic[T]):
+
+    # attribute name on the "owning" class, will be set by __set_name__
+    name: str
+    # name -> callabck (instance, name, before, after)
+    callbacks: Dict[str, Set[Callable[[T, str, Optional[T], Optional[T]], None]]]
+
+    def __init__(self, table_name: str, relationship: Relationship, **kwargs):
         self.table_name = table_name
         self.relationship = relationship
         self.callbacks = {}
 
     # new in py3.6: Called at the time the owning class owner is created. The descriptor has been
-    # assigned to name
-    def __set_name__(self, owner, name):
+    # assigned to name (there's an attribute named name on owner, which is a type/class)
+    def __set_name__(self, owner: Type, name: str) -> None:
         # add col name to ASSOCIATED_COLUMNS of class
         try:
             owner.ASSOCIATED_COLUMNS.append(name)
@@ -64,7 +80,14 @@ class AssociatedColumnBase:
             owner.ASSOCIATED_COLUMNS = [name]
         self.name = name
 
-    def __get__(self, instance, owner):
+    @overload
+    def __get__(self, instance: None, owner: Type) -> 'AssociatedColumnBase[T]': ...
+
+    @overload
+    def __get__(self, instance: Any, owner: Type) -> Union[List[T], ColumnValue]: ...
+
+    def __get__(self, instance: Any, owner: Type) -> Union[
+            ColumnValue, 'AssociatedColumnBase', List[T]]:
         # instance is None when we're being called from class level of instance
         # return self so we can access descriptors methods
         if instance is None:
@@ -75,7 +98,7 @@ class AssociatedColumnBase:
             # use name (== name of assigned attribute) to access value on INSTANCE's __dict__
             # so we can have unhashable types as instances (e.g. subclass of list or classes that
             # define __eq__ but not __hash__ (ExternalInfo)
-            return instance.__dict__[self.name]
+            return getattr(instance, self.name)
         except KeyError:
             return ColumnValue.NO_VALUE
 
@@ -105,9 +128,10 @@ class AssociatedColumnBase:
         self.callbacks[name].add(callback)
 
 
-class AssociatedColumnMany(AssociatedColumnBase):
+class AssociatedColumnMany(AssociatedColumnBase[T]):
 
-    def __init__(self, table_name, relationship, assoc_table=None, **kwargs):
+    def __init__(self, table_name: str, relationship: Relationship,
+                 assoc_table: Optional[str] = None, **kwargs):
         super().__init__(table_name, relationship, **kwargs)
         if self.relationship is Relationship.MANYTOMANY and not assoc_table:
             raise ValueError("Value for assoc_table is needed when relationship"
@@ -115,7 +139,7 @@ class AssociatedColumnMany(AssociatedColumnBase):
         self.table_name = table_name
         self.assoc_table = assoc_table
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Optional[T]) -> None:
         if value:
             value = trackable_type(instance, self.name, list, committed_state_callback, value)
         else:
@@ -124,15 +148,15 @@ class AssociatedColumnMany(AssociatedColumnBase):
         before = self.__get__(instance, instance.__class__)
         committed_state_callback(instance, self.name, before, value)
 
-        instance.__dict__[self.name] = value
+        setattr(instance, self.name, value)
 
         for callback in self.callbacks.get(self.name, []):
             callback(instance, self.name, before, value)
 
 
-class AssociatedColumnOne(AssociatedColumnBase):
+class AssociatedColumnOne(AssociatedColumnBase[T]):
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Optional[T]):
         before = self.__get__(instance, instance.__class__)
         committed_state_callback(instance, self.name, before, value)
         # call registered callback and inform them of new value
@@ -140,4 +164,4 @@ class AssociatedColumnOne(AssociatedColumnBase):
         for callback in self.callbacks.get(self.name, []):
             callback(instance, self.name, before, value)
 
-        instance.__dict__[self.name] = value
+        setattr(instance, self.name, value)

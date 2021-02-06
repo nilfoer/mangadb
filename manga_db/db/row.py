@@ -1,26 +1,31 @@
-from typing import List, Dict, Any, Tuple, Mapping
+from typing import List, Dict, Any, Tuple, Mapping, ClassVar, TYPE_CHECKING, Union, Type
+
+if TYPE_CHECKING:
+    from ..manga_db import MangaDB
 
 
 class DBRow:
 
-    TABLENAME = ""
+    TABLENAME: ClassVar[str] = ""
 
-    PRIMARY_KEY_COLUMNS: List[str]
+    # automatically created/appended by Column and AssociatedColumnBase classes
+    PRIMARY_KEY_COLUMNS: ClassVar[List[str]]
     # cant assign [] here otherwise col names of all subclasses will be appended to same list
-    COLUMNS: List[str]
-    ASSOCIATED_COLUMNS: List[str]
+    COLUMNS: ClassVar[List[str]]
+    ASSOCIATED_COLUMNS: ClassVar[List[str]]
 
-    def __init__(self, manga_db, in_db, **kwargs):
+    def __init__(self, manga_db: MangaDB, in_db: bool, **kwargs):
         self.manga_db = manga_db
         # commited values get added when col gets modified
-        self._committed_state = {}
+        self._committed_state: Dict[str, Any] = {}
         # defaul false, true when loaded from db through load_instance
         # get_book_id can return an id but still doesnt mean that the book is in db
         # it might just have the same title as the book whose id was returned
-        self._in_db = in_db
+        self._in_db: bool = in_db
 
+    # Tuple[T, ...] => variable length tuple
     @property
-    def key(self):
+    def key(self) -> Tuple[Type['DBRow'], Tuple[Union[str, int, float], ...]]:
         return self.__class__, tuple((getattr(self, col) for col in self.PRIMARY_KEY_COLUMNS))
 
     @classmethod
