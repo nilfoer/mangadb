@@ -1,11 +1,10 @@
 import pytest
 
 from manga_db.db.column import Column, ColumnWithCallback
-from manga_db.db.constants import ColumnValue
 
 
-def event_callback(instance, name, before, after):
-    if before is not ColumnValue.NO_VALUE:
+def event_callback(instance, name, was_unitiialized, before, after):
+    if not was_unitiialized:
         instance.events.append(after)
 
 
@@ -61,7 +60,7 @@ def test_db_column(create_obj_with_col):
     # Obj.event.add_callback("event", event_callback)
     # -> tries to append to attr that doesnt exist
     # either make sure the element exists before the descriptors instance is assigned
-    # or handle it in the callback by checking if before value is ColumnValue.NO_VALUE
+    # or handle it in the callback by __get__ raising UninitializedColumn
     o = Obj(title="NormalColTest2", page=5, event="ttt")
     assert not o.events
     assert o.event == "ttt"

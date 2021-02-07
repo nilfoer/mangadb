@@ -1,22 +1,25 @@
 from typing import (
     Generic, TypeVar, Dict, Any, Callable, Optional, Union, Type,
-    Set, overload, List
+    Set, overload, List, Iterable, Sequence
 )
 
-from .column import committed_state_callback
-from .constants import ColumnValue, Relationship
+from .column import committed_state_callback, UninitializedColumn
+from .constants import Relationship
 
 
 # adapted from https://stackoverflow.com/a/8859168 Andrew Clark
-def trackable_type(instance, name, base, on_change_callback, *init_args, **init_kwargs):
+def trackable_type(instance: Any, name: str, base: Type,
+                   on_change_callback: Callable[[Any, str, bool, Any, Any], None],
+                   *init_args, **init_kwargs) -> Any:
     def func_add_callback(func):
         def wrapped(self, *args, **kwargs):
             before = base(self)
             result = func(self, *args, **kwargs)
             after = base(self)
             if before != after:
-                # on_change_callback(instance, name, before, after)
-                on_change_callback(instance, name, before, after)
+                # on_change_callback(instance, name, was_uninitialized, before, after)
+                # can access an uninitialized value here?
+                on_change_callback(instance, name, False, before, after)
             return result
         return wrapped
 
@@ -36,13 +39,15 @@ def trackable_type(instance, name, base, on_change_callback, *init_args, **init_
             for attr in dir(base):
                 if attr not in skip:
                     func = getattr(base, attr)
+                    # wrap method call so we get a callback
                     if isinstance(func, methods):
                         dct[attr] = func_add_callback(func)
             return type.__new__(cls, name, bases, dct)
 
     # inherit from base class and use metaclass TrackableMeta
     # to apply callback to base class methods
-    class TrackableObject(base, metaclass=TrackableMeta):
+    # NOTE: mypy can't check this since Base class base is dynamic
+    class TrackableObject(base, metaclass=TrackableMeta):  # type: ignore
         # metaclass kwarg -> py3
         # py2: __metaclass__ = TrackableMeta
         pass
@@ -63,7 +68,7 @@ class AssociatedColumnBase(Generic[T]):
     # attribute name on the "owning" class, will be set by __set_name__
     name: str
     # name -> callabck (instance, name, before, after)
-    callbacks: Dict[str, Set[Callable[[T, str, Optional[T], Optional[T]], None]]]
+    callbacks: Dict[str, Set[Callable[[T, str, bool, Any, Any], None]]]
 
     def __init__(self, table_name: str, relationship: Relationship, **kwargs):
         self.table_name = table_name
@@ -84,10 +89,9 @@ class AssociatedColumnBase(Generic[T]):
     def __get__(self, instance: None, owner: Type) -> 'AssociatedColumnBase[T]': ...
 
     @overload
-    def __get__(self, instance: Any, owner: Type) -> Union[List[T], ColumnValue]: ...
+    def __get__(self, instance: Any, owner: Type) -> List[T]: ...
 
-    def __get__(self, instance: Any, owner: Type) -> Union[
-            ColumnValue, 'AssociatedColumnBase', List[T]]:
+    def __get__(self, instance: Any, owner: Type) -> Union['AssociatedColumnBase', List[T]]:
         # instance is None when we're being called from class level of instance
         # return self so we can access descriptors methods
         if instance is None:
@@ -98,9 +102,9 @@ class AssociatedColumnBase(Generic[T]):
             # use name (== name of assigned attribute) to access value on INSTANCE's __dict__
             # so we can have unhashable types as instances (e.g. subclass of list or classes that
             # define __eq__ but not __hash__ (ExternalInfo)
-            return getattr(instance, self.name)
+            return vars(instance)[self.name]
         except KeyError:
-            return ColumnValue.NO_VALUE
+            raise UninitializedColumn
 
     def __set__(self, instance, value):
         raise NotImplementedError
@@ -117,7 +121,7 @@ class AssociatedColumnBase(Generic[T]):
     # Obj.event.add_callback("event", event_callback)
     # -> tries to append to attr that doesnt exist
     # either make sure the element exists before the descriptors instance is assigned
-    # or handle it in the callback by checking if before value is ColumnValue.NO_VALUE
+    # or handle it in the callback by __get__ raising UninitializedColumn
     def add_callback(self, name, callback):
         """Add a new function to call everytime the descriptor updates
         To be able to call add_callback you have to call it on the class level (of the instance),
@@ -130,6 +134,8 @@ class AssociatedColumnBase(Generic[T]):
 
 class AssociatedColumnMany(AssociatedColumnBase[T]):
 
+    callbacks: Dict[str, Set[Callable[[T, str, bool, Iterable[T], Iterable[T]], None]]]
+
     def __init__(self, table_name: str, relationship: Relationship,
                  assoc_table: Optional[str] = None, **kwargs):
         super().__init__(table_name, relationship, **kwargs)
@@ -139,29 +145,46 @@ class AssociatedColumnMany(AssociatedColumnBase[T]):
         self.table_name = table_name
         self.assoc_table = assoc_table
 
-    def __set__(self, instance: Any, value: Optional[T]) -> None:
+    def __set__(self, instance: Any, value: Iterable[T]) -> None:
         if value:
             value = trackable_type(instance, self.name, list, committed_state_callback, value)
         else:
             # dont set to None or other unwanted type use our trackable set instead
             value = trackable_type(instance, self.name, list, committed_state_callback)
-        before = self.__get__(instance, instance.__class__)
-        committed_state_callback(instance, self.name, before, value)
 
-        setattr(instance, self.name, value)
+        was_uninitialized = False
+        try:
+            before = self.__get__(instance, instance.__class__)
+        except UninitializedColumn:
+            was_uninitialized = True
+            before = None
+
+        committed_state_callback(instance, self.name, was_uninitialized, before, value)
+
+        # same problem as with getattr arises with setattr -> descriptor __set__
+        # get called infinitely -> can't use it
+        vars(instance)[self.name] = value
 
         for callback in self.callbacks.get(self.name, []):
-            callback(instance, self.name, before, value)
+            callback(instance, self.name, was_uninitialized, before, value)
 
 
 class AssociatedColumnOne(AssociatedColumnBase[T]):
 
+    callbacks: Dict[str, Set[Callable[[T, str, bool, Optional[T], Optional[T]], None]]]
+
     def __set__(self, instance: Any, value: Optional[T]):
-        before = self.__get__(instance, instance.__class__)
-        committed_state_callback(instance, self.name, before, value)
+        was_uninitialized = False
+        try:
+            before = self.__get__(instance, instance.__class__)
+        except UninitializedColumn:
+            was_uninitialized = True
+            before = None
+
+        committed_state_callback(instance, self.name, was_uninitialized, before, value)
         # call registered callback and inform them of new value
         # important this happens b4 setting the value otherwise we cant retrieve old value
         for callback in self.callbacks.get(self.name, []):
-            callback(instance, self.name, before, value)
+            callback(instance, self.name, was_uninitialized, before, value)
 
-        setattr(instance, self.name, value)
+        vars(instance)[self.name] = value

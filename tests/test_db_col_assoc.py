@@ -1,11 +1,11 @@
 import pytest
 
 from manga_db.db.column_associated import trackable_type, AssociatedColumnOne, AssociatedColumnMany
-from manga_db.db.constants import ColumnValue, Relationship
+from manga_db.db.constants import Relationship
 
 
-def event_callback(instance, name, before, after):
-    if before is not ColumnValue.NO_VALUE:
+def event_callback(instance, name, was_unitiialized, before, after):
+    if not was_unitiialized:
         instance.changes[name] = before, after
 
 
@@ -47,7 +47,7 @@ def test_assoc_col(create_obj_with_col_assoc):
     assert o.changes["tags"] == (["Test", "Docs", "New"], ["Test", "Docs"])
 
     # assoc col many is never none since it gets the trackable type assigned
-    # or its not created yet and we get ColumnValue.NO_VALUE
+    # or handle it in the callback by __get__ raising UninitializedColumn
     assert o.childs == []
     o.childs = [1, 2, 3]
     assert o.childs == [1, 2, 3]
@@ -63,12 +63,12 @@ def test_assoc_col(create_obj_with_col_assoc):
     # Obj.event.add_callback("event", event_callback)
     # -> tries to append to attr that doesnt exist
     # either make sure the element exists before the descriptors instance is assigned
-    # or handle it in the callback by checking if before value is ColumnValue.NO_VALUE
+    # or handle it in the callback by __get__ raising UninitializedColumn
     o = Obj(11, ["Test", "Docs", "New"], None)
     assert not o.changes
 
 
-def on_change_callback(instance, name, before, after):
+def on_change_callback(instance, name, was_unitiialized, before, after):
     instance.revisions.append(before)
 
 

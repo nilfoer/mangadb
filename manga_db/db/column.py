@@ -1,16 +1,22 @@
 from weakref import WeakKeyDictionary
 from typing import Generic, TypeVar, Dict, Any, Callable, Optional, Union, Type, overload, Set
 
-from .constants import ColumnValue
+from ..exceptions import MangaDBException
 
 
 # callback that sets the current state as commited state on the instance
 # the first time the value is changed after a commit
-def committed_state_callback(instance, col_name: str, before, after):
+def committed_state_callback(instance, col_name: str, was_uninitialized: bool, before, after) -> None:
     if col_name not in instance._committed_state:
-        if before is not ColumnValue.NO_VALUE:
+        if not was_uninitialized:
             instance._committed_state[col_name] = before
 
+
+# NOTE: this will only be raised when we try to access the column's value
+# when it hasn't been initialized yet which should only ever happen in the
+# owning classes' __init__ (or some derivative)
+class UninitializedColumn(MangaDBException):
+    pass
 
 # NOTE: if the descriptor (Column is one, since it defines __get__ etc.) depends
 # on some specific attributes on instance/owner in the descriptor methods
@@ -56,13 +62,14 @@ class Column(Generic[T]):
     def __get__(self, instance: None, owner: Type) -> 'Column[T]': ...
 
     @overload
-    def __get__(self, instance: Any, owner: Type) -> Union[T, ColumnValue]: ...
+    def __get__(self, instance: Any, owner: Type) -> T: ...
 
     # Descriptors get invoked by the dot "operator" during attribute lookup. If
     # a descriptor is accessed indirectly with vars(some_class)[descriptor_name],
     # the descriptor instance is returned without invoking it.
     # see: https://docs.python.org/3/howto/descriptor.html
-    def __get__(self, instance: Optional[Any], owner: Type) -> Union['Column[T]', T, ColumnValue]:
+    # -> can't use getattr, have to use vars(instance)[attrname]
+    def __get__(self, instance: Optional[Any], owner: Type) -> Union['Column[T]', T]:
         # instance is None when we're being called from class level of instance
         # return self so we can access descriptors methods
         if instance is None:
@@ -76,22 +83,28 @@ class Column(Generic[T]):
             #
             # return default if we have one and the value is None
             # val = instance.__dict__[self.name]
-            # better style to use getattr
-            val = getattr(instance, self.name)
+            # better style would be to use getattr but that would lead to infinite recursion
+            # (see above) -> have to use vars(instance)[self.name] which is basically the
+            # same as using __dict__[self.name]
+            val = vars(instance)[self.name]
             if self.default is not None and val is None:
                 return self.default
             return val
         except KeyError:
-            return ColumnValue.NO_VALUE
+            raise UninitializedColumn
 
     def __set__(self, instance: Any, value: T) -> None:
-        # TODO is this still neede with mypy?
+        # TODO is this still needed with mypy?
         if value is not None and not isinstance(value, self.type):
             raise TypeError(f"Value doesn't match the column's ({self.name}) type! Got "
                             f"{type(value)}: {value} epxected {self.type}")
 
-        before = self.__get__(instance, instance.__class__)
-        committed_state_callback(instance, self.name, before, value)
+        try:
+            before = self.__get__(instance, instance.__class__)
+        except UninitializedColumn:
+            committed_state_callback(instance, self.name, True, None, value)
+        else:
+            committed_state_callback(instance, self.name, False, before, value)
 
         instance.__dict__[self.name] = value
 
@@ -102,7 +115,7 @@ class Column(Generic[T]):
 class ColumnWithCallback(Column[T]):
 
     # name -> callabck (instance, name, before, after)
-    callbacks: Dict[str, Set[Callable[[Any, str, Optional[T], Optional[T]], None]]]
+    callbacks: Dict[str, Set[Callable[[Any, str, bool, Optional[T], Optional[T]], None]]]
 
     def __init__(self, value_type: Type[T], default: Optional[T] = None, **kwargs):
         super().__init__(value_type, default=default, **kwargs)
@@ -115,14 +128,20 @@ class ColumnWithCallback(Column[T]):
             raise TypeError(f"Value doesn't match the column's ({self.name}) type! Got "
                             f"{type(value)}: {value} epxected {self.type}")
 
-        before = self.__get__(instance, instance.__class__)
-        committed_state_callback(instance, self.name, before, value)
+        was_uninitialized = False
+        try:
+            before = self.__get__(instance, instance.__class__)
+        except UninitializedColumn:
+            was_uninitialized = True
+            before = None
+
+        committed_state_callback(instance, self.name, was_uninitialized, before, value)
 
         instance.__dict__[self.name] = value
 
         # call registered callback and inform them of new value
         for callback in self.callbacks.get(self.name, []):
-            callback(instance, self.name, before, value)
+            callback(instance, self.name, was_uninitialized, before, value)
 
     # CAREFUL!
     # if we create a 2nd instance of e.g. Obj that contains this cls the callback that appends to
@@ -133,7 +152,7 @@ class ColumnWithCallback(Column[T]):
     # Obj.event.add_callback("event", event_callback)
     # -> tries to append to attr that doesnt exist
     # either make sure the element exists before the descriptors instance is assigned
-    # or handle it in the callback by checking if before value is ColumnValue.NO_VALUE
+    # or handle it in the callback by __get__ raising UninitializedColumn
     def add_callback(self, name, callback):
         """Add a new function to call everytime the descriptor updates
         To be able to call add_callback you have to call it on the class level (of the instance),

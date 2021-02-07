@@ -14,7 +14,7 @@ class DBRow:
     COLUMNS: ClassVar[List[str]]
     ASSOCIATED_COLUMNS: ClassVar[List[str]]
 
-    def __init__(self, manga_db: MangaDB, in_db: bool, **kwargs):
+    def __init__(self, manga_db: 'MangaDB', in_db: bool, **kwargs):
         self.manga_db = manga_db
         # commited values get added when col gets modified
         self._committed_state: Dict[str, Any] = {}

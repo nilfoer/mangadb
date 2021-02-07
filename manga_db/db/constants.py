@@ -8,9 +8,6 @@ class Relationship(enum.Enum):
     MANYTOMANY = 3
 
 
-class ColumnValue(enum.Enum):
-    NO_VALUE = 0
-
 # could also use a helper class instance to represent my constants
 # since they wont compare true against values that could be stored in a cell
 # >>> a=1

@@ -2,13 +2,13 @@ import os
 import logging
 import datetime
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Tuple
 
 from .db.loading import load_instance
 from .db.row import DBRow
 from .db.column import Column, ColumnWithCallback
 from .db.column_associated import AssociatedColumnMany
-from .db.constants import Relationship, ColumnValue
+from .db.constants import Relationship
 from .ext_info import ExternalInfo
 from .constants import STATUS_IDS
 from .db.util import joined_col_name_to_query_names
@@ -39,20 +39,27 @@ class Book(DBRow):
     chapter_status = Column(str, nullable=True)
     read_status = Column(int, nullable=True)
     my_rating = Column(float)
-    category = AssociatedColumnMany("Category", Relationship.MANYTOMANY,
-                                    assoc_table="BookCategory")
-    collection = AssociatedColumnMany("Collection", Relationship.MANYTOMANY,
-                                      assoc_table="BookCollection")
-    groups = AssociatedColumnMany("Groups", Relationship.MANYTOMANY, assoc_table="BookGroups")
-    artist = AssociatedColumnMany("Artist", Relationship.MANYTOMANY, assoc_table="BookArtist")
-    parody = AssociatedColumnMany("Parody", Relationship.MANYTOMANY, assoc_table="BookParody")
-    character = AssociatedColumnMany("Character", Relationship.MANYTOMANY,
-                                     assoc_table="BookCharacter")
-    list = AssociatedColumnMany("List", Relationship.MANYTOMANY,
-                                assoc_table="BookList")
-    tag = AssociatedColumnMany("Tag", Relationship.MANYTOMANY,
-                               assoc_table="BookTag")
-    ext_infos = AssociatedColumnMany("ExternalInfo", Relationship.ONETOMANY)
+    # @Incomplete custom 'ORM' not fully implemented yet so no way to express
+    # this relationship properly; currently just loading the name columns
+    category: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Category", Relationship.MANYTOMANY,
+            assoc_table="BookCategory")
+    collection: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Collection", Relationship.MANYTOMANY, assoc_table="BookCollection")
+    groups: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Groups", Relationship.MANYTOMANY, assoc_table="BookGroups")
+    artist: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Artist", Relationship.MANYTOMANY, assoc_table="BookArtist")
+    parody: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Parody", Relationship.MANYTOMANY, assoc_table="BookParody")
+    character: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Character", Relationship.MANYTOMANY, assoc_table="BookCharacter")
+    list: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "List", Relationship.MANYTOMANY, assoc_table="BookList")
+    tag: AssociatedColumnMany[str] = AssociatedColumnMany(
+            "Tag", Relationship.MANYTOMANY, assoc_table="BookTag")
+    ext_infos: AssociatedColumnMany[ExternalInfo] = AssociatedColumnMany(
+            "ExternalInfo", Relationship.ONETOMANY)
     last_change = Column(datetime.date, nullable=False)
     note = Column(str)
     favorite = Column(int, nullable=False)
@@ -398,10 +405,27 @@ class Book(DBRow):
         c = self.manga_db.db_con.executemany(
                 f"INSERT OR IGNORE INTO {table_name}(name) VALUES (?)", li_of_tup)
 
-        c.executemany(f"""INSERT OR IGNORE INTO Book{table_name}(book_id, {bridge_col_name})
-                          SELECT ?, {table_name}.id
-                          FROM {table_name}
-                          WHERE {table_name}.name = ?""", zip([self.id] * len(values), values))
+        # NOTE: careful! since OR IGNORE ignores the insert if sth. like a unique constraint
+        # is violated it also doesn't raise an exception etc. and a bug of not adding
+        # rows might get unnoticed
+        # we don't need OR IGNORE here, since our we only add values that weren't present
+        # on the book; could only happen if our id_map is buggy or our db was modified
+        # form another connection
+        # TODO @Hack need to treat this specially since we need the max in_collection_idx
+        if col_name == "collection":
+            # use max in_collection_idx + 1 for a collection that was newly added
+            c.executemany("""INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)
+                             SELECT ?, Collection.id, (
+                                SELECT MAX(bc.in_collection_idx) + 1
+                                FROM BookCollection bc
+                             )
+                             FROM Collection
+                             WHERE Collection.name = ?""", zip([self.id] * len(values), values))
+        else:
+            c.executemany(f"""INSERT INTO Book{table_name}(book_id, {bridge_col_name})
+                              SELECT ?, {table_name}.id
+                              FROM {table_name}
+                              WHERE {table_name}.name = ?""", zip([self.id] * len(values), values))
         logger.debug("Added '%s' to associated column '%s'", ", ".join(values), table_name)
 
     def _remove_associated_column_values(self, col_name, values):

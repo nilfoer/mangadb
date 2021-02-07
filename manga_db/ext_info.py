@@ -5,7 +5,6 @@ from typing import Tuple, Optional, TYPE_CHECKING
 
 from .db.row import DBRow
 from .db.column import Column
-from .db.constants import ColumnValue
 from .constants import CENSOR_IDS
 from .extractor import SUPPORTED_SITES, find_by_site_id
 
@@ -56,6 +55,7 @@ class ExternalInfo(DBRow):
         super().__init__(manga_db, in_db, **kwargs)
         self.book = book
         self.id = id
+        self.book_id = book_id
         self.id_onpage = id_onpage
         self.imported_from = imported_from
         self.upload_date = upload_date
@@ -167,7 +167,7 @@ class ExternalInfo(DBRow):
             self.downloaded = 0
         if self.outdated is None:
             self.outdated = 0
-        if self.book_id is None or self.book_id is ColumnValue.NO_VALUE:
+        if self.book_id is None:
             self.book_id = self.book.id
         elif self.book_id != self.book.id:
             # TODO custom exc

@@ -4,7 +4,7 @@ import logging
 from threading import Thread, current_thread
 from queue import Queue
 
-from typing import List, Sequence, Dict, TYPE_CHECKING, Tuple, Union, Optional
+from typing import TYPE_CHECKING, Tuple, Union, Optional
 
 from .manga_db import MangaDB
 from .manga import Book
