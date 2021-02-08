@@ -1,5 +1,10 @@
 {% extends "layout.html" %}
 
+{% block head %}
+{{ super() }}
+<title>Collections - MangaDB</title>
+{% endblock %}
+
 {% block body %}
 {% if collections %}
 <div class="section">

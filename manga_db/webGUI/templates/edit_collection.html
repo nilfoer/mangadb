@@ -2,6 +2,11 @@
 
 {% block head %}
 {{ super() }}
+{% if collection_name %}
+    <title>Edit Collection - {{ collection_name }}</title>
+{% else %}
+    <title>Error: Edit Collection</title>
+{% endif %}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
 <script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
 <style>

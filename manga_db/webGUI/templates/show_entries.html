@@ -1,4 +1,10 @@
 {% extends "layout.html" %}
+
+{% block head %}
+{{ super() }}
+<title>MangaDB</title>
+{% endblock %}
+
 {% block body %}
 {% if add_anyway %}
 <div class="row" style="margin: -1em 0 1em auto;">
