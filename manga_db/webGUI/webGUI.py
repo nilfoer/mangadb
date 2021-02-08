@@ -9,7 +9,9 @@ import re
 import time
 import datetime
 
-from typing import Optional, Dict, Any
+import werkzeug
+
+from typing import Optional, Dict, Any, Sequence, cast
 
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
@@ -764,6 +766,43 @@ def edit_book(book_id):
     book.save()
 
     return redirect(url_for("main.show_info", book_id=book_id))
+
+
+# TODO change this to use collection_id
+@main_bp.route("/book/edit-collection/<string:collection_name>")
+def show_edit_collection(collection_name: str,
+                         books_in_collection: Optional[Sequence[Book]] = None) -> Optional[str]:
+    mdb = get_mdb()
+    if books_in_collection is None:
+        books_in_collection = mdb.get_books_in_collection(collection_name)
+    if books_in_collection is None:
+        return render_template(
+            'edit_collection.html',
+            error_msg=f"No collection with name {collection_name} was found!")
+
+    return render_template(
+        'edit_collection.html',
+        collection_name = collection_name,
+        books_in_collection=books_in_collection)
+
+
+@main_bp.route("/book/edit-collection/<string:collection_name>/submit", methods=['POST'])
+def edit_collection(collection_name: str) -> werkzeug.wrappers.Response:
+    new_collection_name = request.form['new_collection_name']
+    mdb = get_mdb()
+
+    # NOTE: !IMPORTANT! do this BEFORE we change title
+    # should never land here from a manual url -> just assume we get a collection_id back
+    collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
+
+    if new_collection_name != collection_name:
+        mdb.update_collection_name(collection_id, new_collection_name)
+        
+    bid_new_cidx = [(int(bid[5:]), int(cidx)) for (bid, cidx) in request.form.items()
+                    if bid.startswith("cidx_")]
+    mdb.update_in_collection_order(collection_id, bid_new_cidx)
+
+    return redirect(url_for('main.show_edit_collection', collection_name=new_collection_name)) 
 
 
 # code for file uploading taken from:

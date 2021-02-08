@@ -759,6 +759,14 @@
         <div class="columns mb-0">
             <div class="column">
                 <div class="kw-headline">
+                    {# could add media-query to switch to relative position so it gets displayed left #}
+                    {# of COLLECTION #}
+                    <a href={{ url_for("main.show_edit_collection", collection_name=collection_name) }}>
+                        <button class="button is-small"
+                                style="position: absolute; right: 0; top: 0; margin-top: 1em;">
+                            <i class="fas fa-pen"></i>
+                        </button> 
+                    </a>
                     <span>COLLECTION: </span>{{ collection_name }}
                 </div>
                 <hr>
@@ -767,8 +775,8 @@
         <div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
             {% for c_book in c_books %}
             <div class="book-grid-item 
-            {% if book.read_status is not none %}
-            {{ 'read' if book.read_status == 0 else ''}} {{ 'reading' if book.read_status > 0 else ''}}
+            {% if c_book.read_status is not none %}
+            {{ 'read' if c_book.read_status == 0 else ''}} {{ 'reading' if c_book.read_status > 0 else ''}}
             {% endif %} {{ 'current' if c_book.id == book.id else '' }}">
                 <div class="book-grid-item-cover">
                     <div class="book-grid-item-inner">

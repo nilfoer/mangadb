@@ -847,3 +847,12 @@ $book-grid-fullhd-cols: 6;
         grid-template-columns: repeat(6, 1fr);
     }
 }
+.book-grid-item-collection {
+    display: flex;
+    flex-direction: column;
+    align-content: stretch;
+    align-items: center;
+}
+.book-grid-item-collection .book-grid-item {
+    height: 100%;
+}

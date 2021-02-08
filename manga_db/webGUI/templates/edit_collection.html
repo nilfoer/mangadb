@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
+<script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
+<style>
+    /* css to hide dropdown caret if a value is already selected */
+    /* uncomment to only hide it if a value is selected */
+    .selectize-control.single .selectize-input/*.has-items*/::after {
+      display: none;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="section">
+<div class="container block">
+    <form id=edit-collection-form action={{ url_for('main.edit_collection', collection_name=collection_name) }}
+          method=post style="min-width:100%;width:100%;">
+        {{ csrf_token_field() }}
+    <div class="columns mb-0">
+        <div class="column ml-1 mr-1" style="display: flex; align-items: flex-end; justify-content: space-between;">
+            <div class="kw-headline">
+                <span>COLLECTION: </span><h1 class="title">{{ collection_name }}</h1>
+            </div>
+            <button type="submit" id="updateBtn" class="button green-color">
+                                    <span class="icon">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                    <span>Save</span>
+            </button> 
+        </div>
+    </div>
+    <div class="columns mb-0">
+        <div class="column">
+            <hr>
+        </div>
+    </div>
+    <div class="columns mb-3">
+        {# is-align-items-center is-flex => convenient bulma css classes for centering vertically #}
+        <div class="column is-narrow is-align-items-center is-flex">
+            Collection title:
+        </div>
+        <div class="column">
+            <input required id="inpCollectionName" type="text" class="selectize-input" name="new_collection_name" value="{{ collection_name }}">
+        </div>
+    </div>
+    <div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
+        {% for c_book in books_in_collection %}
+        {# save outer loop index #}
+        {% set collection_loop_idx = loop.index0 %}
+        <div class="book-grid-item-collection">
+            <div class="mb-3 mt-3">
+                {# original collection idx #}
+                {# <input type='hidden' name="ocidx_{{ c_book.id }}" value="{{ collection_loop_idx }}"/> #}
+                <select required id="collectionOrder"
+                    {# will be (book_id, in_collection_idx) in form #}
+                    name="cidx_{{ c_book.id }}" class="selectized select-single">
+                    {% for i in range(books_in_collection|length) %}
+                    <option value="{{ i + 1 }}" {{'selected' if collection_loop_idx == i else ''}}>
+                        {{ i + 1 }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        <div class="book-grid-item 
+        {% if c_book.read_status is not none %}
+        {{ 'read' if c_book.read_status == 0 else ''}} {{ 'reading' if c_book.read_status > 0 else ''}}
+        {% endif %} {{ 'current' if c_book.id == c_book.id else '' }}">
+            <div class="book-grid-item-cover">
+                <div class="book-grid-item-inner">
+                    {% if c_book.favorite %}
+                    <div class="ribbon fav"><span><i class="fas fa-heart"></i></span></div>
+                    {% endif %}
+
+                    {# To reduce the amount of request you can use data uri images as the placeholder. #}
+                    <img src="data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs="
+                         data-src={{ url_for('main.thumb_static', filename=c_book.id,
+                                             cover_timestamp=c_book.cover_timestamp) }}
+                         class="lazyload">
+                    <div class="overlay">
+                        <div class="overlay-data">
+                            <div class="overlay-title">
+                                {{ c_book.title }}
+                            </div>
+                            <div class="overlay-pages">
+                                {{ c_book.pages }} pages
+                            </div>
+                            {% if c_book.my_rating %}
+                            <div class="overlay-rate blue-fcolor">
+                                {# To cast to a string in an expression, you use x|string() instead of str(x) #}
+                                {% for _ in range( c_book.my_rating|round|int() ) %}
+                                {# &#9733; would also works but looks better with Fontawesome #}
+                                <span class="fa fa-star"></span>
+                                {% endfor %}
+                            </div>
+                            {% elif c_book.avg_ext_rating is not none %}
+                            <div class="overlay-rate">
+                                {% for _ in range( c_book.avg_ext_rating|round|int() ) %}
+                                <span class="fa fa-star"></span>
+                                {% endfor %}
+                            </div>
+                            <span style="font-size: small;">(avg external rating)</span>
+                            {% endif %}
+                        </div>
+                        <a href={{ url_for('main.show_info', book_id=c_book.id) }}  class="overlay-button">
+                            SHOW
+                        </a>
+                    </div> {# overlay #}
+                </div> {# book-grid-item-inner #}
+            </div> {# book-grid-item-cover #}
+            <div class="book-grid-item-title">
+                <span>
+                    <a href={{ url_for('main.show_info', book_id=c_book.id) }}>{{ c_book.title_eng }}</a>
+                </span>
+            </div> {# book-grid-item-title #}
+
+        </div> {# book-grid-item #}
+        </div> {# book-grid-item-collection #}
+        {% endfor %}
+    </div> {# book-collection-grid #}
+    </form>
+</div>
+</div>
+
+<script>
+var indexSelects = $('.select-single').selectize({
+	create: false,
+	sortField: {
+		field: 'text',
+		direction: 'asc'
+	},
+	dropdownParent: 'body'//,
+    // set to string '1' not 1 -> hides dropdown caret
+    // maxItems: '1'
+});
+$(document).ready(function() {
+    $("#updateBtn").click(function(event) {
+        let new_collection_name = $('#inpCollectionName').val();
+        if (!new_collection_name.trim().length) {
+            alert("Collection title can't be empty!");
+            event.preventDefault();
+            return false;
+        }
+        let seen = new Set();
+        for (let idxSelect of indexSelects) {
+            let selected = idxSelect.selectize.items[0];
+            // let selectize = idxSelect.selectize;
+            // // selectize.items is the array of currently? selected items
+            // let selected_objects = $.map(selectize.items, function(value) {
+            //         // get options object from value
+            //         // options is dict/obj from value -> option
+            //         return selectize.options[value];
+            // });
+            // console.log(selected_objects);
+            // check for dupes
+            if (selected === undefined) {
+                alert("Collection index field can't be empty!");
+                event.preventDefault();
+                return false;
+            } else if (seen.has(selected)) {
+                alert("Collection ordering indices have to be unique!");
+                event.preventDefault();
+                return false;
+            } else {
+                seen.add(selected);
+            }
+        }
+
+        return true;
+    });
+});
+</script>
+
+{% endblock %}
