@@ -771,7 +771,7 @@ def edit_book(book_id):
 # TODO change this to use collection_id
 @main_bp.route("/book/edit-collection/<string:collection_name>")
 def show_edit_collection(collection_name: str,
-                         books_in_collection: Optional[Sequence[Book]] = None) -> Optional[str]:
+                         books_in_collection: Optional[Sequence[Book]] = None) -> str:
     mdb = get_mdb()
     if books_in_collection is None:
         books_in_collection = mdb.get_books_in_collection(collection_name)

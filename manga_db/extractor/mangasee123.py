@@ -33,11 +33,11 @@ class MangaSee123Extractor(BaseMangaExtractor):
                             "chapter-{chap}-page-{page}.html")
 
     STATUS_MAP: Final[Dict[str, int]] = {
-        "Cancelled": STATUS_IDS['Cancelled'],
-        "Complete": STATUS_IDS['Completed'],
-        "Discontinued": STATUS_IDS['Cancelled'],
-        "Hiatus": STATUS_IDS['Hiatus'],
-        "Ongoing": STATUS_IDS['Ongoing'],
+        "Cancelled": cast(int, STATUS_IDS['Cancelled']),
+        "Complete": cast(int, STATUS_IDS['Completed']),
+        "Discontinued": cast(int, STATUS_IDS['Cancelled']),
+        "Hiatus": cast(int, STATUS_IDS['Hiatus']),
+        "Ongoing": cast(int, STATUS_IDS['Ongoing']),
     }
 
     id_onpage: str
@@ -64,6 +64,8 @@ class MangaSee123Extractor(BaseMangaExtractor):
             return self.export_data
 
         html = self.get_html(self.url)
+        if html is None:
+            return None
         soup = bs4.BeautifulSoup(html, "html.parser")
 
         # cover_img = soup.select_one("div.BoxBody > .row > div > img")
@@ -140,7 +142,7 @@ class MangaSee123Extractor(BaseMangaExtractor):
             url=MangaSee123Extractor.MANGA_URL.format(id_onpage=self.id_onpage),
             id_onpage=self.id_onpage,
             imported_from=MangaSee123Extractor.site_id,
-            censor_id=CENSOR_IDS['Unknown'],
+            censor_id=cast(int, CENSOR_IDS['Unknown']),
             upload_date=datetime.date.min,
 
             uploader=None,

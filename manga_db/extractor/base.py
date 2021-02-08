@@ -22,7 +22,7 @@ class MangaExtractorData:
     language: str  # will be added if not present
     pages: int
     status_id: int  # from STATUS_IDS
-    nsfw: Literal[0, 1]
+    nsfw: int  # 0 or 1
 
     note: Optional[str]
 
