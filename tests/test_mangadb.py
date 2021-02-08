@@ -4,7 +4,10 @@ import logging
 import datetime
 import pytest
 
-from utils import setup_mdb_dir, all_book_info, load_db_from_sql_file, setup_tmpdir
+from utils import (
+    setup_mdb_dir, all_book_info, load_db_from_sql_file, setup_tmpdir,
+    load_db
+)
 from manga_db.manga_db import (
      MangaDB, cookie_jar, url_opener,
      set_default_user_agent, update_cookies_from_file
@@ -323,3 +326,114 @@ def test_mangadb(setup_mdb_dir, monkeypatch, caplog):
     assert dictlike["censor_id"] == 4
     assert "status" not in dictlike
     assert dictlike["status_id"] == 1
+
+
+def test_update_in_collection_order(setup_tmpdir):
+    tmpdir = setup_tmpdir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    tmp_db_file = os.path.join(tmpdir, "manga_db.slite")
+    db = load_db_from_sql_file(mdb_file, tmp_db_file, True)
+    c = db.executemany(
+            "INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)"
+            "VALUES (?, ?, ?)",
+            [(5, 1, 3), (13, 1, 4), (11, 1, 5), (7, 1, 6), (16, 1, 7)])
+    db.commit()
+    db.close()
+
+    book_id_new_coll_idx = [
+        (14, 1),
+        (13, 2),
+        (11, 3),
+        (7,  4),
+        (5,  5),
+        (3,  6),
+        (16, 7),
+    ]
+    mdb = MangaDB(tmpdir, tmp_db_file)
+    mdb.update_in_collection_order(1, book_id_new_coll_idx)
+    mdb.db_con.close()
+
+    other_con = load_db(tmp_db_file)
+    actual = other_con.execute(
+        "SELECT book_id, in_collection_idx FROM BookCollection "
+        "WHERE collection_id = 1").fetchall()
+    other_con.close()
+    assert actual == book_id_new_coll_idx
+
+
+def test_update_collection_name(setup_tmpdir):
+    tmpdir = setup_tmpdir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    tmp_db_file = os.path.join(tmpdir, "manga_db.slite")
+    db = load_db_from_sql_file(mdb_file, tmp_db_file, True)
+    c = db.executemany(
+            "INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)"
+            "VALUES (?, ?, ?)",
+            [(5, 1, 3), (13, 1, 4), (11, 1, 5), (7, 1, 6), (16, 1, 7)])
+    # add books to other coll for _committed_state verification
+    c.executemany("INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)"
+                  "VALUES (?, ?, ?)", [(5, 2, 2), (11, 2, 3)])
+    db.commit()
+    db.close()
+
+    # load some books into the idmap so we can test that their collection
+    # lists get updated
+    mdb = MangaDB(tmpdir, tmp_db_file)
+    # safe ref so it doesnt get deallocated and we can iterate over it later
+    in_id_map = [
+        mdb.get_book(_id=3),
+        mdb.get_book(_id=5),  # also in coll2
+        mdb.get_book(_id=7),
+        mdb.get_book(_id=11),  # also in coll2
+        mdb.get_book(_id=13),
+        mdb.get_book(_id=14),
+        mdb.get_book(_id=16),
+    ]
+
+    # modify some collection values that we later verify in _committed_state
+    in_id_map[0].collection.append("Added coll")
+    # 11 remove coll2
+    coll2 = "Takabisha Elf Kyousei Konin!!"
+    in_id_map[3].collection.remove(coll2)
+    in_id_map[4].collection = []
+
+    not_in_coll = mdb.get_book(_id=10)  # only one not in coll 1
+    
+    old_coll_name = "Dolls"
+    new_coll_name = "Renamed Collection"
+    mdb.update_collection_name(1, new_coll_name)
+
+    other_con = load_db(tmp_db_file)
+    actual, = other_con.execute("SELECT name FROM Collection WHERE id = 1").fetchone()
+    other_con.close()
+    assert actual == new_coll_name
+
+    b4 = mdb.get_collection_info(new_coll_name)
+
+    # make sure the collection lists from books in idmap were update
+    # book not in collection was not modified
+    assert not_in_coll.collection == [coll2]
+    assert not not_in_coll._committed_state
+
+    # verify _committed_state of books that were modified
+    assert in_id_map[0].collection == [new_coll_name, "Added coll"]
+    assert in_id_map[0]._committed_state['collection'] == [new_coll_name]
+
+    # nothing changed before rename -> only renamed in .collection
+    assert in_id_map[1].collection == [new_coll_name, coll2]
+    assert 'collection' not in in_id_map[1]._committed_state
+
+    # empty _committed_state for the ones that only have renamed coll
+    for i in (2, 5, 6):
+        assert in_id_map[i].collection == [new_coll_name]
+        assert 'collection' not in in_id_map[i]._committed_state
+
+    # coll2 removed
+    assert in_id_map[3].collection == [new_coll_name]
+    assert in_id_map[3]._committed_state['collection'] == [new_coll_name, coll2]
+
+    assert in_id_map[4].collection == []
+    assert in_id_map[4]._committed_state['collection'] == [new_coll_name]
+
+
+    assert b4 == mdb.get_collection_info(new_coll_name)

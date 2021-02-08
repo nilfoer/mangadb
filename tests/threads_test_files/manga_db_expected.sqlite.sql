@@ -26,13 +26,17 @@ CREATE TABLE "BookCharacter" (
 	FOREIGN KEY("character_id") REFERENCES "Character"("id") ON DELETE CASCADE,
 	PRIMARY KEY("book_id","character_id")
 );
-CREATE TABLE "BookCollection" (
-	"book_id"	INTEGER NOT NULL,
-	"collection_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	FOREIGN KEY("collection_id") REFERENCES "Collection"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","collection_id")
-);
+CREATE TABLE BookCollection(
+        book_id INTEGER NOT NULL,
+        collection_id INTEGER NOT NULL,
+        in_collection_idx INTEGER NOT NULL,
+        FOREIGN KEY (book_id) REFERENCES Books(id)
+        ON DELETE CASCADE,
+        FOREIGN KEY (collection_id) REFERENCES Collection(id)
+        ON DELETE CASCADE,
+        UNIQUE(collection_id, in_collection_idx),
+        PRIMARY KEY (book_id, collection_id)
+    );
 CREATE TABLE "BookGroups" (
 	"book_id"	INTEGER NOT NULL,
 	"group_id"	INTEGER NOT NULL,
@@ -236,9 +240,9 @@ INSERT INTO "BookCharacter" VALUES
 (22,13),
 (23,14);
 INSERT INTO "BookCollection" VALUES
-(3,1),
-(10,2),
-(14,1);
+(3,1,1),
+(14,1,2),
+(10,2,1);
 INSERT INTO "BookGroups" VALUES
 (1,1),
 (2,2),
@@ -700,7 +704,7 @@ INSERT INTO "List" VALUES
 (4,'prob-good'),
 (5,'to-download');
 INSERT INTO "MDB_Version" VALUES
-(3,0);
+(4,0);
 INSERT INTO "Parody" VALUES
 (1,'Girls und Panzer / ガールズ&パンツァー'),
 (2,'Monster Hunter World / モンスターハンター：ワールド'),
@@ -717,7 +721,8 @@ INSERT INTO "Sites" VALUES
 (2,'nhentai.net'),
 (3,'MangaDex'),
 (4,'Manganelo'),
-(5,'Toonily');
+(5,'Toonily'),
+(6,'MangaSee123');
 INSERT INTO "Status" VALUES
 (1,'Unknown'),
 (2,'Ongoing'),

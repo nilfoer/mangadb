@@ -52,7 +52,6 @@ SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         "Toonily": 5,
         "MangaSee123": 6,
 }
-# TODO add to mangasee123 to db
 
 
 def find(url: str) -> Type[BaseMangaExtractor]:

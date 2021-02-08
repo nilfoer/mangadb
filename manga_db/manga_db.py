@@ -6,7 +6,7 @@ import urllib.request
 import urllib.error
 import http.cookiejar
 
-from typing import Optional, Tuple, Any, List, overload, TypedDict, ClassVar
+from typing import Optional, Tuple, Any, List, overload, TypedDict, ClassVar, cast, Dict, Sequence
 
 from .logging_setup import configure_logging
 from . import extractor
@@ -408,25 +408,128 @@ class MangaDB:
         _id = c.fetchone()
         return _id[0] if _id else None
 
-    def get_collection_info(self, name, order_by="id ASC"):
+    def get_collection_info(self, name: str) -> Optional[sqlite3.Row]:
+        # TODO order by in_collection_idx
         c = self.db_con.execute(f"""
                 SELECT b.id, b.title_eng, title_foreign, b.pages, b.my_rating
                 FROM Books b, Collection c, BookCollection bc
                 WHERE bc.collection_id = c.id
                 AND c.name = ?
                 AND b.id = bc.book_id
-                ORDER BY b.{order_by}""", (name,))
+                ORDER BY bc.in_collection_idx""", (name,))
         rows = c.fetchall()
         return rows if rows else None
 
+    def get_collection_id_from_name(self, collection_name: str) -> Optional[int]:
+        c = self.db_con.execute("SELECT id FROM Collection WHERE name = ?", (collection_name,))
+        collection_id, = c.fetchone()
+        return collection_id
+
+    def update_collection_name(self, collection_id: int, new_collection_name: str) -> None:
+        c = self.db_con.execute(
+                "SELECT name FROM Collection WHERE id = ?", (collection_id,))
+        # value, = to unpack 1-tuple
+        old_collection_name, = c.fetchone()
+
+        c.execute("SELECT book_id FROM BookCollection WHERE collection_id = ?", (collection_id,))
+        book_ids_in_collection = c.fetchall()
+
+
+        # rename collection first so we see if we violate a constraint
+        try:
+            with self.db_con:
+                self.db_con.execute("UPDATE Collection SET name = ? WHERE id = ?",
+                                    (new_collection_name, collection_id))
+        except sqlite3.IntegrityError:
+            # TODO return success/fail?
+            logger.warning(
+                "Could not rename collection '%s' to '%s' since the new name already exists",
+                old_collection_name, new_collection_name)
+            return None
+
+        # NOTE: @Hack need to update books in id_map with the new collection name
+        # and also update their _committed_state since we don't have proper
+        # representations for those yet and they're just strings in a list
+        for (book_id,) in book_ids_in_collection:
+            book = self.id_map.get((Book, (book_id,)))
+            if book is None:
+                continue
+
+            collection_was_dirty = 'collection' in book._committed_state
+            collection_before_rename = book.collection.copy()
+
+            # this will add the change to _committed_state of DBRow
+            book.collection = [cname if cname != old_collection_name else new_collection_name
+                               for cname in book.collection]
+            if not collection_was_dirty:
+                # we can just remove it since nothing was modified before
+                del book._committed_state['collection']
+            else:
+                # otherwise we have to re-create the modified state
+                if (collection_before_rename == [new_collection_name] and
+                        book._committed_state['collection'] == [old_collection_name]):
+                    # only our collection -> remove
+                    del book._committed_state['collection']
+                else:
+                    # rename our collection in _committed_state so the diff
+                    # on update will be correct
+                    book._committed_state['collection'] = [
+                        cname if cname != old_collection_name else new_collection_name
+                        for cname in book._committed_state['collection']]
+
+    def update_in_collection_order(self, collection_id: int,
+                                   book_id_collection_idx: Sequence[Tuple[int, int]]) -> None:
+        if len(book_id_collection_idx) < 2:
+            return
+
+        # just deleting and re-inserting in the correct order is probably faster
+        # than swapping to a temp slot etc.
+        with self.db_con:
+            c = self.db_con.execute(
+                    "DELETE FROM BookCollection WHERE collection_id = ?", (collection_id,))
+            # generator book_id, collection_id, in_collection_idx
+            bid_cid_cidx = (
+                (book_id, collection_id, in_collection_idx)
+                for book_id, in_collection_idx in book_id_collection_idx)
+            c.executemany("""
+            INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)
+            VALUES (?, ?, ?)""", bid_cid_cidx)
+        # c = self.db_con.execute("""
+        # SELECT MAX(in_collection_idx) + 1
+        # FROM BookCollection
+        # WHERE collection_id = (
+        #     SELECT c.id
+        #     FROM Collection c
+        #     WHERE c.name = ?
+        # )""", (collection_name,))
+
+        # # need to use a temp value otherwise unique constraints will fail
+        # temp_max = c.fetchone()
+        # temp_book_id: Optional[int] = None
+        # temp_move_to_cidx: Optional[int] = None
+
+        # upd_str = "UPDATE BookCollection SET in_collection_idx = ? WHERE book_id = ?"
+        # for book_id, new_in_cidx in sorted(book_id_collection_idx, key=lambda x: x[1]):
+        #     if temp_book_id is not None:
+        #         # move temp to idx it was supposed to be at
+        #         c.execute(upd_str, (temp_move_to_cidx, temp_book_id))
+        #         temp_book_id = None
+        #         temp_move_to_cidx = None
+        #     c.execute("UPDATE BookCollection SET in_collection_idx = ? WHERE book_id = ?"
+        #               (temp_max, book_id))
+        #     temp_book_id = book_id
+        #     temp_move_to_cidx = new_in_cidx
+
+
+
     def get_books_in_collection(self, collection_name):
-        c = self.db_con.execute(f"""
+        c = self.db_con.execute("""
                 SELECT b.*
                 FROM Books b, Collection c, BookCollection bc
                 WHERE bc.collection_id = c.id
                 AND c.name = ?
                 AND b.id = bc.book_id
-                ORDER BY b.id ASC""", (collection_name,))
+                ORDER BY bc.in_collection_idx ASC""", (collection_name,))
         rows = c.fetchall()
         if rows:
             books = [load_instance(self, Book, row) for row in rows]
@@ -723,10 +826,12 @@ class MangaDB:
             CREATE TABLE BookCollection(
                     book_id INTEGER NOT NULL,
                     collection_id INTEGER NOT NULL,
+                    in_collection_idx INTEGER NOT NULL,
                     FOREIGN KEY (book_id) REFERENCES Books(id)
                     ON DELETE CASCADE,
                     FOREIGN KEY (collection_id) REFERENCES Collection(id)
                     ON DELETE CASCADE,
+                    UNIQUE(collection_id, in_collection_idx),
                     PRIMARY KEY (book_id, collection_id)
                 );
             CREATE TABLE Category(
