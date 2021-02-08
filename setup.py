@@ -1,12 +1,14 @@
 import setuptools
 
+from manga_db import VERSION
+
 with open("README.md", "r", encoding="UTF-8") as fh:
     long_description = fh.read()
 
 
 setuptools.setup(
     name="MangaDB",
-    version="0.22.0",
+    version=VERSION,
     description="Organize your manga reading habits",
     long_description=long_description,
     long_description_content_type="text/markdown",
