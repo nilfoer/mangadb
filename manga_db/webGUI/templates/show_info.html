@@ -758,12 +758,13 @@
     <div class="block">
         <div class="columns mb-0">
             <div class="column">
-                <div class="kw-headline">
+                {# relative pos to anchor button with abs pos #}
+                <div class="kw-headline" style="position: relative;">
                     {# could add media-query to switch to relative position so it gets displayed left #}
                     {# of COLLECTION #}
                     <a href={{ url_for("main.show_edit_collection", collection_name=collection_name) }}>
                         <button class="button is-small"
-                                style="position: absolute; right: 0; top: 0; margin-top: 1em;">
+                                style="position: absolute; right: 0; top: 0;">
                             <i class="fas fa-pen"></i>
                         </button> 
                     </a>

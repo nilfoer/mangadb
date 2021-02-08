@@ -17,6 +17,9 @@
 
 <div class="section">
 <div class="container block">
+    {% if error_msg %}
+    <div class="title is-3">{{ error_msg }}</div>
+    {% else %}
     <form id=edit-collection-form action={{ url_for('main.edit_collection', collection_name=collection_name) }}
           method=post style="min-width:100%;width:100%;">
         {{ csrf_token_field() }}
@@ -47,6 +50,13 @@
             <input required id="inpCollectionName" type="text" class="selectize-input" name="new_collection_name" value="{{ collection_name }}">
         </div>
     </div>
+    {% if not books_in_collection %}
+        <div class="columns is-centered mt-5 mb-5">
+            <div class="column is-half" style="text-align: center">
+                Collection has no books!
+            </div>
+        </div>
+    {% else %}
     <div class="books-collection-grid" id="collection{{ collection_name.capitalize() }}">
         {% for c_book in books_in_collection %}
         {# save outer loop index #}
@@ -121,7 +131,26 @@
         </div> {# book-grid-item-collection #}
         {% endfor %}
     </div> {# book-collection-grid #}
+    {% endif %}
     </form>
+    <form id=edit-collection-form action={{ url_for('main.delete_collection', collection_name=collection_name) }}
+          method=post style="min-width:100%;width:100%;">
+        {{ csrf_token_field() }}
+    <div class="columns is-centered mt-5">
+        <div class="column is-narrow">
+            <a href="{{ url_for("main.delete_collection", collection_name=collection_name) }}">
+            <button id=deleteBtn type=submit class="button red-color"
+                onclick="return confirm('Are you sure you want to permantly delete this Collection?');">
+                <span class="icon">
+                    <i class="fas fa-trash-alt"></i>
+                </span>
+                <span>Delete collection</span>
+            </button> 
+            </a>
+        </div>
+    </div>
+    </form>
+    {% endif %}
 </div>
 </div>
 

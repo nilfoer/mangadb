@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any, Sequence, cast
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
         render_template, flash, send_from_directory,
-        jsonify, send_file, session, g
+        jsonify, send_file, session, g, Markup
 )
 
 from .mdb import get_mdb
@@ -768,17 +768,33 @@ def edit_book(book_id):
     return redirect(url_for("main.show_info", book_id=book_id))
 
 
+@main_bp.route("/collection")
+def show_collections():
+    mdb = get_mdb()
+    collections = mdb.db_con.execute("SELECT name FROM Collection").fetchall()
+    return render_template('show_collections.html', collections=collections)
+
+
 # TODO change this to use collection_id
-@main_bp.route("/book/edit-collection/<string:collection_name>")
+@main_bp.route("/collection/edit/<string:collection_name>")
 def show_edit_collection(collection_name: str,
                          books_in_collection: Optional[Sequence[Book]] = None) -> str:
     mdb = get_mdb()
     if books_in_collection is None:
+        collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
+        if collection_id is None:
+            return render_template(
+                'edit_collection.html',
+                collection_name=collection_name,
+                books_in_collection=[],
+                error_msg=f"No collection with name {collection_name} was found!")
         books_in_collection = mdb.get_books_in_collection(collection_name)
+
     if books_in_collection is None:
         return render_template(
             'edit_collection.html',
-            error_msg=f"No collection with name {collection_name} was found!")
+            collection_name=collection_name,
+            books_in_collection=[])
 
     return render_template(
         'edit_collection.html',
@@ -786,9 +802,9 @@ def show_edit_collection(collection_name: str,
         books_in_collection=books_in_collection)
 
 
-@main_bp.route("/book/edit-collection/<string:collection_name>/submit", methods=['POST'])
+@main_bp.route("/collection/edit/<string:collection_name>/submit", methods=['POST'])
 def edit_collection(collection_name: str) -> werkzeug.wrappers.Response:
-    new_collection_name = request.form['new_collection_name']
+    new_collection_name = request.form['new_collection_name'].strip()
     mdb = get_mdb()
 
     # NOTE: !IMPORTANT! do this BEFORE we change title
@@ -796,13 +812,34 @@ def edit_collection(collection_name: str) -> werkzeug.wrappers.Response:
     collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
 
     if new_collection_name != collection_name:
-        mdb.update_collection_name(collection_id, new_collection_name)
+        success = mdb.update_collection_name(collection_id, new_collection_name)
+        if not success:
+            flash("Saving changes failed due to the new name not being unique!", "title warning")
+            # NOTE: if we want html inside a flash message we need to wrap it in flask.Markup
+            # Marks a string as being safe for inclusion in HTML/XML output without needing to be escaped
+            # so be careful ! no user input
+            flash(Markup(
+                "Edit the collection that is blocking the renaming: <a href=\""
+                f"{url_for('main.show_edit_collection', collection_name=new_collection_name)}\""
+                f">{new_collection_name}</a>"), "info")
+            return redirect(url_for('main.show_edit_collection', collection_name=collection_name))
         
     bid_new_cidx = [(int(bid[5:]), int(cidx)) for (bid, cidx) in request.form.items()
                     if bid.startswith("cidx_")]
-    mdb.update_in_collection_order(collection_id, bid_new_cidx)
+    if bid_new_cidx:
+        mdb.update_in_collection_order(collection_id, bid_new_cidx)
 
     return redirect(url_for('main.show_edit_collection', collection_name=new_collection_name)) 
+
+
+@main_bp.route("/delete-collection/<string:collection_name>", methods=['POST'])
+def delete_collection(collection_name: str) -> werkzeug.wrappers.Response:
+    mdb = get_mdb()
+
+    collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
+    mdb.delete_collection(collection_id)
+
+    return redirect(url_for('main.show_entries')) 
 
 
 # code for file uploading taken from:

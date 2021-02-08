@@ -437,3 +437,79 @@ def test_update_collection_name(setup_tmpdir):
 
 
     assert b4 == mdb.get_collection_info(new_coll_name)
+    mdb.db_con.close()
+
+def test_delete_collection(setup_tmpdir):
+    tmpdir = setup_tmpdir
+    mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
+    tmp_db_file = os.path.join(tmpdir, "manga_db.slite")
+    db = load_db_from_sql_file(mdb_file, tmp_db_file, True)
+    c = db.executemany(
+            "INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)"
+            "VALUES (?, ?, ?)",
+            [(5, 1, 3), (13, 1, 4), (11, 1, 5), (7, 1, 6), (16, 1, 7)])
+    # add books to other coll for _committed_state verification
+    c.executemany("INSERT INTO BookCollection(book_id, collection_id, in_collection_idx)"
+                  "VALUES (?, ?, ?)", [(5, 2, 2), (11, 2, 3)])
+    db.commit()
+    db.close()
+
+    # load some books into the idmap so we can test that their collection
+    # lists get updated
+    mdb = MangaDB(tmpdir, tmp_db_file)
+    # safe ref so it doesnt get deallocated and we can iterate over it later
+    in_id_map = [
+        mdb.get_book(_id=3),
+        mdb.get_book(_id=5),  # also in coll2
+        mdb.get_book(_id=7),
+        mdb.get_book(_id=11),  # also in coll2
+        mdb.get_book(_id=13),
+        mdb.get_book(_id=14),
+        mdb.get_book(_id=16),
+    ]
+
+    # modify some collection values that we later verify in _committed_state
+    in_id_map[0].collection.append("Added coll")
+    # 11 remove coll2
+    coll2 = "Takabisha Elf Kyousei Konin!!"
+    in_id_map[3].collection.remove(coll2)
+    in_id_map[4].collection = []
+
+    not_in_coll = mdb.get_book(_id=10)  # only one not in coll 1
+    
+    coll_name = "Dolls"
+    mdb.delete_collection(1)
+    mdb.db_con.close()
+
+    other_con = load_db(tmp_db_file)
+    actual = other_con.execute("SELECT name FROM Collection WHERE id = 1").fetchone()
+    other_con.close()
+    assert actual is None
+
+    # make sure the collection lists from books in idmap were update
+
+    # book not in collection was not modified
+    assert not_in_coll.collection == [coll2]
+    assert not not_in_coll._committed_state
+
+    # verify _committed_state of books that were modified
+    assert in_id_map[0].collection == ["Added coll"]
+    assert in_id_map[0]._committed_state['collection'] == []
+
+    # nothing changed before del -> only coll2 in .collection
+    assert in_id_map[1].collection == [coll2]
+    assert 'collection' not in in_id_map[1]._committed_state
+
+    # empty _committed_state for the ones that only have del coll
+    for i in (2, 5, 6):
+        assert in_id_map[i].collection == []
+        assert 'collection' not in in_id_map[i]._committed_state
+
+    # coll2 removed
+    assert in_id_map[3].collection == []
+    assert in_id_map[3]._committed_state['collection'] == [coll2]
+
+    # deleted everything but only had deleted collection which is now
+    # already removed so it should be empty
+    assert in_id_map[4].collection == []
+    assert 'collection' not in in_id_map[4]._committed_state

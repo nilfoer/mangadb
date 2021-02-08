@@ -6,7 +6,10 @@ import urllib.request
 import urllib.error
 import http.cookiejar
 
-from typing import Optional, Tuple, Any, List, overload, TypedDict, ClassVar, cast, Dict, Sequence
+from typing import (
+    Optional, Tuple, Any, List, overload, TypedDict,
+    ClassVar, cast, Dict, Sequence, Union
+)
 
 from .logging_setup import configure_logging
 from . import extractor
@@ -422,10 +425,50 @@ class MangaDB:
 
     def get_collection_id_from_name(self, collection_name: str) -> Optional[int]:
         c = self.db_con.execute("SELECT id FROM Collection WHERE name = ?", (collection_name,))
-        collection_id, = c.fetchone()
-        return collection_id
+        collection_id = c.fetchone()
+        if not collection_id:
+            return None
+        else:
+            return collection_id[0]
 
-    def update_collection_name(self, collection_id: int, new_collection_name: str) -> None:
+    def delete_collection(self, collection_id: int) -> None:
+        # NOTE: doest not account for non-existant collection_id
+        c = self.db_con.execute("SELECT name FROM Collection WHERE id = ?", (collection_id,))
+        collection_name, = c.fetchone()
+
+        c.execute("SELECT book_id FROM BookCollection WHERE collection_id = ?", (collection_id,))
+        book_ids_in_collection = c.fetchall()
+
+        # generalize this in DBRow TODO
+        # NOTE: @Hack need to update books in id_map deleting the collection
+        # and also update their _committed_state since we don't have proper
+        # representations for those yet and they're just strings in a list
+        for (book_id,) in book_ids_in_collection:
+            book = self.id_map.get((Book, (book_id,)))
+            if book is None:
+                continue
+
+            collection_was_dirty = 'collection' in book._committed_state
+            collection_before_rename = book.collection.copy()
+
+            # remove from current and commited list
+            # modifying this will add 'collection' to _committed_state of DBRow if it wasn't already
+            book.collection = [cname for cname in book.collection if cname != collection_name]
+            book._committed_state['collection'] = [
+                cname for cname in book._committed_state['collection'] if cname != collection_name]
+            # collection isn't dirty if states are equal
+            if book.collection == book._committed_state['collection']:
+                del book._committed_state['collection']
+
+        with self.db_con:
+            # actually delete collection
+            c.execute("DELETE FROM BookCollection WHERE collection_id = ?", (collection_id,))
+            c.execute("DELETE FROM Collection WHERE id = ?", (collection_id,))
+
+    def update_collection_name(self, collection_id: int, new_collection_name: str) -> bool:
+        """
+        Returns False when renaming fails due to vioalating the unique constraint on name
+        """
         c = self.db_con.execute(
                 "SELECT name FROM Collection WHERE id = ?", (collection_id,))
         # value, = to unpack 1-tuple
@@ -441,11 +484,10 @@ class MangaDB:
                 self.db_con.execute("UPDATE Collection SET name = ? WHERE id = ?",
                                     (new_collection_name, collection_id))
         except sqlite3.IntegrityError:
-            # TODO return success/fail?
             logger.warning(
                 "Could not rename collection '%s' to '%s' since the new name already exists",
                 old_collection_name, new_collection_name)
-            return None
+            return False
 
         # NOTE: @Hack need to update books in id_map with the new collection name
         # and also update their _committed_state since we don't have proper
@@ -476,6 +518,8 @@ class MangaDB:
                     book._committed_state['collection'] = [
                         cname if cname != old_collection_name else new_collection_name
                         for cname in book._committed_state['collection']]
+
+        return True
 
     def update_in_collection_order(self, collection_id: int,
                                    book_id_collection_idx: Sequence[Tuple[int, int]]) -> None:
@@ -520,16 +564,27 @@ class MangaDB:
         #     temp_book_id = book_id
         #     temp_move_to_cidx = new_in_cidx
 
+    @overload
+    def get_books_in_collection(self, collection_identifier: str) -> Optional[List[Book]]: ...
 
+    @overload
+    def get_books_in_collection(self, collection_identifier: int) -> Optional[List[Book]]: ...
 
-    def get_books_in_collection(self, collection_name):
-        c = self.db_con.execute("""
+    def get_books_in_collection(
+            self, collection_identifier: Union[str, int]) -> Optional[List[Book]]:
+
+        if isinstance(collection_identifier, str):
+            id_name = 'name'
+        else:
+            id_name = 'id'
+
+        c = self.db_con.execute(f"""
                 SELECT b.*
                 FROM Books b, Collection c, BookCollection bc
                 WHERE bc.collection_id = c.id
-                AND c.name = ?
+                AND c.{id_name} = ?
                 AND b.id = bc.book_id
-                ORDER BY bc.in_collection_idx ASC""", (collection_name,))
+                ORDER BY bc.in_collection_idx ASC""", (collection_identifier,))
         rows = c.fetchall()
         if rows:
             books = [load_instance(self, Book, row) for row in rows]
