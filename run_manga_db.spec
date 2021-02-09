@@ -10,8 +10,9 @@ a = Analysis(['run_manga_db.py'],
              # 2-tuple of (path/to/filer-to-include, dir/at/runtime)
              datas=[("manga_db\\extractor\\*.py", "manga_db\\extractor\\"),
                     ("manga_db/webGUI/static", "manga_db/webGUI/static"),
-                    ("manga_db/webGUI/templates", "manga_db/webGUI/templates"),
-                    ("manga_db/db/migrations", "manga_db/db/migrations"),
+                    ("manga_db/webGUI/templates/*.html", "manga_db/webGUI/templates"),
+                    ("manga_db/webGUI/templates/auth/*.html", "manga_db/webGUI/templates/auth"),
+                    ("manga_db/db/migrations/*.py", "manga_db/db/migrations"),
                     ],
              # since we inlcude extractors only as data files and import the dynamically
              # we need to manually identify their imports and add them here
@@ -31,6 +32,7 @@ a = Analysis(['run_manga_db.py'],
              # to discover all extractor files in a hook
              hookspath=[],
              runtime_hooks=[],
+             # this is for excluding __modules__
              excludes=[],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
