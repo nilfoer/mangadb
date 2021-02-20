@@ -4,6 +4,7 @@ import cmd
 import re
 import json
 import os
+import shlex
 
 import pyperclip
 
@@ -70,7 +71,8 @@ class LinkCollector(cmd.Cmd):
                         logger.info("Unsupported URL!")
 
     def do_add(self, args: str) -> None:
-        arg_li = args.split()
+        # use shlex's split so quoted strings get parsed properly
+        arg_li = shlex.split(args)
         if not arg_li:
             print("No arguments supplied!")
             return
@@ -113,7 +115,7 @@ class LinkCollector(cmd.Cmd):
         Usage: set_standard_lists [list [list ...]]
         use 'recent' as url to change lists of most recently added url
         """
-        lists = args.split()
+        lists = shlex.split(args)
         if not lists:
             print("No arguments supplied!")
             return
@@ -129,7 +131,7 @@ class LinkCollector(cmd.Cmd):
         Usage: set_lists url [list [list ...]]
         use 'recent' as url to change lists of most recently added url
         """
-        arg_li = args.split()
+        arg_li = shlex.split(args)
         if not arg_li:
             print("No arguments supplied!")
             return
