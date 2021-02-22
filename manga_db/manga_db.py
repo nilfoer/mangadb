@@ -827,9 +827,12 @@ class MangaDB:
                     FOREIGN KEY (status_id) REFERENCES Status(id)
                        ON DELETE RESTRICT
                 );
+            -- change collating function that is used for string comparisons (can also be done
+            -- on a single select instead: e.g. "name = ? COLLATE NOCASE") to NOCASE for case
+            -- insensitive comparison when using '=' operator etc.
             CREATE TABLE List(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookList(
                     book_id INTEGER NOT NULL,
@@ -842,7 +845,7 @@ class MangaDB:
                 );
             CREATE TABLE Tag(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookTag(
                     book_id INTEGER NOT NULL,
@@ -876,7 +879,7 @@ class MangaDB:
                 );
             CREATE TABLE Collection(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookCollection(
                     book_id INTEGER NOT NULL,
@@ -891,7 +894,7 @@ class MangaDB:
                 );
             CREATE TABLE Category(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookCategory(
                     book_id INTEGER NOT NULL,
@@ -905,7 +908,7 @@ class MangaDB:
             -- Group protected keyword in sql
             CREATE TABLE Groups(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookGroups(
                     book_id INTEGER NOT NULL,
@@ -918,7 +921,7 @@ class MangaDB:
                 );
             CREATE TABLE Artist(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL,
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE,
                     favorite INTEGER NOT NULL DEFAULT 0
                 );
             CREATE TABLE BookArtist(
@@ -932,7 +935,7 @@ class MangaDB:
                 );
             CREATE TABLE Parody(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookParody(
                     book_id INTEGER NOT NULL,
@@ -945,7 +948,7 @@ class MangaDB:
                 );
             CREATE TABLE Character(
                     id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL COLLATE NOCASE
                 );
             CREATE TABLE BookCharacter(
                     book_id INTEGER NOT NULL,
@@ -966,14 +969,17 @@ class MangaDB:
 
             CREATE INDEX idx_id_onpage_imported_from ON
             ExternalInfo (id_onpage, imported_from);
-            CREATE UNIQUE INDEX idx_artist_name ON Artist (name);
-            CREATE UNIQUE INDEX idx_category_name ON Category (name);
-            CREATE UNIQUE INDEX idx_character_name ON Character (name);
-            CREATE UNIQUE INDEX idx_collection_name ON Collection (name);
-            CREATE UNIQUE INDEX idx_groups_name ON Groups (name);
-            CREATE UNIQUE INDEX idx_list_name ON List (name);
-            CREATE UNIQUE INDEX idx_parody_name ON Parody (name);
-            CREATE UNIQUE INDEX idx_tag_name ON Tag (name);
+            -- set collating function of the index explicitly
+            -- has to match the columns' (that the index is on) collating functions otherwise
+            -- it won't be used
+            CREATE UNIQUE INDEX idx_artist_name ON Artist (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_category_name ON Category (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_character_name ON Character (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_collection_name ON Collection (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_groups_name ON Groups (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_list_name ON List (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_parody_name ON Parody (name COLLATE NOCASE);
+            CREATE UNIQUE INDEX idx_tag_name ON Tag (name COLLATE NOCASE);
             CREATE UNIQUE INDEX idx_title_eng_foreign
                 ON Books (title_eng, title_foreign);
 
