@@ -24,6 +24,77 @@ from utils import build_testsdir_furl, TESTS_DIR
 # and should load the cookies file tests\cookies.txt themselves
 # update_cookies_from_file(os.path.join(TESTS_DIR, 'cookies.txt'))
 
+
+minimal_extr_data = {
+    "title_eng": "Negimatic Paradise! 05'",
+    "title_foreign": None,
+    "language": "English",
+    "pages": 0,
+    "status_id": 1,
+    "nsfw": 0,
+
+    "note": None,
+
+    "category": [],
+    "collection": [],
+    "groups": [],
+    "artist": [],
+    "parody": [],
+    "character": [],
+    "tag": [],
+    
+    "url": "https://www.tsumino.com/entry/43357",
+    "id_onpage": '43357',
+    "imported_from": 1,
+    "censor_id": 1,
+    "upload_date": datetime.date.min,
+
+    "uploader": None,
+    "rating": None,
+    "ratings": None,
+    "favorites": None,
+}
+
+def test_extractor_data_at_least_one_title():
+    src = minimal_extr_data.copy() 
+
+    MangaExtractorData(**src)
+    src['title_eng'] = None
+    src['title_foreign'] = 'Foreign'
+    MangaExtractorData(**src)
+
+    src['title_eng'] = None
+    src['title_foreign'] = None
+    with pytest.raises(AssertionError):
+        MangaExtractorData(**src)
+
+    src['title_eng'] = ""
+    src['title_foreign'] = ""
+    with pytest.raises(AssertionError):
+        MangaExtractorData(**src)
+
+
+def test_extractor_data_tags_capitalized():
+    src = minimal_extr_data.copy() 
+    src['category'] = ['This was capitalized', 'title']
+    src['collection'] = ['This was capitalized', 'title']
+    src['groups'] = ['This was capitalized', 'title']
+    src['artist'] = ['This was capitalized', 'title']
+    src['parody'] = ['This was capitalized', 'title']
+    src['character'] = ['This was capitalized', 'title']
+    src['tag'] = ['This was capitalized', 'title']
+
+    med = MangaExtractorData(**src)
+
+    assert med.category     == ['This Was Capitalized', 'Title']
+    assert med.collection   == ['This Was Capitalized', 'Title']
+    assert med.groups       == ['This Was Capitalized', 'Title']
+    assert med.artist       == ['This Was Capitalized', 'Title']
+    assert med.parody       == ['This Was Capitalized', 'Title']
+    assert med.character    == ['This Was Capitalized', 'Title']
+    assert med.tag          == ['This Was Capitalized', 'Title']
+
+
 manual_tsumino = {
         "url": "https://www.tsumino.com/entry/43357",
         "pages": 23,

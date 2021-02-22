@@ -47,9 +47,15 @@ class MangaExtractorData:
     ratings: Optional[int]
     favorites: Optional[int]
 
-    # run last in generated __init__
+    # runs after generated __init__
     def __post_init__(self):
         assert self.title_eng or self.title_foreign
+
+        # ensure all "tags" are titlecased so we a) dont have to use case-insensitive search
+        # and b) dont have to titlecase them when loading them from the DB (when e.g.
+        # all titles in the db are lowercase)
+        for attr in ('category', 'collection', 'groups', 'artist', 'parody', 'character', 'tag'):
+            setattr(self, attr, [s.title() for s in getattr(self, attr)])
     
 
 class BaseMangaExtractor:
