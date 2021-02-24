@@ -100,10 +100,11 @@ All of these fields can be combined in one search. When the search string for a 
 
 E.g. this string searches for a book that has the tags Seinen and "Martial Arts" and is in the list "good":
 ```
-list:good tag:"Seinen;Martial Arts"
+list:good tag:"seINen;MaRTial ARTS"
 ```
+_Hint: search is **case-insensitive** since v0.25.0_
 
-Search for sfw favorites in the 'Manga' (search is **case-sensitive**) category:
+Search for sfw favorites in the 'Manga' category:
 ```
 category:Manga favorite:1 nsfw:0
 ```
