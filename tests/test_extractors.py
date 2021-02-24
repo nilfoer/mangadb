@@ -85,6 +85,11 @@ def test_extractor_data_tags_capitalized():
     src['tag'] = ['This was capitalized', 'title']
 
     med = MangaExtractorData(**src)
+    # site_id 1 is in FORCE_TITLECASE_EXCEPTIONS so case should be the same
+    assert src == vars(med)
+
+    src['imported_from'] = 2
+    med = MangaExtractorData(**src)
 
     assert med.category     == ['This Was Capitalized', 'Title']
     assert med.collection   == ['This Was Capitalized', 'Title']
@@ -514,7 +519,9 @@ def test_extr_manganelo():
     extr = ManganeloExtractor(expected['url'])
     assert extr.id_onpage == 'hc121796'
     # make sure get_cover calls extract and sets export_data
-    assert extr.get_cover() == "https://avt.mkklcdnv6.com/31/r/20-1583502246.jpg"
+    assert extr.get_cover() in (
+            "https://avt.mkklcdnv6.com/31/r/20-1583502246.jpg",
+            "https://avt.mkklcdnv6temp.com/31/r/20-1583502246.jpg")
     assert extr.export_data is not None
     data = extr.extract()
     assert extr.export_data == data
@@ -526,7 +533,9 @@ def test_extr_manganelo():
     extr = ManganeloExtractor(url)
     assert extr.id_onpage == 'gh120927'
     # make sure get_cover calls extract and sets export_data
-    assert extr.get_cover() == "https://avt.mkklcdnv6.com/49/b/19-1583500958.jpg"
+    assert extr.get_cover() in (
+            "https://avt.mkklcdnv6.com/49/b/19-1583500958.jpg",
+            "https://avt.mkklcdnv6temp.com/49/b/19-1583500958.jpg")
     assert extr.export_data is not None
     data = extr.extract()
     assert extr.export_data == data
@@ -683,7 +692,7 @@ manual_mangasee123_2art = {
         "imported_from": MangaSee123Extractor.site_id,
         "category": ["Manga"],
         "groups": [],
-        "artist": ["Haga Souken", "TSUKIYO Rui"],
+        "artist": ["Haga Souken", "Tsukiyo Rui"],
         "parody": [],
         "character": [],
         'note': ("Description: Healing magicians cannot fight alone.â€™ Keare, who was bound by this common knowledge, was exploited again and again by others.\nBut one day, he noticed what lay beyond healing magic, and was convinced that a healing magician was the strongest class. However, by the time he realized that potential, he was deprived of everything. Thus, he used healing magic on the world itself to go back four years, deciding to redo everything.\nThis is a heroic tale of one healing magician who became the strongest by using knowledge from his past life and healing magic."),
@@ -709,7 +718,7 @@ manual_mangasee123_pubscan = {
         "imported_from": MangaSee123Extractor.site_id,
         "category": ["Manga"],
         "groups": [],
-        "artist": ['ASHIBE Yuuho', 'IKEDA Etsuko'],
+        "artist": ['Ashibe Yuuho', 'Ikeda Etsuko'],
         "parody": [],
         "character": [],
         'note': ("Description: Deimos was once a handsome god. He loved a beautiful goddess who returns his sentiments. The problem, well, she is his sister. For their crime against nature they were struck down out of Olympus. The brother is now a demon and the sister a rotting corpse at the bottom of the ocean. Deimos must choose between his sister and her living human incarnation. His sister is jealous. The girl is horrified and unsure of just what to make of her situation."),

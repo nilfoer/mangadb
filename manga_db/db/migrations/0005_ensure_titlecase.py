@@ -43,9 +43,6 @@ def upgrade(db_con: sqlite3.Connection, db_filename: str) -> None:
         rows = c.execute(f"""
         SELECT id, name FROM {table_name} ORDER BY id""").fetchall()
 
-        # force tag names to be title case for all others use the first occurence
-        # (lowest id since we ORDER BY id)
-        case_changing_function = (lambda x: x) if table_name != 'Tag' else str.title
         name_to_reloc: Dict[str, Reloc] = {}
         # id/name combos to insert
         in_order = []
@@ -58,7 +55,7 @@ def upgrade(db_con: sqlite3.Connection, db_filename: str) -> None:
             except KeyError:
                 new_id = i
                 i += 1
-                reloc = Reloc(name=case_changing_function(name), old_ids=[_id], new_id=new_id)
+                reloc = Reloc(name=name, old_ids=[_id], new_id=new_id)
                 name_to_reloc[same_case] = reloc
                 in_order.append((new_id, reloc.name))
 
