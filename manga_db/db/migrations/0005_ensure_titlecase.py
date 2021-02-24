@@ -86,6 +86,12 @@ def upgrade(db_con: sqlite3.Connection, db_filename: str) -> None:
         c.execute(table_creation_statements[table_name])
         c.execute(f"INSERT INTO {table_name} SELECT * FROM temp_table")
         c.execute("DROP TABLE temp_table")
+        # NOTE: FK from bridge table will still point to renamed table so we have to re-create
+        # the bridge tables as well to update what table the FK references
+        c.execute(f"ALTER TABLE Book{table_name} RENAME TO temp_table")
+        c.execute(table_creation_statements[f"Book{table_name}"])
+        c.execute(f"INSERT INTO Book{table_name} SELECT * FROM temp_table")
+        c.execute("DROP TABLE temp_table")
 
     # reactivate trigger
     c.execute("""
@@ -134,25 +140,77 @@ table_creation_statements = {
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
         )""",
+    'BookList': """
+    CREATE TABLE BookList(
+        book_id INTEGER NOT NULL,
+        list_id INTEGER NOT NULL,
+        FOREIGN KEY (book_id) REFERENCES Books(id)
+        ON DELETE CASCADE,
+        FOREIGN KEY (list_id) REFERENCES List(id)
+        ON DELETE CASCADE,
+        PRIMARY KEY (book_id, list_id)
+    )""",
     'Tag': """
     CREATE TABLE Tag(
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
         )""",
+    'BookTag': """
+    CREATE TABLE BookTag(
+        book_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        FOREIGN KEY (book_id) REFERENCES Books(id)
+        ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES Tag(id)
+        ON DELETE CASCADE,
+        PRIMARY KEY (book_id, tag_id)
+    )""",
     'Collection': """
     CREATE TABLE Collection(
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        )""",
+    'BookCollection': """
+    CREATE TABLE BookCollection(
+            book_id INTEGER NOT NULL,
+            collection_id INTEGER NOT NULL,
+            in_collection_idx INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (collection_id) REFERENCES Collection(id)
+            ON DELETE CASCADE,
+            UNIQUE(collection_id, in_collection_idx),
+            PRIMARY KEY (book_id, collection_id)
         )""",
     'Category': """
     CREATE TABLE Category(
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
         )""",
+    'BookCategory': """
+    CREATE TABLE BookCategory(
+            book_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES Category(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, category_id)
+        )""",
     'Groups': """
     CREATE TABLE Groups(
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        )""",
+    'BookGroups': """
+    CREATE TABLE BookGroups(
+            book_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (group_id) REFERENCES Groups(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, group_id)
         )""",
     'Artist': """
     CREATE TABLE Artist(
@@ -160,15 +218,45 @@ table_creation_statements = {
             name TEXT UNIQUE NOT NULL COLLATE NOCASE,
             favorite INTEGER NOT NULL DEFAULT 0
         )""",
+    'BookArtist': """
+    CREATE TABLE BookArtist(
+            book_id INTEGER NOT NULL,
+            artist_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (artist_id) REFERENCES Artist(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, artist_id)
+        )""",
     'Parody': """
     CREATE TABLE Parody(
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
         )""",
+    'BookParody': """
+    CREATE TABLE BookParody(
+            book_id INTEGER NOT NULL,
+            parody_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (parody_id) REFERENCES Parody(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, parody_id)
+        )""",
     'Character': """
     CREATE TABLE Character(
             id INTEGER PRIMARY KEY ASC,
             name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        )""",
+    'BookCharacter': """
+    CREATE TABLE BookCharacter(
+            book_id INTEGER NOT NULL,
+            character_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (character_id) REFERENCES Character(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, character_id)
         )""",
 }
 
