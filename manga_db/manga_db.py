@@ -19,6 +19,7 @@ from .db import migrate
 from .db import search
 from .db.loading import load_instance
 from .db.id_map import IndentityMap
+from .db.util import table_name_to_bridge_id_col
 from .manga import Book
 from .ext_info import ExternalInfo
 from .constants import CENSOR_IDS, STATUS_IDS, LANG_IDS
@@ -431,93 +432,104 @@ class MangaDB:
         else:
             return collection_id[0]
 
-    def delete_collection(self, collection_id: int) -> None:
-        # NOTE: doest not account for non-existant collection_id
-        c = self.db_con.execute("SELECT name FROM Collection WHERE id = ?", (collection_id,))
-        collection_name, = c.fetchone()
+    # TODO generalize these when we do proper associated column representations
+    def delete_tag(self, col_name: str, tag_id: int, /) -> None:
+        """
+        Deletes a 'tag' or rather a value associated to this rowid using a bridge table
+        while also making sure the id_map representation is correct
+        """
+        tag_table = col_name.capitalize()
+        # NOTE: does not account for non-existant tag_id
+        c = self.db_con.execute(f"SELECT name FROM {tag_table} WHERE id = ?", (tag_id,))
+        tag_name, = c.fetchone()
 
-        c.execute("SELECT book_id FROM BookCollection WHERE collection_id = ?", (collection_id,))
-        book_ids_in_collection = c.fetchall()
+        bridge_id_col = table_name_to_bridge_id_col(tag_table)
+        c.execute(f"SELECT book_id FROM Book{tag_table} WHERE {bridge_id_col} = ?", (tag_id,))
+        book_ids_with_tag = c.fetchall()
 
-        # generalize this in DBRow TODO
-        # NOTE: @Hack need to update books in id_map deleting the collection
+        # NOTE: @Hack need to update books in id_map deleting the tag
         # and also update their _committed_state since we don't have proper
         # representations for those yet and they're just strings in a list
-        for (book_id,) in book_ids_in_collection:
-            book = self.id_map.get((Book, (book_id,)))
+        id_map = self.id_map
+        col_name = tag_table.lower()
+        for (book_id,) in book_ids_with_tag:
+            book = id_map.get((Book, (book_id,)))
             if book is None:
                 continue
 
-            collection_was_dirty = 'collection' in book._committed_state
-            collection_before_rename = book.collection.copy()
+            tag_was_dirty = col_name in book._committed_state
+            tags_before_rename = getattr(book, col_name).copy()
 
             # remove from current and commited list
-            # modifying this will add 'collection' to _committed_state of DBRow if it wasn't already
-            book.collection = [cname for cname in book.collection if cname != collection_name]
-            book._committed_state['collection'] = [
-                cname for cname in book._committed_state['collection'] if cname != collection_name]
-            # collection isn't dirty if states are equal
-            if book.collection == book._committed_state['collection']:
-                del book._committed_state['collection']
+            # modifying this will add col_name to _committed_state of DBRow if it wasn't already
+            setattr(book, col_name, [tname for tname in getattr(book, col_name) if tname != tag_name])
+            book._committed_state[col_name] = [
+                tname for tname in book._committed_state[col_name] if tname != tag_name]
+            # tag isn't dirty if states are equal
+            if getattr(book, col_name) == book._committed_state[col_name]:
+                del book._committed_state[col_name]
 
         with self.db_con:
-            # actually delete collection
-            c.execute("DELETE FROM BookCollection WHERE collection_id = ?", (collection_id,))
-            c.execute("DELETE FROM Collection WHERE id = ?", (collection_id,))
+            # actually delete tag
+            c.execute(f"DELETE FROM Book{tag_table} WHERE {bridge_id_col} = ?", (tag_id,))
+            c.execute(f"DELETE FROM {tag_table} WHERE id = ?", (tag_id,))
 
-    def update_collection_name(self, collection_id: int, new_collection_name: str) -> bool:
+    def update_tag_name(self, col_name: str, tag_id: int, new_tag_name: str, /) -> bool:
         """
         Returns False when renaming fails due to vioalating the unique constraint on name
         """
-        c = self.db_con.execute(
-                "SELECT name FROM Collection WHERE id = ?", (collection_id,))
+        tag_table = col_name.capitalize()
+        db_con = self.db_con
+        c = db_con.execute(
+                f"SELECT name FROM {tag_table} WHERE id = ?", (tag_id,))
         # value, = to unpack 1-tuple
-        old_collection_name, = c.fetchone()
+        old_tag_name, = c.fetchone()
 
-        c.execute("SELECT book_id FROM BookCollection WHERE collection_id = ?", (collection_id,))
-        book_ids_in_collection = c.fetchall()
+        bridge_id_col = table_name_to_bridge_id_col(tag_table)
+        c.execute(f"SELECT book_id FROM Book{tag_table} WHERE {bridge_id_col} = ?", (tag_id,))
+        book_ids_with_tag = c.fetchall()
 
-
-        # rename collection first so we see if we violate a constraint
+        # rename tag first so we see if we violate a constraint
         try:
-            with self.db_con:
-                self.db_con.execute("UPDATE Collection SET name = ? WHERE id = ?",
-                                    (new_collection_name, collection_id))
+            with db_con:
+                db_con.execute(f"UPDATE {tag_table} SET name = ? WHERE id = ?",
+                               (new_tag_name, tag_id))
         except sqlite3.IntegrityError:
             logger.warning(
-                "Could not rename collection '%s' to '%s' since the new name already exists",
-                old_collection_name, new_collection_name)
+                "Could not rename %s '%s' to '%s' since the new name already exists",
+                col_name, old_tag_name, new_tag_name)
             return False
 
-        # NOTE: @Hack need to update books in id_map with the new collection name
+        # NOTE: @Hack need to update books in id_map with the new tag name
         # and also update their _committed_state since we don't have proper
         # representations for those yet and they're just strings in a list
-        for (book_id,) in book_ids_in_collection:
-            book = self.id_map.get((Book, (book_id,)))
+        id_map = self.id_map
+        for (book_id,) in book_ids_with_tag:
+            book = id_map.get((Book, (book_id,)))
             if book is None:
                 continue
 
-            collection_was_dirty = 'collection' in book._committed_state
-            collection_before_rename = book.collection.copy()
+            tag_was_dirty = col_name in book._committed_state
+            tag_before_rename = getattr(book, col_name).copy()
 
             # this will add the change to _committed_state of DBRow
-            book.collection = [cname if cname != old_collection_name else new_collection_name
-                               for cname in book.collection]
-            if not collection_was_dirty:
+            setattr(book, col_name, [tname if tname != old_tag_name else new_tag_name
+                                     for tname in getattr(book, col_name)])
+            if not tag_was_dirty:
                 # we can just remove it since nothing was modified before
-                del book._committed_state['collection']
+                del book._committed_state[col_name]
             else:
                 # otherwise we have to re-create the modified state
-                if (collection_before_rename == [new_collection_name] and
-                        book._committed_state['collection'] == [old_collection_name]):
-                    # only our collection -> remove
-                    del book._committed_state['collection']
+                if (tag_before_rename == [new_tag_name] and
+                        book._committed_state[col_name] == [old_tag_name]):
+                    # only our tag -> remove
+                    del book._committed_state[col_name]
                 else:
-                    # rename our collection in _committed_state so the diff
+                    # rename our tag in _committed_state so the diff
                     # on update will be correct
-                    book._committed_state['collection'] = [
-                        cname if cname != old_collection_name else new_collection_name
-                        for cname in book._committed_state['collection']]
+                    book._committed_state[col_name] = [
+                        cname if cname != old_tag_name else new_tag_name
+                        for cname in book._committed_state[col_name]]
 
         return True
 

@@ -361,7 +361,7 @@ def test_update_in_collection_order(setup_tmpdir):
     assert actual == book_id_new_coll_idx
 
 
-def test_update_collection_name(setup_tmpdir):
+def test_update_tag_name(setup_tmpdir):
     tmpdir = setup_tmpdir
     mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
     tmp_db_file = os.path.join(tmpdir, "manga_db.slite")
@@ -401,7 +401,7 @@ def test_update_collection_name(setup_tmpdir):
     
     old_coll_name = "Dolls"
     new_coll_name = "Renamed Collection"
-    mdb.update_collection_name(1, new_coll_name)
+    mdb.update_tag_name('collection', 1, new_coll_name)
 
     other_con = load_db(tmp_db_file)
     actual, = other_con.execute("SELECT name FROM Collection WHERE id = 1").fetchone()
@@ -439,7 +439,7 @@ def test_update_collection_name(setup_tmpdir):
     assert b4 == mdb.get_collection_info(new_coll_name)
     mdb.db_con.close()
 
-def test_delete_collection(setup_tmpdir):
+def test_delete_tag(setup_tmpdir):
     tmpdir = setup_tmpdir
     mdb_file = os.path.join(TESTS_DIR, "all_test_files", "manga_db.sqlite.sql")
     tmp_db_file = os.path.join(tmpdir, "manga_db.slite")
@@ -478,7 +478,7 @@ def test_delete_collection(setup_tmpdir):
     not_in_coll = mdb.get_book(_id=10)  # only one not in coll 1
     
     coll_name = "Dolls"
-    mdb.delete_collection(1)
+    mdb.delete_tag('collection', 1)
     mdb.db_con.close()
 
     other_con = load_db(tmp_db_file)

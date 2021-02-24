@@ -69,6 +69,10 @@ def print_sqlite3_row(row, sep=";"):
     print(sep.join(str_li))
 
 
+def table_name_to_bridge_id_col(table_name: str) -> str:
+    return f"{table_name.lower().rstrip('s')}_id"
+
+
 def joined_col_name_to_query_names(col_name):
     # TODO mb to Book cls and validate col name
     # have to be careful not to use user input e.g. col_name in SQL query
