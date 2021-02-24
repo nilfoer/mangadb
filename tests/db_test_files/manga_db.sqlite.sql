@@ -1,71 +1,84 @@
 PRAGMA foreign_keys=off;
 BEGIN TRANSACTION;
-CREATE TABLE Artist
-                (
-                    id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL,
-                    favorite INTEGER NOT NULL DEFAULT 0
-                );
-CREATE TABLE "BookArtist" (
-	"book_id"	INTEGER NOT NULL,
-	"artist_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","artist_id"),
-	FOREIGN KEY("artist_id") REFERENCES "Artist"("id") ON DELETE CASCADE
-);
-CREATE TABLE "BookCategory" (
-	"book_id"	INTEGER NOT NULL,
-	"category_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","category_id"),
-	FOREIGN KEY("category_id") REFERENCES "Category"("id") ON DELETE CASCADE
-);
-CREATE TABLE "BookCharacter" (
-	"book_id"	INTEGER NOT NULL,
-	"character_id"	INTEGER NOT NULL,
-	FOREIGN KEY("character_id") REFERENCES "Character"("id") ON DELETE CASCADE,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","character_id")
-);
+CREATE TABLE Artist(
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE,
+            favorite INTEGER NOT NULL DEFAULT 0
+        );
+CREATE TABLE BookArtist(
+            book_id INTEGER NOT NULL,
+            artist_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (artist_id) REFERENCES Artist(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, artist_id)
+        );
+CREATE TABLE BookCategory(
+            book_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES Category(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, category_id)
+        );
+CREATE TABLE BookCharacter(
+            book_id INTEGER NOT NULL,
+            character_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (character_id) REFERENCES Character(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, character_id)
+        );
 CREATE TABLE BookCollection(
+            book_id INTEGER NOT NULL,
+            collection_id INTEGER NOT NULL,
+            in_collection_idx INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (collection_id) REFERENCES Collection(id)
+            ON DELETE CASCADE,
+            UNIQUE(collection_id, in_collection_idx),
+            PRIMARY KEY (book_id, collection_id)
+        );
+CREATE TABLE BookGroups(
+            book_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (group_id) REFERENCES Groups(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, group_id)
+        );
+CREATE TABLE BookList(
         book_id INTEGER NOT NULL,
-        collection_id INTEGER NOT NULL,
-        in_collection_idx INTEGER NOT NULL,
+        list_id INTEGER NOT NULL,
         FOREIGN KEY (book_id) REFERENCES Books(id)
         ON DELETE CASCADE,
-        FOREIGN KEY (collection_id) REFERENCES Collection(id)
+        FOREIGN KEY (list_id) REFERENCES List(id)
         ON DELETE CASCADE,
-        UNIQUE(collection_id, in_collection_idx),
-        PRIMARY KEY (book_id, collection_id)
+        PRIMARY KEY (book_id, list_id)
     );
-CREATE TABLE "BookGroups" (
-	"book_id"	INTEGER NOT NULL,
-	"group_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","group_id"),
-	FOREIGN KEY("group_id") REFERENCES "Groups"("id") ON DELETE CASCADE
-);
-CREATE TABLE "BookList" (
-	"book_id"	INTEGER NOT NULL,
-	"list_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","list_id"),
-	FOREIGN KEY("list_id") REFERENCES "List"("id") ON DELETE CASCADE
-);
-CREATE TABLE "BookParody" (
-	"book_id"	INTEGER NOT NULL,
-	"parody_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","parody_id"),
-	FOREIGN KEY("parody_id") REFERENCES "Parody"("id") ON DELETE CASCADE
-);
-CREATE TABLE "BookTag" (
-	"book_id"	INTEGER NOT NULL,
-	"tag_id"	INTEGER NOT NULL,
-	FOREIGN KEY("book_id") REFERENCES "Books"("id") ON DELETE CASCADE,
-	PRIMARY KEY("book_id","tag_id"),
-	FOREIGN KEY("tag_id") REFERENCES "Tag"("id") ON DELETE CASCADE
-);
+CREATE TABLE BookParody(
+            book_id INTEGER NOT NULL,
+            parody_id INTEGER NOT NULL,
+            FOREIGN KEY (book_id) REFERENCES Books(id)
+            ON DELETE CASCADE,
+            FOREIGN KEY (parody_id) REFERENCES Parody(id)
+            ON DELETE CASCADE,
+            PRIMARY KEY (book_id, parody_id)
+        );
+CREATE TABLE BookTag(
+        book_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        FOREIGN KEY (book_id) REFERENCES Books(id)
+        ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES Tag(id)
+        ON DELETE CASCADE,
+        PRIMARY KEY (book_id, tag_id)
+    );
 CREATE TABLE Books(
                         id INTEGER PRIMARY KEY ASC,
                         title_eng TEXT,
@@ -83,26 +96,23 @@ CREATE TABLE Books(
                         FOREIGN KEY (status_id) REFERENCES Status(id)
                            ON DELETE RESTRICT
                     );
-CREATE TABLE Category
-                (
-                    id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
-                );
+CREATE TABLE Category(
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
 CREATE TABLE Censorship
                         (
                             id INTEGER PRIMARY KEY ASC,
                             name TEXT UNIQUE NOT NULL
                         );
-CREATE TABLE Character
-                (
-                    id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
-                );
-CREATE TABLE Collection
-                (
-                    id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
-                );
+CREATE TABLE Character(
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
+CREATE TABLE Collection(
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
 CREATE TABLE ExternalInfo(
         id INTEGER PRIMARY KEY ASC,
         book_id INTEGER NOT NULL,
@@ -124,27 +134,25 @@ CREATE TABLE ExternalInfo(
         FOREIGN KEY (censor_id) REFERENCES Censorship(id)
            ON DELETE RESTRICT
     );
-CREATE TABLE Groups
-                (
-                    id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
-                );
+CREATE TABLE Groups(
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
 CREATE TABLE Languages (
                  id INTEGER PRIMARY KEY ASC,
                  name TEXT UNIQUE NOT NULL);
 CREATE TABLE List(
-                        id INTEGER PRIMARY KEY ASC,
-                        name TEXT UNIQUE NOT NULL
-                    );
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
 CREATE TABLE MDB_Version (
     version_id INTEGER PRIMARY KEY ASC,
     dirty INTEGER NOT NULL
     );
-CREATE TABLE Parody
-                (
-                    id INTEGER PRIMARY KEY ASC,
-                    name TEXT UNIQUE NOT NULL
-                );
+CREATE TABLE Parody(
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
 CREATE TABLE Sites (
                  id INTEGER PRIMARY KEY ASC,
                  name TEXT UNIQUE NOT NULL);
@@ -154,9 +162,9 @@ CREATE TABLE Status
                         name TEXT UNIQUE NOT NULL
                     );
 CREATE TABLE Tag(
-                        id INTEGER PRIMARY KEY ASC,
-                        name TEXT UNIQUE NOT NULL
-                    );
+            id INTEGER PRIMARY KEY ASC,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        );
 INSERT INTO "Artist" VALUES
 (1,'Isao',0),
 (2,'Yojouhan Shobou',0),
@@ -1474,10 +1482,9 @@ INSERT INTO "Artist" VALUES
 (1314,'Kirome',0),
 (1315,'Nunnu',0),
 (1316,'Kirisaki Byakko',0),
-(1317,'Yd',0),
-(1318,'Haguruma',0),
-(1319,'Bizen Dorobune',0),
-(1320,'Metal Owl',0);
+(1317,'Haguruma',0),
+(1318,'Bizen Dorobune',0),
+(1319,'Metal Owl',0);
 INSERT INTO "BookArtist" VALUES
 (1,1),
 (2,2),
@@ -4352,12 +4359,12 @@ INSERT INTO "BookArtist" VALUES
 (2795,306),
 (2795,307),
 (2796,1316),
-(2797,1317),
-(2798,1318),
-(2799,1319),
-(2800,1319),
+(2797,678),
+(2798,1317),
+(2799,1318),
+(2800,1318),
 (2801,38),
-(2802,1320);
+(2802,1319);
 INSERT INTO "BookCategory" VALUES
 (1,1),
 (2,1),
@@ -11135,9 +11142,9 @@ INSERT INTO "BookGroups" VALUES
 (2794,785),
 (2795,159),
 (2796,786),
-(2797,787),
-(2799,788),
-(2800,788),
+(2797,352),
+(2799,787),
+(2800,787),
 (2801,11);
 INSERT INTO "BookList" VALUES
 (1,1),
@@ -53358,67 +53365,67 @@ INSERT INTO "BookTag" VALUES
 (2797,77),
 (2797,117),
 (2797,361),
-(2797,362),
+(2797,81),
 (2797,6),
 (2797,50),
 (2797,167),
 (2797,356),
-(2798,363),
+(2798,362),
 (2798,353),
+(2798,363),
 (2798,364),
 (2798,365),
 (2798,366),
-(2798,367),
 (2798,22),
 (2798,1),
 (2798,77),
-(2798,362),
+(2798,81),
 (2798,32),
 (2798,65),
-(2798,368),
+(2798,367),
 (2798,18),
 (2798,3),
-(2798,369),
+(2798,368),
 (2798,355),
 (2798,356),
 (2799,31),
 (2799,52),
 (2799,353),
 (2799,257),
-(2799,370),
+(2799,369),
 (2799,22),
-(2799,371),
+(2799,370),
 (2799,77),
 (2799,30),
+(2799,371),
 (2799,372),
-(2799,373),
 (2799,46),
 (2799,101),
 (2799,84),
-(2799,374),
+(2799,373),
 (2799,356),
 (2800,31),
 (2800,353),
 (2800,257),
 (2800,22),
 (2800,30),
-(2800,362),
-(2800,373),
+(2800,81),
+(2800,372),
 (2800,68),
 (2800,278),
 (2800,50),
 (2800,101),
 (2800,84),
-(2800,374),
+(2800,373),
 (2800,355),
 (2800,356),
-(2801,375),
-(2801,362),
+(2801,374),
+(2801,81),
 (2801,77),
-(2801,376),
+(2801,375),
 (2801,95),
 (2801,99),
-(2801,366),
+(2801,365),
 (2801,353),
 (2802,6),
 (2802,36),
@@ -53427,8 +53434,8 @@ INSERT INTO "BookTag" VALUES
 (2802,225),
 (2802,276),
 (2802,353),
-(2802,369),
-(2802,377),
+(2802,368),
+(2802,376),
 (2787,218),
 (2787,29),
 (2787,99),
@@ -60994,8 +61001,7 @@ INSERT INTO "Groups" VALUES
 (784,'Kilometer'),
 (785,'Sarugaso'),
 (786,'Seafox'),
-(787,'Orangemaru'),
-(788,'Bizen Dorobune Koubou');
+(787,'Bizen Dorobune Koubou');
 INSERT INTO "Languages" VALUES
 (1,'Unknown'),
 (2,'English'),
@@ -61048,7 +61054,7 @@ INSERT INTO "List" VALUES
 (12,'test'),
 (13,'+to-read');
 INSERT INTO "MDB_Version" VALUES
-(4,0);
+(5,0);
 INSERT INTO "Parody" VALUES
 (1,'Bishoujo Senshi Sailor Moon / 美少女戦士セーラームーン'),
 (2,'Girls und Panzer / ガールズ&パンツァー'),
@@ -61668,57 +61674,40 @@ INSERT INTO "Tag" VALUES
 (359,'Kissing'),
 (360,'Metal Armor'),
 (361,'Thigh High Boots'),
-(362,'X-Ray'),
-(363,'Virginity'),
-(364,'Unusual Pupils'),
-(365,'Schoolboy Uniform'),
-(366,'Glasses'),
-(367,'Schoolgirl Uniform'),
-(368,'Mosaic Censorship'),
-(369,'Big Penis'),
-(370,'Group'),
-(371,'Ffm Threesome'),
-(372,'Multiple Paizuri'),
-(373,'Multi-Work Series'),
-(374,'Shotacon'),
-(375,'Piss Drinking'),
-(376,'Urination'),
-(377,'Stomach Deformation');
-CREATE UNIQUE INDEX "idx_artist_name" ON "Artist" (
-	"name"
-);
-CREATE UNIQUE INDEX "idx_category_name" ON "Category" (
-	"name"
-);
-CREATE UNIQUE INDEX "idx_character_name" ON "Character" (
-	"name"
-);
-CREATE UNIQUE INDEX "idx_collection_name" ON "Collection" (
-	"name"
-);
-CREATE UNIQUE INDEX "idx_groups_name" ON "Groups" (
-	"name"
-);
+(362,'Virginity'),
+(363,'Unusual Pupils'),
+(364,'Schoolboy Uniform'),
+(365,'Glasses'),
+(366,'Schoolgirl Uniform'),
+(367,'Mosaic Censorship'),
+(368,'Big Penis'),
+(369,'Group'),
+(370,'Ffm Threesome'),
+(371,'Multiple Paizuri'),
+(372,'Multi-Work Series'),
+(373,'Shotacon'),
+(374,'Piss Drinking'),
+(375,'Urination'),
+(376,'Stomach Deformation');
+CREATE UNIQUE INDEX idx_artist_name ON Artist (name COLLATE NOCASE);
+CREATE UNIQUE INDEX idx_category_name ON Category (name COLLATE NOCASE);
+CREATE UNIQUE INDEX idx_character_name ON Character (name COLLATE NOCASE);
+CREATE UNIQUE INDEX idx_collection_name ON Collection (name COLLATE NOCASE);
+CREATE UNIQUE INDEX idx_groups_name ON Groups (name COLLATE NOCASE);
 CREATE INDEX idx_id_onpage_imported_from ON ExternalInfo (id_onpage, imported_from);
-CREATE UNIQUE INDEX "idx_list_name" ON "List" (
-	"name"
-);
-CREATE UNIQUE INDEX "idx_parody_name" ON "Parody" (
-	"name"
-);
-CREATE UNIQUE INDEX "idx_tag_name" ON "Tag" (
-	"name"
-);
+CREATE UNIQUE INDEX idx_list_name ON List (name COLLATE NOCASE);
+CREATE UNIQUE INDEX idx_parody_name ON Parody (name COLLATE NOCASE);
+CREATE UNIQUE INDEX idx_tag_name ON Tag (name COLLATE NOCASE);
 CREATE UNIQUE INDEX "idx_title_eng_foreign" ON "Books" (
 	"title_eng",
 	"title_foreign"
 );
 CREATE TRIGGER set_books_last_change
-                                     AFTER UPDATE ON Books
-                                     BEGIN
-                                        UPDATE Books
-                                        SET last_change = DATE('now', 'localtime')
-                                        WHERE id = NEW.id;
-                                     END;
+    AFTER UPDATE ON Books
+    BEGIN
+        UPDATE Books
+        SET last_change = DATE('now', 'localtime')
+        WHERE id = NEW.id;
+    END;
 COMMIT;
 PRAGMA foreign_keys=on;
