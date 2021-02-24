@@ -768,13 +768,6 @@ def edit_book(book_id):
     return redirect(url_for("main.show_info", book_id=book_id))
 
 
-@main_bp.route("/collection")
-def show_collections():
-    mdb = get_mdb()
-    collections = mdb.db_con.execute("SELECT name FROM Collection").fetchall()
-    return render_template('show_collections.html', collections=collections)
-
-
 # TODO change this to use collection_id
 @main_bp.route("/collection/edit/<string:collection_name>")
 def show_edit_collection(collection_name: str,
@@ -897,3 +890,64 @@ def remove_ext_info(book_id, ext_info_id):
     else:
         flash(f"External link with url '{url}' was removed from Book!")
     return redirect(url_for("main.show_info", book_id=book_id))
+
+
+tag_abbrev_to_table_name = {
+        't': 'Tag',
+        'l': 'List',
+        'co': 'Collection',
+        'ca': 'Category',
+        'g': 'Groups',
+        'a': 'Artist',
+        'p': 'Parody',
+        'ch': 'Character',
+}
+
+
+@main_bp.route('/manage-tags', methods=['GET', 'POST'])
+def manage_tags():
+    try:
+        tags_type_abbrev = request.args['tag-type']
+        search_str = request.args['tag-search']
+    except KeyError:
+        # no search yet
+        return render_template('manage_tags.html')
+
+
+    try:
+        tag_tbl_name = tag_abbrev_to_table_name[tags_type_abbrev]
+    except KeyError:
+        flash("Got invalid value for tag type abbreviation", "title warning")
+        return render_template('manage_tags.html')
+
+    mdb = get_mdb()
+    c = mdb.db_con.execute(f"SELECT id, name FROM {tag_tbl_name} WHERE name LIKE '%{search_str}%'")
+    tags = c.fetchall()
+    
+    return render_template(
+        'manage_tags.html',
+        tags=tags,
+        tt_abbr=tags_type_abbrev,
+        tags_search_field=search_str,
+        tags_type=tag_tbl_name.rstrip('s'))
+
+
+@main_bp.route("/manage-tags/delete", methods=["POST"])
+def delete_tag():
+    tag_id = request.form.get("id", None, type=int)
+    if tag_id is None:
+        return jsonify({"error": "Missing tag id from data!"})
+
+    return jsonify({"success": True})
+
+
+@main_bp.route("/manage-tags/edit", methods=["POST"])
+def edit_tag():
+    tag_id = request.form.get("id", None, type=int)
+    new_tag_name = request.form.get("new_tag_name", None, type=str)
+    if tag_id is None:
+        return jsonify({"error": "Missing tag id from data!"})
+    if new_tag_name is None:
+        return jsonify({"error": "Missing new_tag_name from data!"})
+
+    return jsonify({"success": True, "new_tag_name": new_tag_name})

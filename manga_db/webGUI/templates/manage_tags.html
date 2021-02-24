@@ -1,0 +1,300 @@
+{% extends "layout.html" %}
+
+{% block head %}
+{{ super() }}
+<title>Manage tags - MangaDB</title>
+{% endblock %}
+
+{% block body %}
+<div class="section">
+<div class="container block" style="position: relative;">
+    <div class="columns">
+        <div class="column">
+            <h1 class="title">Manage tags:</h1>
+            <h3 class="subtitle">Search tags by name and type to edit them!</h3>
+        </div>
+    </div>
+    <div class="columns">
+        <div class="column">
+            <form id="searchForm" action="{{ url_for('main.manage_tags') }}" method=get class="" style="width: 100%;">
+                <div class="field has-addons">
+                    <div class="control">
+                        <div class="select is-rounded">
+                            <select id="tag-type" name="tag-type">
+                                <option
+                                    {{ 'selected' if tt_abbr is none or tt_abbr == 't' else ''}}
+                                    value="t">Tag</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'l' else ''}}
+                                    value="l">List</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'co' else ''}}
+                                    value="co">Collection</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'ca' else ''}}
+                                    value="ca">Category</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'g' else ''}}
+                                    value="g">Group</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'a' else ''}}
+                                    value="a">Artist</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'p' else ''}}
+                                    value="p">Parody</option>
+                                <option
+                                    {{ 'selected' if tt_abbr == 'ch' else ''}}
+                                    value="ch">Character</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control has-icons-left is-expanded">
+                        <input type="text" id="searchTagField" class="input is-rounded has-text-light" name ="tag-search" placeholder="Search" value="{{ tags_search_field }}"/>
+                        <span class="icon is-left">
+                            <i class="fa fa-search" id="search-icon"></i>
+                        </span>
+                    </div>
+                    <div class="control">
+                        <button id="tag-search-submit" type="submit" class="button is-outlined is-rounded" style="border-color: #fff;">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="columns">
+    <div class="column">
+
+        {% if tags %}
+        <table class="book-info-table">
+            <tbody class="tag-table-body">
+                <tr>
+                    <th>
+                        Type
+                    </th>
+                    <th colspan="2">
+                        Name
+                    </th>
+                </tr>
+
+                {% for tag_id, tag_name in tags %}
+                <tr>
+                    <td>
+                        {{ tags_type }}
+                    </td>
+                    <td class="tcol-full-width">
+                        {{ tag_name }}
+                    </td>
+                    <td align="right">
+                        {% if tags_type.startswith("Co") %}
+                        <a href={{ url_for("main.show_edit_collection", collection_name=tag_name) }}>
+                            <button class="button is-small">
+                                <i class="fas fa-pen"></i>
+                            </button> 
+                        </a>
+                        {% else %}
+                            <button class="button is-small toggle-tag-edit" data-toggle="off"
+                                data-tag-id={{ tag_id }}>
+                                <i class="fas fa-pen"></i>
+                            </button> 
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    </div>
+</div>
+</div>
+<script>
+$(document).ready(function() {
+    $('#tag-search-submit').click((e) => {
+        // force minimum length of 3 chars for search str
+        let search_str = document.getElementById('searchTagField').value.trim();
+        console.log(search_str);
+        if (search_str.length < 3) {
+            alert("Search sequence must be at least 3 characters long!");
+            e.preventDefault();
+            return false;
+        } else {
+            return true;
+        }
+        e.preventDefault();
+        return false;
+    });
+
+
+    function handleSubmitTagEdit(e) {
+        e.preventDefault();
+
+        let row = e.currentTarget.parentElement.parentElement.parentElement.parentElement;
+        let name_input = row.children[1].firstChild;
+        let tag_id = name_input.dataset.tagId;
+        let tag_name = name_input.dataset.originalTagName;
+        let new_tag_name = name_input.value;
+        
+        $.ajax({
+            data : {
+                'id': +tag_id,
+                'new_tag_name': new_tag_name
+            },
+            type : 'POST',
+            url : "{{ url_for('main.edit_tag') }}",
+            // let jquery know that flask is returning json data
+            // (data in func below)
+            dataType: "json"
+        }).done(function(data) { // when prev function is done
+            if (data.error) {
+                console.log(data.error);
+            }
+            else {
+                // edit successfull
+                restoreRow(row, data.new_tag_name);
+            }
+        });
+    }
+
+
+    function handleDeleteTag(e) {
+        e.preventDefault();
+
+        let row = e.currentTarget.parentElement.parentElement.parentElement.parentElement;
+        let tag_id = e.currentTarget.dataset.tagId;
+        let tag_name = row.children[1].firstChild.dataset.originalTagName;
+        
+        if(confirm(`Are you sure you want to delete the tag with the name ${tag_name}?`)) {
+            $.ajax({
+                data : {
+                    'id': +tag_id
+                },
+                type : 'POST',
+                url : "{{ url_for('main.delete_tag') }}",
+                // let jquery know that flask is returning json data
+                // (data in func below)
+                dataType: "json"
+            }).done(function(data) { // when prev function is done
+                if (data.error) {
+                    console.log(data.error);
+                }
+                else {
+                    // deletion successfull -> remove row
+                    row.parentElement.removeChild(row);
+                }
+            });
+        }
+    }
+
+
+    function restoreRow(row, tag_name) {
+        let name_cell = row.children[1];
+        let button_cell = row.children[2];
+        let tag_id = name_cell.firstChild.dataset.tagId;
+        if (!tag_name) {
+            tag_name = name_cell.firstChild.dataset.originalTagName;
+        }
+        name_cell.textContent = tag_name;
+        // clear button cell
+        while(button_cell.firstChild) {
+            button_cell.removeChild(button_cell.lastChild);
+        }
+
+        let edit_btn = document.createElement("button");
+        edit_btn.classList.add('button', 'is-small', 'toggle-tag-edit');
+        edit_btn.dataset.toggle = "off";
+        edit_btn.dataset.tagId = tag_id;
+        edit_btn_ico = document.createElement("i");
+        edit_btn_ico.classList.add('fas', 'fa-pen');
+        edit_btn.appendChild(edit_btn_ico);
+        // set click handler to this function
+        edit_btn.onclick = (e) => { handleTagEditToggle(e); };
+        button_cell.appendChild(edit_btn);
+    }
+
+
+    function handleTagEditToggle(e) {
+        e.preventDefault();
+            
+        let toggle_state = e.currentTarget.dataset.toggle;
+        let tag_id = e.currentTarget.dataset.tagId;
+
+        if (toggle_state === "off") {
+            // replace name text with input field and add save cancel delete buttons
+            let row = e.currentTarget.parentElement.parentElement;
+            let name_cell = row.children[1];
+            let button_cell = row.children[2];
+            let tag_name = row.children[1].textContent.trim();
+            
+            let tag_name_input = document.createElement("input");
+            tag_name_input.type = "text";
+            tag_name_input.value = tag_name;
+            tag_name_input.name = "new-tag-name";
+            // save original so we can restore it on cancel/error
+            tag_name_input.dataset.originalTagName = tag_name;
+            tag_name_input.dataset.tagId = tag_id;
+            // classList is read-only -> need to use add/remove methods
+            tag_name_input.classList.add('tag-text-input');
+            name_cell.removeChild(name_cell.lastChild);
+            name_cell.appendChild(tag_name_input);
+
+            // name_cell.innerHTML = `<input type="text" value="${tag_name}" name="new-tag-name"
+            //     data-original-tag-name="${tag_name}" class="tag-text-input"/>`;
+            let button_container = document.createElement("div");
+            button_container.classList.add('field', 'is-grouped');
+
+            let accept_btn_control = document.createElement("p");
+            accept_btn_control.classList.add('control');
+            let accept_btn = document.createElement("button");
+            accept_btn.classList.add('button', 'is-small', 'green-color');
+            accept_btn.onclick = handleSubmitTagEdit;
+            accept_btn_ico = document.createElement("i");
+            accept_btn_ico.classList.add('fas', 'fa-check');
+            accept_btn.appendChild(accept_btn_ico);
+            accept_btn_control.appendChild(accept_btn);
+            button_container.appendChild(accept_btn_control);
+
+            let delete_btn_control = document.createElement("p");
+            delete_btn_control.classList.add('control');
+            let delete_btn = document.createElement("button");
+            delete_btn.classList.add('button', 'is-small', 'red-color');
+            delete_btn.dataset.tagId = tag_id;
+            delete_btn.onclick = handleDeleteTag;
+            delete_btn_ico = document.createElement("i");
+            delete_btn_ico.classList.add('fas', 'fa-trash-alt');
+            delete_btn.appendChild(delete_btn_ico);
+            delete_btn_control.appendChild(delete_btn);
+            button_container.appendChild(delete_btn_control);
+
+            let cancel_btn_control = document.createElement("p");
+            cancel_btn_control.classList.add('control');
+            let cancel_btn = document.createElement("button");
+            cancel_btn.classList.add('button', 'is-small');
+            cancel_btn.dataset.toggle = "on";
+            cancel_btn.dataset.tagId = tag_id;
+            cancel_btn_ico = document.createElement("i");
+            cancel_btn_ico.classList.add('fas', 'fa-ban');
+            cancel_btn.appendChild(cancel_btn_ico);
+            cancel_btn_control.appendChild(cancel_btn);
+            button_container.appendChild(cancel_btn_control);
+
+            // use lastElementChild instead of lastChild since lastElementChild ignores
+            // text and comment nodes
+            button_cell.removeChild(button_cell.lastElementChild);
+            button_cell.appendChild(button_container);
+
+            // set click handler to this function
+            cancel_btn.onclick = (e) => { handleTagEditToggle(e); };
+        } else {
+            let row = e.currentTarget.parentElement.parentElement.parentElement.parentElement;
+            restoreRow(row, "");
+        }
+    }
+
+    $('.toggle-tag-edit').click(handleTagEditToggle);
+});
+</script>
+{% endblock %}
+
