@@ -140,6 +140,7 @@ $(document).ready(function() {
         $.ajax({
             data : {
                 'id': +tag_id,
+                'type': "{{ tt_abbr }}",
                 'new_tag_name': new_tag_name
             },
             type : 'POST',
@@ -149,7 +150,11 @@ $(document).ready(function() {
             dataType: "json"
         }).done(function(data) { // when prev function is done
             if (data.error) {
-                console.log(data.error);
+                if (data.dupe) {
+                  alert(`Can't change tag name to ${new_tag_name.trim()} since it already exists!`);
+                } else {
+                  console.log(data.error);
+                }
             }
             else {
                 // edit successfull
@@ -169,7 +174,8 @@ $(document).ready(function() {
         if(confirm(`Are you sure you want to delete the tag with the name ${tag_name}?`)) {
             $.ajax({
                 data : {
-                    'id': +tag_id
+                    'id': +tag_id,
+                    'type': "{{ tt_abbr }}"
                 },
                 type : 'POST',
                 url : "{{ url_for('main.delete_tag') }}",
@@ -240,8 +246,6 @@ $(document).ready(function() {
             name_cell.removeChild(name_cell.lastChild);
             name_cell.appendChild(tag_name_input);
 
-            // name_cell.innerHTML = `<input type="text" value="${tag_name}" name="new-tag-name"
-            //     data-original-tag-name="${tag_name}" class="tag-text-input"/>`;
             let button_container = document.createElement("div");
             button_container.classList.add('field', 'is-grouped');
 

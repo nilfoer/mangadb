@@ -805,7 +805,7 @@ def edit_collection(collection_name: str) -> werkzeug.wrappers.Response:
     collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
 
     if new_collection_name != collection_name:
-        success = mdb.update_collection_name(collection_id, new_collection_name)
+        success = mdb.update_tag_name('collection', collection_id, new_collection_name)
         if not success:
             flash("Saving changes failed due to the new name not being unique!", "title warning")
             # NOTE: if we want html inside a flash message we need to wrap it in flask.Markup
@@ -830,7 +830,7 @@ def delete_collection(collection_name: str) -> werkzeug.wrappers.Response:
     mdb = get_mdb()
 
     collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
-    mdb.delete_collection(collection_id)
+    mdb.delete_tag('collection', collection_id)
 
     return redirect(url_for('main.show_entries')) 
 
@@ -935,8 +935,15 @@ def manage_tags():
 @main_bp.route("/manage-tags/delete", methods=["POST"])
 def delete_tag():
     tag_id = request.form.get("id", None, type=int)
+    tag_type = request.form.get("type", None, type=str) 
     if tag_id is None:
         return jsonify({"error": "Missing tag id from data!"})
+    if tag_type is None:
+        return jsonify({"error": "Missing tag type from data!"})
+
+    col_name = tag_abbrev_to_table_name[tag_type].lower()
+    mdb = get_mdb()
+    mdb.delete_tag(col_name, tag_id)
 
     return jsonify({"success": True})
 
@@ -944,10 +951,18 @@ def delete_tag():
 @main_bp.route("/manage-tags/edit", methods=["POST"])
 def edit_tag():
     tag_id = request.form.get("id", None, type=int)
+    tag_type = request.form.get("type", None, type=str) 
     new_tag_name = request.form.get("new_tag_name", None, type=str)
     if tag_id is None:
         return jsonify({"error": "Missing tag id from data!"})
+    if tag_type is None:
+        return jsonify({"error": "Missing tag type from data!"})
     if new_tag_name is None:
         return jsonify({"error": "Missing new_tag_name from data!"})
 
-    return jsonify({"success": True, "new_tag_name": new_tag_name})
+    col_name = tag_abbrev_to_table_name[tag_type].lower()
+    mdb = get_mdb()
+    if mdb.update_tag_name(col_name, tag_id, new_tag_name.strip()):
+        return jsonify({"success": True, "new_tag_name": new_tag_name})
+    else:
+        return jsonify({"error": f"Name {new_tag_name} already exists!", "dupe": True})
