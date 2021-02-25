@@ -1,6 +1,6 @@
 import sqlite3
 
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -35,7 +35,9 @@ def upgrade(db_con: sqlite3.Connection, db_filename: str) -> None:
         bridge_table = f"Book{table_name}"
         fk_name = f"{table_name.lower().rstrip('s')}_id"
 
-        before = [(_id, names.lower()) for _id, names in
+        # NOTE: might have 'multiple' artists with same name but differently cased letters
+        # so we have to de-dupe those
+        before = [(_id, ','.join(n for n in sorted(set(names.lower().split(','))))) for _id, names in
                   c.execute(assert_query.format(table_name=table_name, fk_name=fk_name))]
 
         # without the ORDER BY id the rows were returned in a different order
@@ -59,7 +61,9 @@ def upgrade(db_con: sqlite3.Connection, db_filename: str) -> None:
                 name_to_reloc[same_case] = reloc
                 in_order.append((new_id, reloc.name))
 
-        c.execute(f"DELETE FROM {table_name}")
+        c.execute(f"DROP TABLE {table_name}")
+        # change name column to use NOCASE as collating function
+        c.execute(table_creation_statements[table_name])
         # Artist table has additional favorite column but it has a default value
         # and it wasn't being used yet so this is fine
         c.executemany(f"INSERT INTO {table_name}(id, name) VALUES (?, ?)", in_order)
@@ -67,28 +71,46 @@ def upgrade(db_con: sqlite3.Connection, db_filename: str) -> None:
         # make sure rows were inserted in the correct order
         # assert tbl_after == in_order
 
-        # update foreign keys in Book table
-        for reloc in name_to_reloc.values():
-            c.execute(f"UPDATE {bridge_table} SET {fk_name} = ? WHERE {fk_name} IN "
-                      f"(?{', ?' * (len(reloc.old_ids) - 1)})", (reloc.new_id, *reloc.old_ids))
-
-        after = [(_id, names.lower()) for _id, names in
-                 c.execute(assert_query.format(table_name=table_name, fk_name=fk_name))]
-        # sanity check: books should still have the same associated column values after
-        # unifying the text case
-        assert before == after
-
-        # change name column to use NOCASE as collating function
-        c.execute(f"ALTER TABLE {table_name} RENAME TO temp_table")
-        c.execute(table_creation_statements[table_name])
-        c.execute(f"INSERT INTO {table_name} SELECT * FROM temp_table")
-        c.execute("DROP TABLE temp_table")
         # NOTE: FK from bridge table will still point to renamed table so we have to re-create
         # the bridge tables as well to update what table the FK references
         c.execute(f"ALTER TABLE Book{table_name} RENAME TO temp_table")
         c.execute(table_creation_statements[f"Book{table_name}"])
-        c.execute(f"INSERT INTO Book{table_name} SELECT * FROM temp_table")
+
+        old_id_to_reloc = {old_id: reloc for reloc in name_to_reloc.values() for old_id in reloc.old_ids}
+        # can't udpate all the FKs to the new one if we have more than one since
+        # the combination of book_id and *_id has to be unique (its a combined PK)
+        # and two artists with the same name but different text case might point
+        # to the same book and those would get changed to the same PK
+        # -> have to make sure to only insert one ( book_id, new_id ) combo
+        relocated_combo: Set[Tuple[int, int]] = set()
+        # NOTE: iterating over the cursor (so we don't have to load the whole table into
+        # a list first using fetchall) will break when modifying the table using THE SAME
+        # cursor
+        bridge_table_rows = c.execute("SELECT * FROM temp_table").fetchall()
+        # Collection table also has in_collection_idx
+        has_third_col = table_name == "Collection"
+        for row in bridge_table_rows:
+            if has_third_col:
+                book_id, old_id, in_collection_idx = row
+            else:
+                book_id, old_id = row
+            reloc = old_id_to_reloc[old_id]
+            combo = (book_id, reloc.new_id)
+            if combo in relocated_combo:
+                continue
+
+            relocated_combo.add(combo)
+            new_row = combo if not has_third_col else (*combo, in_collection_idx)
+            c.execute(f"INSERT INTO {bridge_table} VALUES (?, ?{', ?' if has_third_col else ''})",
+                      new_row)
+
         c.execute("DROP TABLE temp_table")
+
+        after = [(_id, ','.join(n for n in sorted(set(names.lower().split(','))))) for _id, names in
+                 c.execute(assert_query.format(table_name=table_name, fk_name=fk_name))]
+        # sanity check: books should still have the same associated column values after
+        # unifying the text case
+        assert before == after
 
     # reactivate trigger
     c.execute("""
