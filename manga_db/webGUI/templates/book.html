@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block head %}
 {{ super() }}
-<title>{{ book.title if book.title else 'New Book' + ' - MangaDB' }}</title>
+<title>{{ book.title if book and book.title else 'New Book' + ' - MangaDB' }}</title>
 {% endblock %}
 
 {% block body %}
