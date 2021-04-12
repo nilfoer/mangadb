@@ -72,7 +72,12 @@ def main() -> None:
 
     mdb_path = os.path.abspath(os.path.normpath(args.path)) if args.path else None
     # let webgui handle db_con when subcmd is selected
-    if args.func is _cl_webgui:  # use function for comparison to account for aliases
+    # args Namespace might not have a func attr -> use getattr with default
+    if not hasattr(args, "func"):
+        print("No valid subcommand selected! Maybe an option that expected an argument "
+              "swallowed the subcommand? e.g. --cookies webgui")
+        sys.exit(1)
+    elif args.func is _cl_webgui:  # use function for comparison to account for aliases
         # flask instance_path must be absolute!
         args.func(args, instance_path=mdb_path)
     else:
