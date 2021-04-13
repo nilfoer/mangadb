@@ -680,7 +680,7 @@ manual_mangasee123_2art = {
         "id_onpage": 'Kaifuku-Jutsushi-No-Yarinaoshi',
         "rating": None,
         "ratings": None,
-        "favorites": 1688,
+        "favorites": 2459,
         "uploader": None,
         "upload_date": datetime.date.min,
         "title_eng": "Kaifuku Jutsushi no Yarinaoshi",

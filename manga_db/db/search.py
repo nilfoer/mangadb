@@ -1,11 +1,13 @@
 import logging
 
+from typing import List, Dict, Tuple, Optional
+
 from .util import joined_col_name_to_query_names, prod
 
 logger = logging.getLogger(__name__)
 
 
-def search_assoc_col_string_parse(valuestring, delimiter=";"):
+def search_assoc_col_string_parse(valuestring, delimiter=";") -> Tuple[List[str], List[str]]:
     # is list comprehension faster even though we have to iterate over the list twice?
     vals_and = []
     vals_ex = []
@@ -25,7 +27,7 @@ VALID_ORDER_BY = {"ASC", "DESC", "Books.id", "Books.title_eng", "Books.title_for
                   "title_eng", "title_foreign", "pages", "my_rating"}
 
 
-def validate_order_by_str(order_by):
+def validate_order_by_str(order_by) -> bool:
     for part in order_by.split(" "):
         if part not in VALID_ORDER_BY:
             return False
@@ -64,28 +66,36 @@ def search_book_by_title(db_con,
 
 
 def search_normal_mult_assoc(
-        db_con, normal_col_values, int_col_values_dict, ex_col_values_dict,
-        order_by="Books.id DESC", limit=-1,  # no row limit when limit is neg. nr
-        after=None, before=None):
+        db_con, normal_col_values: Dict[str, str], int_col_values_dict: Dict[str, List[str]],
+        ex_col_values_dict: Dict[str, List[str]], order_by: str = "Books.id DESC",
+        limit: int = -1,  # no row limit when limit is neg. nr
+        # TODO type prob incorrect since sometimes (13,) is passed etc.
+        after: Optional[Tuple[str, str]] = None,
+        before: Optional[Tuple[str, str]] = None):
     """Can search in normal columns as well as multiple associated columns
-    (connected via bridge table) and both include and exclude them"""
+    (connected via bridge table) and both include and exclude them
+    :param normal_col_values: Dict that maps column names to search value
+    :param int_col_values: Dict that maps column names to search value
+    """
     # @Cleanup mb split into multiple funcs that just return the conditional string
     # like: WHERE title LIKE ? and the value, from_table_names etc.?
+    # @Cleanup convert this to use joins
 
+    grp_by: List[str] = []
+    having: List[str] = []
     if int_col_values_dict:
         # nr of items in values multiplied is nr of rows returned needed to match
         # all conditions !! only include intersection vals
         mul_values = prod((len(vals) for vals in int_col_values_dict.values()))
-        assoc_incl_cond = f"GROUP BY Books.id HAVING COUNT(Books.id) = {mul_values}"
-    else:
-        assoc_incl_cond = ""
+        grp_by.append("Books.id")
+        having.append(f"COUNT(Books.id) = {mul_values}")
 
     # containing table names for FROM .. stmt
-    table_bridge_names = []
+    table_bridge_names: List[str] = []
     # conditionals
-    cond_statements = []
+    cond_statements: List[str] = []
     # vals in order the stmts where inserted for sql param sub
-    vals_in_order = []
+    vals_in_order: List[str] = []
     # build conditionals for select string
     for col, vals in int_col_values_dict.items():
         table_name, bridge_col_name = joined_col_name_to_query_names(col)
@@ -97,6 +107,7 @@ def search_normal_mult_assoc(
         cond_statements.append(f"AND {table_name}.id = Book{table_name}.{bridge_col_name}")
         cond_statements.append(f"AND {table_name}.name IN ({','.join(['?']*len(vals))})")
         vals_in_order.extend(vals)
+
     for col, vals in ex_col_values_dict.items():
         table_name, bridge_col_name = joined_col_name_to_query_names(col)
         cond_statements.append(f"""
@@ -129,47 +140,68 @@ def search_normal_mult_assoc(
 
             cond_statements.append(
                     f"{'AND' if cond_statements else 'WHERE'} Books.read_status {read_cond}")
+        elif col == "downloaded":
+            # need to use a separate subquery for this since joining with ExternalInfo
+            # in order to check ei.downloaded where we use having sum(ei.downloaded) > 0
+            # to check if a book counts as dled, gets mixed up with checking the counts
+            # for having the correct number of assoc values present for int_col_values
+            cond_statements.append(f"""
+                {'AND' if cond_statements else 'WHERE'}
+                (
+                    SELECT count(*) FROM ExternalInfo ei
+                    WHERE ei.book_id = Books.id
+                    AND ei.downloaded > 0
+                ) {'=' if val == '0' else '>'} 0""")
         else:
             cond_statements.append(f"{'AND' if cond_statements else 'WHERE'} Books.{col} = ?")
             vals_in_order.append(val)
 
-    table_bridge_names = ", ".join(table_bridge_names)
-    cond_statements = "\n".join(cond_statements)
+    table_bridge_names_str = ", ".join(table_bridge_names)
+    cond_statements_str = "\n".join(cond_statements)
 
-    query = f"""
-            SELECT Books.*
-            FROM Books{',' if table_bridge_names else ''} {table_bridge_names}
-            {cond_statements}
-            {assoc_incl_cond}
-            ORDER BY {order_by}
-            LIMIT ?"""
+    query = [
+        "SELECT Books.*",
+        f"FROM Books{',' if table_bridge_names_str else ''} {table_bridge_names_str}",
+    ]
+    query.append(cond_statements_str)
+    if grp_by:
+        query.append(f"GROUP BY {', '.join(grp_by)}")
+    if having:
+        query.append(f"HAVING {' AND '.join(having)}")
+    query.append(f"ORDER BY {order_by}")
+    query.append("LIMIT ?")
+
     # important to do this last and limit mustnt be in vals_in_order (since its after
     # keyset param in sql substitution)
-    query, vals_in_order = keyset_pagination_statment(
+    final_query, vals_in_order = keyset_pagination_statment(
             query, vals_in_order, after=after, before=before,
             order_by=order_by, first_cond=not bool(cond_statements)
             )
-    c = db_con.execute(query, (*vals_in_order, limit))
+    print(final_query)
+    c = db_con.execute(final_query, (*vals_in_order, limit))
     rows = c.fetchall()
 
     return rows
 
 
-def insert_order_by_id(query, order_by="Books.id DESC"):
+def insert_order_by_id(query: List[str], order_by="Books.id DESC") -> str:
     # !! Assumes SQL statements are written in UPPER CASE !!
     # also sort by id secondly so order by is unique (unless were already using id)
     if "books.id" not in order_by.lower():
-        query = query.splitlines()
         # if we have subqueries take last order by to insert; strip line of whitespace since
         # we might have indentation
         order_by_i = [i for i, ln in enumerate(query) if ln.strip().startswith("ORDER BY")][-1]
         inserted = f"ORDER BY {order_by}, {order_by.split('.')[0]}.id {order_by.split(' ')[1]}"
         query[order_by_i] = inserted
-        query = "\n".join(query)
-    return query
+        result = "\n".join(query)
+    else:
+        result = "\n".join(query)
+    return result
 
 
-def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
+def keyset_pagination_statment(query: List[str], vals_in_order: List[str],
+                               after: Optional[Tuple[str, str]] = None,
+                               before: Optional[Tuple[str, str]] = None,
                                order_by="Books.id DESC", first_cond=False):
     """Finalizes query by inserting keyset pagination statement
     Must be added/called last!
@@ -187,7 +219,6 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
     elif after is None and before is None:
         return insert_order_by_id(query, order_by), vals_in_order
 
-    result = None
     asc = True if order_by.lower().endswith("asc") else False
     if after is not None:
         comp = ">" if asc else "<"
@@ -195,14 +226,14 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
         comp = "<" if asc else ">"
 
     # @Cleanup assuming upper case sqlite statements
-    lines = [l.strip() for l in query.splitlines()]
-    insert_before = [i for i, l in enumerate(lines) if l.startswith("GROUP BY") or
+    insert_before = [i for i, l in enumerate(query) if l.startswith("GROUP BY") or
                      l.startswith("ORDER BY")][0]
     un_unique_sort_col = "books.id" not in order_by.lower()
     if un_unique_sort_col:
         order_by_col = order_by.split(' ')[0]
         # 2-tuple of (primary, secondary)
-        primary, secondary = after if after is not None else before
+        # casting to non-null didn't work so have to ignore here
+        primary, secondary = after if after is not None else before  # type: ignore
         # if primary is NULL we need IS NULL as "equals comparison operator" since
         # normal comparisons with NULL are always False
         if primary is None:
@@ -256,16 +287,18 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
                              f"OR ({order_by_col} {equal_comp} AND Books.id {comp} ?) "
                              f"{null_clause})")
         # we only need primare 2 times if we compare by a value with ==
-        vals_in_order.extend((primary, primary, secondary) if equal_comp.startswith("==")
+        vals_in_order.extend((primary, primary, secondary) if equal_comp.startswith("==")  # type: ignore
                              else (primary, secondary))
     else:
         keyset_pagination = f"{'WHERE' if first_cond else 'AND'} Books.id {comp} ?"
         # if vals_in_order is not None:
-        vals_in_order.append(after[0] if after is not None else before[0])
-    lines.insert(insert_before, keyset_pagination)
-    result = "\n".join(lines)
+        vals_in_order.append(after[0] if after is not None else before[0])  # type: ignore
+    query.insert(insert_before, keyset_pagination)
+
     if un_unique_sort_col:
-        result = insert_order_by_id(result, order_by)
+        result = insert_order_by_id(query, order_by)
+    else:
+        result = "\n".join(query)
 
     if before is not None:
         # @Cleanup assuming upper case order statment
@@ -280,6 +313,7 @@ def keyset_pagination_statment(query, vals_in_order, after=None, before=None,
             ORDER BY {order_by.replace('Books.', 't.')}"""
         if un_unique_sort_col:
             # since were using a subquery we need to modify our order by to use the AS tablename
-            result = insert_order_by_id(result, order_by.replace("Books.", "t."))
+            # @Cleanup splitlines after we joined before
+            result = insert_order_by_id(result.splitlines(), order_by.replace("Books.", "t."))
 
     return result, vals_in_order

@@ -115,7 +115,7 @@ def update_cookies_from_file(filename="cookies.txt", has_custom_info: bool = Tru
 class MangaDB:
     VALID_SEARCH_COLS = {"title", "language", "language_id", "status", "favorite",
                          "category", "artist", "parody", "character", "collection", "groups",
-                         "tag", "list", "status", "status_id", "nsfw", "read_status"}
+                         "tag", "list", "status", "status_id", "nsfw", "read_status", "downloaded"}
 
     def __init__(self, root_dir, db_path, read_only=False, settings=None):
         self.db_con, _ = self._load_or_create_sql_db(db_path, read_only)
@@ -289,12 +289,13 @@ class MangaDB:
 
         return bid, book, outdated_on_ei_id
 
-    def get_x_books(self, x, after=None, before=None, order_by="Books.id DESC"):
+    def get_x_books(self, x: int, after: Optional[Tuple[str, str]]=None,
+                    before: Optional[Tuple[str, str]]=None, order_by="Books.id DESC") -> Optional[
+                            List[sqlite3.Row]]:
         # order by has to come b4 limit/offset
-        query = f"""
-                SELECT * FROM Books
-                ORDER BY {order_by}
-                LIMIT ?"""
+        query = ["SELECT * FROM Books",
+                 f"ORDER BY {order_by}",
+                 "LIMIT ?"]
         query, vals_in_order = search.keyset_pagination_statment(
                 query, [], after=after, before=before,
                 order_by=order_by, first_cond=True)
@@ -613,13 +614,13 @@ class MangaDB:
         return self._search_sytnax_parser(search_string, **kwargs)
 
     def _search_sytnax_parser(self,
-                              search_str,
-                              order_by="Books.id DESC",
-                              delimiter=";",
+                              search_str: str,
+                              order_by: str = "Books.id DESC",
+                              delimiter: str = ";",
                               **kwargs):
-        normal_col_values = {}
-        assoc_col_values_incl = {}
-        assoc_col_values_excl = {}
+        normal_col_values: Dict[str, str] = {}
+        assoc_col_values_incl: Dict[str, List[str]] = {}
+        assoc_col_values_excl: Dict[str, List[str]] = {}
         # TODO turn language_id into language and so on
         # Return all non-overlapping matches of pattern in string, as a list of strings.
         # The string is scanned left-to-right, and matches are returned in the order found.
