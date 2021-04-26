@@ -177,7 +177,6 @@ def search_normal_mult_assoc(
             query, vals_in_order, after=after, before=before,
             order_by=order_by, first_cond=not bool(cond_statements)
             )
-    print(final_query)
     c = db_con.execute(final_query, (*vals_in_order, limit))
     rows = c.fetchall()
 

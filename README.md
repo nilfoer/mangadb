@@ -78,23 +78,24 @@ The search bar matches the input string against the book's english and foreign t
 
 Additionally you can search the following fields:
 
-| Field          | Search keyword | Possible values               |
-|:-------------- |:-------------- | -----------------------------:|
-| Tags           | tag            |                    Any string |
-| Artist         | artist         |                    Any string |
-| Language       | language       |                    Any string |
-| Group          | groups         |                    Any string |
-| List           | list           |                    Any string |
-| Collection     | collection     |                    Any string |
-| Category       | category       |                    Any string |
-| Status         | status         |   Unknown, Completed, Ongoing |
-|                |                | Unreleased, Hiatus, Cancelled |
-| Parody         | parody         |                    Any string |
-| Character      | character      |                    Any string |
-| Favorite       | favorite       |                        0 or 1 |
-| Content Rating | nsfw           |                        0 or 1 |
-| Read status    | read\_status   |         read, reading, unread |
-| (Title)        | title          |     Any string, partial match |
+| Field           | Search keyword | Possible values               |
+|:--------------- |:-------------- | -----------------------------:|
+| Tags            | tag            |                    Any string |
+| Artist          | artist         |                    Any string |
+| Language        | language       |                    Any string |
+| Group           | groups         |                    Any string |
+| List            | list           |                    Any string |
+| Collection      | collection     |                    Any string |
+| Category        | category       |                    Any string |
+| Status          | status         |   Unknown, Completed, Ongoing |
+|                 |                | Unreleased, Hiatus, Cancelled |
+| Parody          | parody         |                    Any string |
+| Character       | character      |                    Any string |
+| Favorite        | favorite       |                        0 or 1 |
+| Content Rating  | nsfw           |                        0 or 1 |
+| Download status | downloaded     |                        0 or 1 |
+| Read status     | read\_status   |         read, reading, unread |
+| (Title)         | title          |     Any string, partial match |
 
 All of these fields can be combined in one search. When the search string for a specific keyword contains spaces, it needs to be escaped with quotes. To search for multiple items that have to be present, separate them with semicolons.
 
