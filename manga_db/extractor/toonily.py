@@ -69,15 +69,17 @@ class ToonilyExtractor(BaseMangaExtractor):
         res['title_eng'] = soup.select_one("div.post-title h1").text.strip()
 
         book_data = soup.select_one("div.summary_content")
-        # labels = book_data.select("div.summary-heading")
+        label_to_idx = {x.get_text().strip(): i for i, x in enumerate(book_data.select("div.summary-heading"))}
         content = book_data.select("div.summary-content")
 
         # assumes order stays the same
-        res['rating'] = float(content[0].select_one("#averagerate").text.strip())
-        res['ratings'] = int(content[0].select_one("#countrate").text.strip())
+        rating_idx = label_to_idx["Rating"]
+        res['rating'] = float(content[rating_idx].select_one("#averagerate").text.strip())
+        res['ratings'] = int(content[rating_idx].select_one("#countrate").text.strip())
 
         # sep is ','
-        alt_titles = [s.strip() for s in content[2].text.split(",")]
+        alt_title_idx = label_to_idx["Alt Name(s)"]
+        alt_titles = [s.strip() for s in content[alt_title_idx].text.split(",")]
         if alt_titles[0] == 'N/A':
             res['title_foreign'] = None
         else:
@@ -89,8 +91,8 @@ class ToonilyExtractor(BaseMangaExtractor):
             else:
                 res['title_foreign'] = alt_titles[0]
 
-        authors = [s.text.strip() for s in content[3].select("a")]
-        artists = [s.text.strip() for s in content[4].select("a")]
+        authors = [s.text.strip() for s in content[label_to_idx["Author(s)"]].select("a")]
+        artists = [s.text.strip() for s in content[label_to_idx["Artist(s)"]].select("a")]
         res['artist'] = [n for n in authors if n not in artists] + artists
 
         tags = [a.text.strip() for a in book_data.select('div.genres-content a')]
@@ -101,9 +103,9 @@ class ToonilyExtractor(BaseMangaExtractor):
                 CENSOR_IDS['Uncensored'] if uncensored else CENSOR_IDS['Censored'])
 
         # type
-        res['category'] = [content[6].text.strip()]
+        res['category'] = [content[label_to_idx["Type"]].text.strip()]
         # OnGoing or Completed
-        status_str = content[8].text.strip().capitalize()
+        status_str = content[label_to_idx["Status"]].text.strip().capitalize()
         res['status_id'] = STATUS_IDS['Hiatus'] if status_str == 'On Hiatus' else STATUS_IDS[status_str]
 
         # e.g.: 128 Users bookmarked this

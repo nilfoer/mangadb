@@ -902,7 +902,8 @@ def test_add_ext_info(app_setup, monkeypatch):
                                            downloaded, last_update, outdated
                                     FROM ExternalInfo WHERE book_id = 6""").fetchall()
         assert len(ei_rows) == 2
-        assert ei_rows[0][:-2] == ei_rows[1][:-2]
+        assert ei_rows[0][:-3] == ei_rows[1][:-3]
+        assert ei_rows[1][9] == 0
         assert ei_rows[1][-2] == datetime.date.today()
         # old ei outdated
         assert ei_rows[0][-1] == 1
