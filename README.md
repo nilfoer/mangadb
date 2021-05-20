@@ -55,6 +55,13 @@ To be able to access the site with e.g. your phone in your LAN use `MangaDB.exe 
 ### Adding books
 You can either import books from supported sites by pasting their URL into the search field and selecting **Import Book** and submitting or press the **Add book** button inside the toolbox in the top right to add a book manually.
 
+#### Adding external links
+
+Paste the URL of a site that provides additional information for the book or just hosts the
+images into the input box at the bottom of the Book page. If the site is supported
+informations will be extracted from it, otherwise you can add the information manually
+(To add a information without a link just hit the 'Add Info' button with an empty box).
+
 #### Error: 503 - Service unavailable
 Importing a book from sites that use DDoS protection by services like Cloudflare might fail
 due to our script getting recognized as a bot.
