@@ -718,7 +718,7 @@ INSERT INTO "List" VALUES
 (4,'prob-good'),
 (5,'to-download');
 INSERT INTO "MDB_Version" VALUES
-(5,0);
+(6,0);
 INSERT INTO "Parody" VALUES
 (1,'Girls und Panzer / ガールズ&パンツァー'),
 (2,'Monster Hunter World / モンスターハンター：ワールド'),
@@ -736,7 +736,8 @@ INSERT INTO "Sites" VALUES
 (3,'MangaDex'),
 (4,'Manganelo'),
 (5,'Toonily'),
-(6,'MangaSee123');
+(6,'MangaSee123'),
+(7,'MANUAL_ADD');
 INSERT INTO "Status" VALUES
 (1,'Unknown'),
 (2,'Ongoing'),

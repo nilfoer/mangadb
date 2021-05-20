@@ -61054,7 +61054,7 @@ INSERT INTO "List" VALUES
 (12,'test'),
 (13,'+to-read');
 INSERT INTO "MDB_Version" VALUES
-(5,0);
+(6,0);
 INSERT INTO "Parody" VALUES
 (1,'Bishoujo Senshi Sailor Moon / 美少女戦士セーラームーン'),
 (2,'Girls und Panzer / ガールズ&パンツァー'),
@@ -61304,7 +61304,8 @@ INSERT INTO "Sites" VALUES
 (3,'MangaDex'),
 (4,'Manganelo'),
 (5,'Toonily'),
-(6,'MangaSee123');
+(6,'MangaSee123'),
+(7,'MANUAL_ADD');
 INSERT INTO "Status" VALUES
 (1,'Unknown'),
 (2,'Ongoing'),
