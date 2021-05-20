@@ -1,6 +1,9 @@
 import sys
 import os
 import time
+import re
+
+from typing import Pattern
 
 from flask import Flask
 
@@ -9,6 +12,10 @@ from ..manga_db import update_cookies_from_file
 from .webGUI import main_bp
 from .csrf import init_app as csrf_init_app
 from .auth import auth_bp, init_app as auth_init_app
+
+
+EXTRACT_DOMAIN_RE: Pattern = re.compile(
+        r"(?:https?://)?((?:[-A-Za-z0-9]{1,63}\.)+[-a-zA-Z0-9]{2,63})/?")
 
 
 def create_app(instance_path=None, test_config=None, **kwargs):
@@ -123,6 +130,13 @@ def create_app(instance_path=None, test_config=None, **kwargs):
     def time_str():
         return str(time.time())
     app.jinja_env.globals['time_str'] = time_str
+
+    @app.template_filter('extract_domain')
+    def extract_domain(s):
+        try:
+            return EXTRACT_DOMAIN_RE.match(s).group(1)
+        except (AttributeError, IndexError):
+            return s
 
     csrf_init_app(app)
     app.register_blueprint(main_bp)

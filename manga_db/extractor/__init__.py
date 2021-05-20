@@ -4,7 +4,7 @@ import os
 import inspect
 import importlib
 
-from typing import List, Iterator, Union, Dict, Type
+from typing import List, Iterator, Union, Dict, Type, cast
 
 from .base import BaseMangaExtractor
 from ..exceptions import MangaDBException
@@ -44,6 +44,7 @@ SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         4: "Manganelo",
         5: "Toonily",
         6: "MangaSee123",
+        7: "MANUAL_ADD",
         # site name, id
         "tsumino.com": 1,
         "nhentai.net": 2,
@@ -51,7 +52,15 @@ SUPPORTED_SITES: Dict[Union[int, str], Union[int, str]] = {
         "Manganelo": 4,
         "Toonily": 5,
         "MangaSee123": 6,
+        "MANUAL_ADD": 7,
 }
+
+MANUAL_ADD = SUPPORTED_SITES["MANUAL_ADD"]
+
+
+class ManualAddDummyExtractor(BaseMangaExtractor):
+    site_id = cast(int, MANUAL_ADD)
+    site_name = cast(str, "MANUAL_ADD")
 
 
 def find(url: str) -> Type[BaseMangaExtractor]:
@@ -69,7 +78,10 @@ def find_by_site_id(site_id: int) -> Type[BaseMangaExtractor]:
         if cls.site_id == site_id:
             return cls
     else:
-        raise NoExtractorFound(f"No matching extractor found for site_id '{site_id}'")
+        if site_id == 7:
+            return ManualAddDummyExtractor
+        else:
+            raise NoExtractorFound(f"No matching extractor found for site_id '{site_id}'")
 
 
 def add_extractor_cls_module(module):

@@ -858,8 +858,8 @@ def test_add_ext_info(app_setup, monkeypatch):
         html = f.read()
     monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", lambda x: None)
     monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", lambda x: "x")
-    book_title = ("Martina TITLE MISSMATCH Onee-chan no Seikatsu | Big Sis Martina's Sex Life / "
-                  "マルティナお姉ちゃんの性活")
+    # for title missmatch test: book we're comparing against does not have an id yet!
+    monkeypatch.setattr("manga_db.manga.Book.title", property(lambda x: "Title Missmatch" if x.id else ""))
 
     with app.app_context():
         with client.session_transaction() as sess:
@@ -868,13 +868,14 @@ def test_add_ext_info(app_setup, monkeypatch):
                     url_for("main.add_ext_info", book_id=6),
                     data={"_csrf_token": "token123"},
                     follow_redirects=True)
-        assert b"URL empty!" in resp.data
+        # switch to add ext_info page
+        assert b"Adding external info to:" in resp.data
 
         with client.session_transaction() as sess:
             sess["_csrf_token"] = "token123"
         resp = client.post(
                     url_for("main.add_ext_info", book_id=6),
-                    data={"url": url, "book_title": book_title, "_csrf_token": "token123"},
+                    data={"url": url, "_csrf_token": "token123"},
                     follow_redirects=True)
         assert b"Adding external link failed!" in resp.data
         assert f"URL was: {url}".encode("utf-8") in resp.data
@@ -886,7 +887,7 @@ def test_add_ext_info(app_setup, monkeypatch):
             sess["_csrf_token"] = "token123"
         resp = client.post(
                     url_for("main.add_ext_info", book_id=6),
-                    data={"url": url, "book_title": book_title, "_csrf_token": "token123"},
+                    data={"url": url, "_csrf_token": "token123"},
                     follow_redirects=True)
         # title missmatch warning
         assert b"Title of external link and book&#39;s title doesn&#39;t match!" in resp.data

@@ -6,7 +6,7 @@ from typing import Tuple, Optional, TYPE_CHECKING
 from .db.row import DBRow
 from .db.column import Column
 from .constants import CENSOR_IDS
-from .extractor import SUPPORTED_SITES, find_by_site_id
+from .extractor import SUPPORTED_SITES, find_by_site_id, MANUAL_ADD
 
 if TYPE_CHECKING:
     from .manga_db import MangaDB
@@ -98,11 +98,17 @@ class ExternalInfo(DBRow):
 
     @property
     def url(self):
-        return self._extr_cls.url_from_ext_info(self)
+        if self.imported_from == MANUAL_ADD:
+            return self.id_onpage
+        else:
+            return self._extr_cls.url_from_ext_info(self)
 
     @property
     def read_url(self):
-        return self._extr_cls.read_url_from_ext_info(self)
+        if self.imported_from == MANUAL_ADD:
+            return self.id_onpage
+        else:
+            return self._extr_cls.read_url_from_ext_info(self)
 
     def update_from_dict(self, dic):
         for col in self.COLUMNS:
@@ -147,7 +153,7 @@ class ExternalInfo(DBRow):
         self.set_updated()
         return "updated", book
 
-    def save(self):
+    def save(self, manual=False):
         # idea is that ExternalInfo only gets edited when also editing Book
         # and except downloaded everything else is edited by importing
         if self.id is None:
@@ -160,7 +166,7 @@ class ExternalInfo(DBRow):
                 downloaded_null = True
             else:
                 downloaded_null = False
-            return self._update_entry(downloaded_null=downloaded_null)
+            return self._update_entry(downloaded_null=downloaded_null, manual=manual)
 
     def _add_entry(self):
         if self.downloaded is None:
@@ -215,7 +221,7 @@ class ExternalInfo(DBRow):
 
         return self.id, outdated
 
-    def _update_entry(self, downloaded_null=None):
+    def _update_entry(self, downloaded_null=None, manual=False):
         if not self._committed_state:
             logger.debug("There were no changes when updating external info with id %d", self.id)
             return self.id, None
@@ -238,7 +244,8 @@ class ExternalInfo(DBRow):
         # -> check if upload_date uploader pages or tags (esp. uncensored + decensored) changed
         # => WARN to redownload book
         redl_on_field_change = ("censor_id", "uploader", "upload_date", "pages")
-        if any((True for col in self._committed_state if col in redl_on_field_change)):
+        # NOTE: not on manual changes!
+        if not manual and any((True for col in self._committed_state if col in redl_on_field_change)):
             # automatic joining of strings only works inside ()
             # if msg changes also change :re_dl_warning
             field_change_str = (f"Please re-download \"{self.url}\", since the "

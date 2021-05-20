@@ -737,7 +737,7 @@ def test_extr_mangasee123():
     data = extr.extract()
     assert extr.export_data == data
     comp_dict_manga_extr_data(expected, data, ignore_attrs={'favorites'})
-    assert abs_delta(expected['favorites'], data.favorites) <= 300
+    assert abs_delta(expected['favorites'], data.favorites) <= 500
 
 
     # use (Publish) status which is Complete instead of scan status (Ongoing)

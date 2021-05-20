@@ -11,7 +11,7 @@ import datetime
 
 import werkzeug
 
-from typing import Optional, Dict, Any, Sequence, cast
+from typing import Optional, Dict, Any, Sequence, cast, Union
 
 from flask import (
         current_app, request, redirect, url_for, Blueprint,
@@ -25,6 +25,7 @@ from ..constants import STATUS_IDS
 from ..manga_db import MangaDB, update_cookies_from_file
 from ..manga import Book
 from ..extractor.base import MangaExtractorData
+from ..import extractor
 from ..db.search import validate_order_by_str
 from ..ext_info import ExternalInfo
 from .. import extractor
@@ -567,11 +568,17 @@ def show_outdated_links():
 @main_bp.route("/book/<int:book_id>/add_ext_info", methods=["POST"])
 def add_ext_info(book_id):
     url = request.form.get("url", None, type=str)
-    # need title to ensure that external link matches book
-    book_title = request.form.get("book_title", None, type=str)
-    if not url or not book_title:
-        flash("URL empty!")
-        return redirect(url_for("main.show_info", book_id=book_id))
+    if not url:
+        return redirect(url_for("main.show_edit_ext_info", book_id=book_id))
+
+    try:
+        extr_cls = extractor.find(url)
+    except extractor.NoExtractorFound:
+        flash("The domain of the external link is not yet supported but you can add "
+              "an external link here manually!", "info")
+        # unsupported url -> manual add
+        return redirect(url_for("main.show_edit_ext_info", book_id=book_id, url=url))
+
     extr_data, _, err_code = MangaDB.retrieve_book_data(url)
     if extr_data is None:
         if err_code == 503:
@@ -582,9 +589,13 @@ def add_ext_info(book_id):
             flash(f"URL was: {url}")
             flash("Check the logs for more details!", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
-    mdb = get_mdb()
-    book, ext_info = mdb.book_and_ei_from_data(extr_data)
-    if book.title != book_title:
+
+    mdb: MangaDB = get_mdb()
+
+    # need title to ensure that external link matches book
+    book = mdb.get_book(book_id)
+    ei_book, ext_info = mdb.book_and_ei_from_data(extr_data)
+    if ei_book.title != book.title:
         # just warn if titles dont match, its ultimately the users decision
         flash("Title of external link and book's title doesn't match!", "title warning")
         flash(f"URL: {url}", "info")
@@ -764,6 +775,89 @@ def edit_book(book_id):
         book.cover_timestamp = cover_timestamp
 
     book.save()
+
+    return redirect(url_for("main.show_info", book_id=book_id))
+
+
+@main_bp.route("/book/edit/<int:book_id>/ext_info", defaults={'ext_info_id': None})
+@main_bp.route("/book/edit/<int:book_id>/ext_info/<int:ext_info_id>")
+def show_edit_ext_info(book_id, ext_info_id, book=None):
+    mdb = get_mdb()
+    if book is None:
+        book = mdb.get_book(book_id)
+    if book is None:
+        return render_template(
+            'show_info.html',
+            error_msg=f"No book with id {book_id} was found in DB!")
+
+    if ext_info_id is None:
+        ext_info = ExternalInfo(mdb, book, imported_from=extractor.MANUAL_ADD)
+    else:
+        book.update_ext_infos()
+        try:
+            ext_info = next(e for e in book._ext_infos if e.id == ext_info_id)
+        except StopIteration:
+            flash(f"No external info with that id found on book with id {book.id}", "title warning")
+            return redirect(url_for('main.show_entries'))
+
+    url = request.args.get("url", None)
+
+    return render_template(
+        'edit_ext_info.html',
+        book=book,
+        ext_info=ext_info,
+        url=url)
+
+
+@main_bp.route("/book/edit/<int:book_id>/ext_info/submit", defaults={'ext_info_id': None}, methods=['POST'])
+@main_bp.route("/book/edit/<int:book_id>/ext_info/<int:ext_info_id>/submit", methods=['POST'])
+def edit_ext_info(book_id: int, ext_info_id: int,
+                  book: Optional[Book]=None) -> Union[str, werkzeug.Response]:
+    mdb = get_mdb()
+    if book is None:
+        book = mdb.get_book(book_id)
+    if book is None:
+        return render_template(
+            'show_info.html',
+            error_msg=f"No book with id {book_id} was found in DB!")
+
+    if ext_info_id is None:
+        ext_info = ExternalInfo(mdb, book, imported_from=extractor.MANUAL_ADD)
+    else:
+        book.update_ext_infos()
+        try:
+            ext_info = next(e for e in book._ext_infos if e.id == ext_info_id)
+        except StopIteration:
+            flash(f"No external info with that id found on book with id {book.id}", "title warning")
+            return redirect(url_for('main.show_entries'))
+
+    if ext_info_id is None:
+        # add to book
+        book.ext_infos.append(ext_info)
+
+        ext_info.id_onpage = request.form['id_onpage']
+
+    try:
+        ext_info.upload_date = datetime.date.fromisoformat(request.form['upload_date'])
+    except ValueError:
+        flash("Could not set date on external info since the date had the wrong format!", "warning")
+        return redirect(url_for(
+            "main.show_edit_ext_info", book_id=book_id, ext_info_id=ext_info_id,
+            url=request.form['id_onpage']))
+    
+    uploader = request.form['uploader']
+    ext_info.uploader = uploader if uploader else None
+    censorship_status = request.form['censorship_status']
+    ext_info.censorship = censorship_status
+    rating = request.form['rating']
+    ext_info.rating = float(rating) if rating else None
+    ratings = request.form['ratings']
+    ext_info.ratings = int(ratings) if ratings else None
+    favorites = request.form['favorites']
+    ext_info.favorites = int(favorites) if favorites else None
+    ext_info.downloaded = int(request.form['downloaded'])
+
+    ext_info.save(manual=True)
 
     return redirect(url_for("main.show_info", book_id=book_id))
 
@@ -966,3 +1060,10 @@ def edit_tag():
         return jsonify({"success": True, "new_tag_name": new_tag_name})
     else:
         return jsonify({"error": f"Name {new_tag_name} already exists!", "dupe": True})
+
+
+# dummy to pass when our original object would be None
+# but the jinja2 template accesses it using the dot operator
+class DummyObj:
+    def __getattr__(self, key):
+        return None

@@ -1,0 +1,213 @@
+{% extends "book.html" %}
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='selectize.bootstrap3.css') }}" />
+<script type="text/javascript" src="{{ url_for('static', filename='selectize.min.js') }}"></script>
+{% endblock %}
+{% block book_info %}
+<section class="section">
+<div class="container block">
+    <div class="columns">
+        <div class="column is-two-fifths">
+            <figure class="image">
+                <img id="book-cover" alt="{{ book.title }}" 
+                {% if book.id is not none %}
+                    src={{ url_for('main.thumb_static', filename=book.id,
+                                   cover_timestamp=book.cover_timestamp) }}
+                {% else %}
+                    {# add timestamp (not cover_timestamp since that would need a different name #}
+                    {# instead we always want to have the name temp_cover_0 so we don't start #}
+                    {# "collecting" them if a user decides to quite the page without hitting cancel #}
+                    {# @CleanUp this only works for a single user obv. #}
+                    src={{ url_for('static', filename='no-image.png') if not cover_uploaded else
+                           url_for('main.thumb_static', filename='temp_cover', t=time_str()) }}
+                {% endif %}
+                >
+            </figure>
+        </div>
+        <div class="column is-three-fifths">
+            <div class="mb-3">
+                <h1 class="title is-3 mb-3">Adding external info to:</h1>
+                <h2 class="title is-4">{{ book.title }}</h2>
+                {% if book.title_foreign %}
+                <h3 style="color: #919191;" class="subtitle is-6">
+                    {{ book.title_foreign }}
+                </h3>
+                {% endif %}
+                {{ book_addr }}
+            </div>
+            <form id=edit-ext-info-form
+                action={{ url_for('main.edit_ext_info', book_id=book.id, ext_info_id=ext_info.id) }}
+                method=post style="min-width:100%;width:100%;">
+            {{ csrf_token_field() }}
+            <table class="book-info-table has-one-fullwidth-td book-info-container">
+                <tbody>
+                    {% if ext_info.id is none %}
+                    <tr>
+                        <th>URL</th>
+                        <td id="URL">
+                            <input required type="text" class="selectize-input" name="id_onpage"
+                                                                                id="URLInp"
+                            {% if ext_info.id_onpage is not none or url is not none %}
+                                value="{{ ext_info.id_onpage or url }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Upload Date</th>
+                        <td id="UploadDate">
+                            <input required type="text" class="selectize-input" name="upload_date"
+                                                                                id="UploadDateInp"
+                                placeholder="YYYY-MM-DD (ISO8601 format)"
+                            {% if ext_info.upload_date %}
+                                value="{{ ext_info.upload_date }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Uploader</th>
+                        <td id="Uploader">
+                            <input type="text" class="selectize-input" name="uploader" id="UploaderInp"
+                            {% if ext_info.uploader %}
+                                value="{{ ext_info.uploader }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Censorship Status</th>
+                        <td id="CensorshipStatus">
+                            <select required name="censorship_status" class="selectized select-single" placeholder="Select the censoship type...">
+                                <option value="Unknown"
+                                    {{'selected' if book.censorship == "Unknown" else ''}}>
+                                        Unknown
+                                </option>
+                                <option value="Censored"
+                                    {{'selected' if book.censorship == "Censored" else ''}}>
+                                        Censored
+                                </option>
+                                <option value="Decensored"
+                                    {{'selected' if book.censorship == "Decensored" else ''}}>
+                                        Decensored
+                                </option>
+                                <option value="Uncensored"
+                                    {{'selected' if book.censorship == "Uncensored" else ''}}>
+                                        Uncensored
+                                </option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Rating on page</th>
+                        <td id="Rating">
+                            <input type="text" class="selectize-input" name="rating"
+                                   id="RatingInp"
+                                   placeholder="e.g. 4.25"
+                                {% if ext_info.rating is not none %}
+                                   value="{{ ext_info.rating }}"
+                                {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Number of ratings on page</th>
+                        <td id="Ratings">
+                            <input type="text" class="selectize-input" name="ratings" id="RatingsInp"
+                            {% if ext_info.ratings is not none %}
+                             value="{{ ext_info.ratings }}"
+                            {% endif %}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Favorites</th>
+                        <td id="Favorites">
+                            <input type="text" class="selectize-input" name="favorites" id="FavoritesInp"
+                            {% if ext_info.favorites is not none %}
+                             value="{{ ext_info.favorites }}"
+                            {% endif %}
+                            />
+                            </td>
+                    </tr>
+                    <tr>
+                        <th>Downloaded</th>
+                        <td id="Downloaded">
+                            <select required name="downloaded" class="selectized select-single" placeholder="Select download status...">
+                                <option value="0" {{'selected' if not ext_info.downloaded else ''}}>
+                                    No
+                                </option>
+                                <option value="1"
+                                    {{'selected' if ext_info.downloaded else ''}}>
+                                    Yes
+                                </option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <td id="">
+                            <div class="buttons">
+                                <button type="submit" id="updateBtn"
+                                    class="button green-color">
+                                    <span class="icon">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                    <span>Save</span>
+                                </button>
+<script>
+$(document).ready(function() {
+    $("#updateBtn").click(function(event) {
+        let rating = $.trim($("#ReadingStatusInp").val());
+        let ratings = $.trim($("#ReadingStatusInp").val());
+        let favorites = $.trim($("#ReadingStatusInp").val());
+        let my_rating = $("#MyRatingInp").val();
+
+        if (ratings != "" && !Number.isInteger(+ratings)) {
+            alert("Field 'Ratings' needs to be whole number!");
+            event.preventDefault();
+            return false;
+        } else if (favorites != "" && !Number.isInteger(+favorites)) {
+            alert("Field 'Favorites' needs to be whole number!");
+            event.preventDefault();
+            return false;
+        } else if (Number.isNaN(+rating)) {
+            alert("Rating is not a number!");
+            event.preventDefault();
+            return false;
+        } else {
+            return true;
+        }
+    });
+});
+</script>
+                                <a  href={{ url_for('main.show_info', book_id=book.id) }}
+                                    class="button red-color">
+                                    <span class="icon">
+                                        <i class="fas fa-ban"></i>
+                                    </span>
+                                    <span>Cancel<span>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </form>
+        </div> {# column #}
+    </div> {# columns #}
+</div> {# container #}
+</section>
+<script>
+$('.select-single').selectize({
+	create: false,
+	sortField: {
+		field: 'text',
+		direction: 'asc'
+	},
+	dropdownParent: 'body'
+});
+</script>
+{% endblock %}

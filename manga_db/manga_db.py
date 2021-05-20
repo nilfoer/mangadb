@@ -8,12 +8,12 @@ import http.cookiejar
 
 from typing import (
     Optional, Tuple, Any, List, overload, TypedDict,
-    ClassVar, cast, Dict, Sequence, Union
+    ClassVar, cast, Dict, Sequence, Union, Type
 )
 
 from .logging_setup import configure_logging
 from . import extractor
-from .extractor.base import MangaExtractorData
+from .extractor.base import MangaExtractorData, BaseMangaExtractor
 from .exceptions import MangaDBException
 from .db import migrate
 from .db import search
@@ -203,10 +203,10 @@ class MangaDB:
             return None
 
     @staticmethod
-    def retrieve_book_data(url: str) -> Tuple[Optional[MangaExtractorData], Optional[str],
-                                              Optional[int]]:
+    def retrieve_book_data(url: str, extractor_cls: Optional[Type[BaseMangaExtractor]] = None) -> Tuple[
+                Optional[MangaExtractorData], Optional[str], Optional[int]]:
         try:
-            extractor_cls = extractor.find(url)
+            extractor_cls = extractor_cls if extractor_cls is not None else extractor.find(url)
             extr = extractor_cls(url)
             data = extr.extract()
         except urllib.error.HTTPError as err:

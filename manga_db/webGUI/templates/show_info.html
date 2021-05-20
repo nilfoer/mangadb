@@ -604,7 +604,13 @@
     {% endif %}
         <div class="ext-info-container column is-one-third">
             <div class="ext-info-title ml-1">
-                <a href="{{ ext_info.url }}">External Link on {{ ext_info.site|capitalize() }}{{ ' (outdated)' if ext_info.outdated else '' }}</a>
+                {% if ext_info.imported_from == 7 %}
+                    <a href="{{ ext_info.url }}">
+                        External Link on <i>{{ ext_info.url|extract_domain|capitalize }}</i>
+                    </a>
+                {% else %}
+                    <a href="{{ ext_info.url }}">External Link on {{ ext_info.site|capitalize() }}{{ ' (outdated)' if ext_info.outdated else '' }}</a>
+                {% endif %}
             </div>
             <hr>
             <div class="ext-info-inner">
@@ -674,7 +680,6 @@
                         <div class="dropdown-trigger">
                             <button class="button button-border-sep" aria-haspopup="true"
                                 aria-controls="ext-info-opts{{ loop.index0 }}">
-                                <!-- <span>Dropdown button</span> -->
                                 <span class="icon is-small">
                                     <i class="fas fa-angle-down" aria-hidden="true"></i>
                                 </span>
@@ -689,6 +694,7 @@
                                     </span>
                                     <span>Toggle Downloaded</span>
                                 </a>
+                                {% if ext_info.imported_from != 7 %}
                                 <a class="dropdown-item" type="submit",
                                     href="#"
                                     onclick="document.getElementById('updateExtInfo{{ loop.index0 }}').submit();">
@@ -701,6 +707,15 @@
                                     id="updateExtInfo{{ loop.index0 }}">
                                         {{ csrf_token_field() }}
                                     </form>
+                                </a>
+                                {% endif %}
+                                <a class="dropdown-item"
+                                   href="{{ url_for('main.show_edit_ext_info', book_id=book.id,
+                                                    ext_info_id=ext_info.id) }}">
+                                    <span class="icon is-small">
+                                        <i class="fas fa-edit"></i>
+                                    </span>
+                                    <span>Edit</span>
                                 </a>
 
                                 <div class="dropdown-divider"></div>
@@ -735,7 +750,6 @@
 
 <div class="container block">
     <form action="{{ url_for('main.add_ext_info', book_id=book.id) }}" method=post id="ext-info-add" >
-        <input type=hidden name=book_title value="{{ book.title }}">
         {{ csrf_token_field() }}
         <label for="url" class="label has-text-white">Add external information</label>
         <div class="field has-addons">
