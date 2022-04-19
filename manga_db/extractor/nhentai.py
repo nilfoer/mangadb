@@ -71,6 +71,9 @@ class NhentaiExtractor(BaseMangaExtractor):
         try:
             json_str = html.split(
                     "window._gallery = JSON.parse(\"")[1].split("\");")[0]
+            # quotes are also stored as \u0022 in the string and will invalidate the json
+            # if not escaped before decoding!
+            json_str = json_str.replace("\\u0022", '\\\\"')
             # https://stackoverflow.com/questions/41466814/python-unicode-double-backslashes
             # by jsbueno <- code served as starting point
             # escaped unicode chars in gallery json e.g. \u0022 or \u005Cu3083
