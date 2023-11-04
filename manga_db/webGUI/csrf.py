@@ -1,9 +1,10 @@
 import secrets
 
 from flask import (
-        current_app, request, session,
-        abort, Markup
-        )
+    current_app, request, session,
+    abort
+)
+from markupsafe import Markup
 
 
 def init_app(app):
@@ -21,7 +22,8 @@ def init_app(app):
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 # configured jquery ajax to send token as X-CSRFToken header
                 if token != request.headers.get("X-CSRFToken", None):
-                    current_app.logger.error("AJAX request CSRF token is invalid!")
+                    current_app.logger.error(
+                        "AJAX request CSRF token is invalid!")
                     abort(403)
             elif token != request.form.get("_csrf_token", None):
                 current_app.logger.error("Request CSRF token is invalid!")
@@ -61,5 +63,3 @@ def generate_csrf_token():
 def generate_csrf_token_field():
     token = generate_csrf_token()
     return Markup(f"<input type='hidden' name='_csrf_token' value='{token}' />")
-
-

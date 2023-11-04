@@ -14,10 +14,11 @@ import werkzeug
 from typing import Optional, Dict, Any, Sequence, cast, Union
 
 from flask import (
-        current_app, request, redirect, url_for, Blueprint,
-        render_template, flash, send_from_directory,
-        jsonify, send_file, session, g, Markup
+    current_app, request, redirect, url_for, Blueprint,
+    render_template, flash, send_from_directory,
+    jsonify, send_file, session, g
 )
+from markupsafe import Markup
 
 from .mdb import get_mdb
 from .json_custom import to_serializable
@@ -68,9 +69,11 @@ def refresh_cookies_file():
 
 
 def handle_search_sort():
-    user_sort_col, user_sort_dir = session.get('user_search_pref', (None, None))
+    user_sort_col, user_sort_dir = session.get(
+        'user_search_pref', (None, None))
     # prioritize get args over user settings stored in session cookie
-    order_by_col = request.args.get('sort_col', None, type=str) or user_sort_col
+    order_by_col = request.args.get(
+        'sort_col', None, type=str) or user_sort_col
     asc_desc = request.args.get('order', None, type=str) or user_sort_dir
 
     new_search_pref = bool(order_by_col or asc_desc)
@@ -168,7 +171,8 @@ def show_info(book_id, book=None, book_upd_changes=None, show_outdated=None,
         # rather than spend a lot of time/code to replace title_eng and _foreign with title in
         # rows make title func available to jinja by passing it in as param
         build_title=Book.build_title,
-        lists=[row["name"] for row in book.get_all_options_for_assoc_column("list")],
+        lists=[row["name"]
+               for row in book.get_all_options_for_assoc_column("list")],
         book_upd_changes=book_upd_changes,
         outdated=outdated,
         add_ei_or_new_book_prompt=add_ei_or_new_book_prompt)
@@ -201,7 +205,8 @@ def import_book(url: Optional[str] = None, force_new: bool = False):
         extr_data = json.loads(request.form['extr_data_json'])
         thumb_url = request.form['thumb_url']
         # during json conversion datetime was converted to a str (in isoformat)
-        extr_data["upload_date"] = datetime.date.fromisoformat(extr_data['upload_date'])
+        extr_data["upload_date"] = datetime.date.fromisoformat(
+            extr_data['upload_date'])
         if request.form['action'] == "add_new":
             force_new = True
         else:
@@ -222,7 +227,8 @@ def import_book(url: Optional[str] = None, force_new: bool = False):
             return redirect(url_for("main.show_entries"))
         book = mdb.book_from_data(extr_data)
 
-    bid = mdb.get_book_id(book.title_eng, book.title_foreign) if not force_new else None
+    bid = mdb.get_book_id(
+        book.title_eng, book.title_foreign) if not force_new else None
     if add_ext_info:
         # -> add extinfo instead of importing whole book => NO since if its in id_map
         # book.ext_infos wont match state in DB
@@ -248,12 +254,12 @@ def import_book(url: Optional[str] = None, force_new: bool = False):
         # only allow one temp cover
         # change this to temp_cover_{username} if we add multiple user support
         cover_dled = mdb.download_cover(
-                thumb_url, current_app.config["THUMBS_FOLDER"], bid,
-                overwrite=True, forced_filename="temp_cover_0")
+            thumb_url, current_app.config["THUMBS_FOLDER"], bid,
+            overwrite=True, forced_filename="temp_cover_0")
         if not cover_dled:
             current_app.logger.error(
-                    "Could not download cover for book at %s with thumb url %s",
-                    url, thumb_url)
+                "Could not download cover for book at %s with thumb url %s",
+                url, thumb_url)
             flash("Thumb couldnt be downloaded!")
 
         return show_add_book(book=book, cover_uploaded=time.time() if cover_dled else 0,
@@ -269,7 +275,8 @@ def jump_to_book_by_url():
     imported_from = extr_cls.site_id
     # ids can get re-used by external sites so theyre not guaranteed to be unique
     # or even link to the correct extinfo/book
-    books = list(get_mdb().get_books({"id_onpage": id_onpage, "imported_from": imported_from}))
+    books = list(get_mdb().get_books(
+        {"id_onpage": id_onpage, "imported_from": imported_from}))
 
     if not books:
         # passing var to func works directly when using optional param
@@ -317,7 +324,8 @@ def update_book_ext_info(book_id, ext_info_id):
         return redirect(url_for("main.show_info", book_id=book_id))
     elif status == "title_missmatch":
         flash("Update failed!", "title warning")
-        flash(f"Title of book at URL didn't match title '{old_book.title}'", "info")
+        flash(
+            f"Title of book at URL didn't match title '{old_book.title}'", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
 
     changes, _ = old_book.diff(new_book)
@@ -376,7 +384,8 @@ def apply_upd_changes(book_id):
         elif col == "status":
             update_dic["status_id"] = STATUS_IDS[val]
         elif col == "language":
-            update_dic["language_id"] = mdb.get_language(val, create_unpresent=True)
+            update_dic["language_id"] = mdb.get_language(
+                val, create_unpresent=True)
         elif col in Book.COLUMNS:
             update_dic[col] = val
         else:
@@ -385,7 +394,8 @@ def apply_upd_changes(book_id):
             remove = remove.split(";") if remove else []
             # + add could produce duplicates but we know that none of the items in add
             # are in the col
-            update_dic[col] = [v for v in getattr(book, col) + add if v not in remove]
+            update_dic[col] = [v for v in getattr(
+                book, col) + add if v not in remove]
 
     book.update_from_dict(update_dic)
     book.save()
@@ -414,13 +424,13 @@ def get_info_txt(book_id):
     # it didnt work since as soon as it returned the file was closed
     # after_this_request also doesnt work!
     return send_file(
-            mem, mimetype="Content-Type: text/plain; charset=utf-8",
-            # as attachment otherwise it just opens in the browser or you have to use save as
-            as_attachment=True,
-            # apparently also needs to be b/encoded otherwise we get an UnicodeEncodeError
-            # if it contains non-ascii chars
-            attachment_filename=f"{book.title.replace('/', '')}_info.txt"
-            )
+        mem, mimetype="Content-Type: text/plain; charset=utf-8",
+        # as attachment otherwise it just opens in the browser or you have to use save as
+        as_attachment=True,
+        # apparently also needs to be b/encoded otherwise we get an UnicodeEncodeError
+        # if it contains non-ascii chars
+        attachment_filename=f"{book.title.replace('/', '')}_info.txt"
+    )
 
 
 def first_last_more(books, order_by_col="id", after=None, before=None):
@@ -510,18 +520,20 @@ def list_action_ajax(book_id, action):
         # there then something got left out of the request and the entire
         # request is invalid.
         # print("test",request.form["adjak"],"test")
-        Book.add_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
+        Book.add_assoc_col_on_book_id(
+            get_mdb(), book_id, "list", [list_name], before)
         # pass url back to script since we cant use url_for
         return jsonify({"added": list_name,
                         "search_tag_url": url_for('main.search_books',
                                                   q=f'tag:"{list_name}"')})
     elif action == "remove":
-        Book.remove_assoc_col_on_book_id(get_mdb(), book_id, "list", [list_name], before)
+        Book.remove_assoc_col_on_book_id(
+            get_mdb(), book_id, "list", [list_name], before)
         return jsonify({"removed": list_name})
     else:
         return jsonify({
             "error": f"Supplied action '{action}' is not a valid list action!"
-            })
+        })
 
 
 @main_bp.route("/book/<int:book_id>/set/fav/<int:fav_intbool>")
@@ -585,7 +597,8 @@ def add_ext_info(book_id):
             flash_cookie_update_msg()
         else:
             flash("Adding external link failed!", "title warning")
-            flash("Either there was something wrong with the url or the extraction failed!", "info")
+            flash(
+                "Either there was something wrong with the url or the extraction failed!", "info")
             flash(f"URL was: {url}")
             flash("Check the logs for more details!", "info")
         return redirect(url_for("main.show_info", book_id=book_id))
@@ -644,7 +657,8 @@ def add_book():
     if extr_data:
         extr_data = json.loads(extr_data)
         # convert date string back to dateteime date
-        extr_data["upload_date"] = datetime.date.fromisoformat(extr_data["upload_date"])
+        extr_data["upload_date"] = datetime.date.fromisoformat(
+            extr_data["upload_date"])
         ext_info = ExternalInfo(mdb, book, **extr_data)
         book.ext_infos = [ext_info]
 
@@ -680,7 +694,8 @@ def cancel_add_book():
     # del temp book cover file if we dont add book
     cover_uploaded = request.data
     if cover_uploaded:
-        os.remove(os.path.join(current_app.config["THUMBS_FOLDER"], "temp_cover_0"))
+        os.remove(os.path.join(
+            current_app.config["THUMBS_FOLDER"], "temp_cover_0"))
     # js takes care of the redirection
     return url_for("main.show_entries")
 
@@ -764,7 +779,8 @@ def edit_book(book_id):
 
         # delete old cover if present
         try:
-            os.remove(os.path.join(thumb_dir, f"{book_id}_{book.cover_timestamp:.0f}"))
+            os.remove(os.path.join(
+                thumb_dir, f"{book_id}_{book.cover_timestamp:.0f}"))
         except FileNotFoundError:
             pass
 
@@ -797,7 +813,8 @@ def show_edit_ext_info(book_id, ext_info_id, book=None):
         try:
             ext_info = next(e for e in book._ext_infos if e.id == ext_info_id)
         except StopIteration:
-            flash(f"No external info with that id found on book with id {book.id}", "title warning")
+            flash(
+                f"No external info with that id found on book with id {book.id}", "title warning")
             return redirect(url_for('main.show_entries'))
 
     url = request.args.get("url", None)
@@ -812,7 +829,7 @@ def show_edit_ext_info(book_id, ext_info_id, book=None):
 @main_bp.route("/book/edit/<int:book_id>/ext_info/submit", defaults={'ext_info_id': None}, methods=['POST'])
 @main_bp.route("/book/edit/<int:book_id>/ext_info/<int:ext_info_id>/submit", methods=['POST'])
 def edit_ext_info(book_id: int, ext_info_id: int,
-                  book: Optional[Book]=None) -> Union[str, werkzeug.Response]:
+                  book: Optional[Book] = None) -> Union[str, werkzeug.Response]:
     mdb = get_mdb()
     if book is None:
         book = mdb.get_book(book_id)
@@ -828,7 +845,8 @@ def edit_ext_info(book_id: int, ext_info_id: int,
         try:
             ext_info = next(e for e in book._ext_infos if e.id == ext_info_id)
         except StopIteration:
-            flash(f"No external info with that id found on book with id {book.id}", "title warning")
+            flash(
+                f"No external info with that id found on book with id {book.id}", "title warning")
             return redirect(url_for('main.show_entries'))
 
     if ext_info_id is None:
@@ -838,13 +856,14 @@ def edit_ext_info(book_id: int, ext_info_id: int,
         ext_info.id_onpage = request.form['id_onpage']
 
     try:
-        ext_info.upload_date = datetime.date.fromisoformat(request.form['upload_date'])
+        ext_info.upload_date = datetime.date.fromisoformat(
+            request.form['upload_date'])
     except ValueError:
         flash("Could not set date on external info since the date had the wrong format!", "warning")
         return redirect(url_for(
             "main.show_edit_ext_info", book_id=book_id, ext_info_id=ext_info_id,
             url=request.form['id_onpage']))
-    
+
     uploader = request.form['uploader']
     ext_info.uploader = uploader if uploader else None
     censorship_status = request.form['censorship_status']
@@ -868,7 +887,8 @@ def show_edit_collection(collection_name: str,
                          books_in_collection: Optional[Sequence[Book]] = None) -> str:
     mdb = get_mdb()
     if books_in_collection is None:
-        collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
+        collection_id = cast(
+            int, mdb.get_collection_id_from_name(collection_name))
         if collection_id is None:
             return render_template(
                 'edit_collection.html',
@@ -885,7 +905,7 @@ def show_edit_collection(collection_name: str,
 
     return render_template(
         'edit_collection.html',
-        collection_name = collection_name,
+        collection_name=collection_name,
         books_in_collection=books_in_collection)
 
 
@@ -899,9 +919,11 @@ def edit_collection(collection_name: str) -> werkzeug.wrappers.Response:
     collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
 
     if new_collection_name != collection_name:
-        success = mdb.update_tag_name('collection', collection_id, new_collection_name)
+        success = mdb.update_tag_name(
+            'collection', collection_id, new_collection_name)
         if not success:
-            flash("Saving changes failed due to the new name not being unique!", "title warning")
+            flash(
+                "Saving changes failed due to the new name not being unique!", "title warning")
             # NOTE: if we want html inside a flash message we need to wrap it in flask.Markup
             # Marks a string as being safe for inclusion in HTML/XML output without needing to be escaped
             # so be careful ! no user input
@@ -910,13 +932,13 @@ def edit_collection(collection_name: str) -> werkzeug.wrappers.Response:
                 f"{url_for('main.show_edit_collection', collection_name=new_collection_name)}\""
                 f">{new_collection_name}</a>"), "info")
             return redirect(url_for('main.show_edit_collection', collection_name=collection_name))
-        
+
     bid_new_cidx = [(int(bid[5:]), int(cidx)) for (bid, cidx) in request.form.items()
                     if bid.startswith("cidx_")]
     if bid_new_cidx:
         mdb.update_in_collection_order(collection_id, bid_new_cidx)
 
-    return redirect(url_for('main.show_edit_collection', collection_name=new_collection_name)) 
+    return redirect(url_for('main.show_edit_collection', collection_name=new_collection_name))
 
 
 @main_bp.route("/delete-collection/<string:collection_name>", methods=['POST'])
@@ -926,7 +948,7 @@ def delete_collection(collection_name: str) -> werkzeug.wrappers.Response:
     collection_id = cast(int, mdb.get_collection_id_from_name(collection_name))
     mdb.delete_tag('collection', collection_id)
 
-    return redirect(url_for('main.show_entries')) 
+    return redirect(url_for('main.show_entries'))
 
 
 # code for file uploading taken from:
@@ -987,14 +1009,14 @@ def remove_ext_info(book_id, ext_info_id):
 
 
 tag_abbrev_to_table_name = {
-        't': 'Tag',
-        'l': 'List',
-        'co': 'Collection',
-        'ca': 'Category',
-        'g': 'Groups',
-        'a': 'Artist',
-        'p': 'Parody',
-        'ch': 'Character',
+    't': 'Tag',
+    'l': 'List',
+    'co': 'Collection',
+    'ca': 'Category',
+    'g': 'Groups',
+    'a': 'Artist',
+    'p': 'Parody',
+    'ch': 'Character',
 }
 
 
@@ -1007,7 +1029,6 @@ def manage_tags():
         # no search yet
         return render_template('manage_tags.html')
 
-
     try:
         tag_tbl_name = tag_abbrev_to_table_name[tags_type_abbrev]
     except KeyError:
@@ -1015,9 +1036,10 @@ def manage_tags():
         return render_template('manage_tags.html')
 
     mdb = get_mdb()
-    c = mdb.db_con.execute(f"SELECT id, name FROM {tag_tbl_name} WHERE name LIKE '%{search_str}%'")
+    c = mdb.db_con.execute(
+        f"SELECT id, name FROM {tag_tbl_name} WHERE name LIKE '%{search_str}%'")
     tags = c.fetchall()
-    
+
     return render_template(
         'manage_tags.html',
         tags=tags,
@@ -1029,7 +1051,7 @@ def manage_tags():
 @main_bp.route("/manage-tags/delete", methods=["POST"])
 def delete_tag():
     tag_id = request.form.get("id", None, type=int)
-    tag_type = request.form.get("type", None, type=str) 
+    tag_type = request.form.get("type", None, type=str)
     if tag_id is None:
         return jsonify({"error": "Missing tag id from data!"})
     if tag_type is None:
@@ -1045,7 +1067,7 @@ def delete_tag():
 @main_bp.route("/manage-tags/edit", methods=["POST"])
 def edit_tag():
     tag_id = request.form.get("id", None, type=int)
-    tag_type = request.form.get("type", None, type=str) 
+    tag_type = request.form.get("type", None, type=str)
     new_tag_name = request.form.get("new_tag_name", None, type=str)
     if tag_id is None:
         return jsonify({"error": "Missing tag id from data!"})
