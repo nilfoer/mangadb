@@ -12,6 +12,8 @@ TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 url_furl_map = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                         "url_fileurl_map.json"))
+
+
 def new_get_html(url):
     # url_furl_map maps url to rel path from tests_dir to html file
     fpath = os.path.join(TESTS_DIR, os.path.normpath(url_furl_map[url]))
@@ -39,13 +41,18 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
 
     mdb_file = os.path.join(tmpdir, "manga_db.sqlite")
     # we modified all_test_files db file -> copy new one to tmpdir
-    sql_file = os.path.join(TESTS_DIR, "threads_test_files", "manga_db_base.sqlite.sql")
+    sql_file = os.path.join(
+        TESTS_DIR, "threads_test_files", "manga_db_base.sqlite.sql")
     load_db_from_sql_file(sql_file, mdb_file).close()
 
     # have to change get_html to retrieve file from disk instead
-    monkeypatch.setattr("manga_db.extractor.base.BaseMangaExtractor.get_html", new_get_html)
+    monkeypatch.setattr(
+        "manga_db.extractor.base.BaseMangaExtractor.get_html", new_get_html)
     # patch get_cover to point to thumb on disk
-    monkeypatch.setattr("manga_db.extractor.tsumino.TsuminoExtractor.get_cover", new_get_cover)
+    monkeypatch.setattr(
+        "manga_db.extractor.tsumino.TsuminoExtractor.get_cover", new_get_cover)
+    monkeypatch.setattr(
+        "manga_db.extractor.nhentai.NhentaiExtractor.get_cover", new_get_cover)
     url_links = import_json(os.path.join(TESTS_DIR, "threads_test_files",
                                          "to_import_link_collect_resume.json"))
     caplog.clear()
@@ -78,10 +85,12 @@ def test_import_multiple(setup_mdb_dir, monkeypatch, caplog):
             # for id 94465 nothing was added since the same ext info already exists
             # for id 249896 only the ext info was added
             # -> no cover written
-            assert not os.path.isfile(os.path.join(tmpdir, "thumbs", f"{row['id']}_0"))
+            assert not os.path.isfile(os.path.join(
+                tmpdir, "thumbs", f"{row['id']}_0"))
             continue
         expected = id_onpagestr_checksum[str(row["id_onpage"])]
-        actual = gen_hash_from_file(os.path.join(tmpdir, "thumbs", f"{row['id']}_0"), "sha512")
+        actual = gen_hash_from_file(os.path.join(
+            tmpdir, "thumbs", f"{row['id']}_0"), "sha512")
         assert actual == expected
 
 
