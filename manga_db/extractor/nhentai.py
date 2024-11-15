@@ -60,6 +60,8 @@ class NhentaiExtractor(BaseMangaExtractor):
             img_ext = "jpg"
         elif img_type == "p":
             img_ext = "png"
+        elif img_type == "w":
+            img_ext = "webp"
         else:
             logger.error("Didn't recognize nhentai's image type: %s", img_type)
             return None
