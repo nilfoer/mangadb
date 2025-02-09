@@ -188,22 +188,15 @@ class MangaDB:
 
         # TODO use urlopen and add headers
         if not os.path.isfile(cover_path) or overwrite:
-            i = 0
-            while i < 6:
-                try:
-                    # TODO FIXME: @Hack
-                    mirror_url = url.replace(
-                        "/t.nhentai.net/",
-                        f"/t{f'{i}' if i else ''}.nhentai.net/", 1)
-                    urllib.request.urlretrieve(mirror_url,
-                                               cover_path)
-                except urllib.error.HTTPError as err:
-                    logger.warning("HTTP Error %s: %s: \"%s\"",
-                                   err.code, err.reason, url)
-                    i += 1
-                else:
-                    return True
-            return False
+            try:
+                urllib.request.urlretrieve(url,
+                                           cover_path)
+            except urllib.error.HTTPError as err:
+                logger.warning("HTTP Error %s: %s: \"%s\"",
+                               err.code, err.reason, url)
+                return False
+            else:
+                return True
         else:
             logger.debug("Thumb at '%s' was skipped since the path already exists: '%s'",
                          url, cover_path)
