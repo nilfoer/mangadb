@@ -3,6 +3,8 @@ import datetime
 import json
 import re
 
+import bs4
+
 from typing import cast, Match, Optional, Dict, Any
 
 from .base import BaseMangaExtractor, MangaExtractorData
@@ -22,7 +24,6 @@ class NhentaiExtractor(BaseMangaExtractor):
     TITLE_RE = re.compile(r"^(?:\[.+?\])? ?(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
     INFO_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/"
     API_URL_FORMAT = "https://nhentai.net/api/gallery/{id_onpage}"
-    THUMB_URL_FORMAT = "https://t.nhentai.net/galleries/{media_id}/cover.{img_ext}"
     KW_LOOKP_RE_FORMAT = r"(?:\[|\(){keyword}[^)\]\n]*(?:\]|\))"
 
     def __init__(self, url: str):
@@ -51,7 +52,13 @@ class NhentaiExtractor(BaseMangaExtractor):
     def read_url_from_ext_info(cls, ext_info):
         return cls.READ_URL_FORMAT.format(id_onpage=ext_info.id_onpage)
 
-    def build_cover_url(self) -> Optional[str]:
+    def build_cover_url(self, html: str) -> Optional[str]:
+        soup = bs4.BeautifulSoup(html, "html.parser")
+        cover_img = soup.select_one("#cover img").get("data-src")
+
+        if cover_img is not None:
+            return cover_img
+
         if not self.json:
             return None
 
@@ -104,7 +111,7 @@ class NhentaiExtractor(BaseMangaExtractor):
                 if not json_str:
                     return None
                 self.json = json.loads(json_str)
-            self.thumb_url = self.build_cover_url()
+            self.thumb_url = self.build_cover_url(html)
             self.data = self.transform_data(self.json)
         return self.data
 
