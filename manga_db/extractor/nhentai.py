@@ -57,6 +57,8 @@ class NhentaiExtractor(BaseMangaExtractor):
         cover_img = soup.select_one("#cover img").get("data-src")
 
         if cover_img is not None:
+            if cover_img.startswith("//"):
+                cover_img = f"https:{cover_img}"
             return cover_img
 
         if not self.json:
