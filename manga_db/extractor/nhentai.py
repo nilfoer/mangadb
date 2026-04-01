@@ -23,8 +23,10 @@ class NhentaiExtractor(BaseMangaExtractor):
     # grp 1 is prob contained magazine?/vol? grp 2 is title
     TITLE_RE = re.compile(r"^(?:\[.+?\])? ?(\(.+?\))? ?(?:\[.+?\])? ?([^\[(]+)")
     INFO_URL_FORMAT = "https://nhentai.net/g/{id_onpage}/"
-    API_URL_FORMAT = "https://nhentai.net/api/gallery/{id_onpage}"
+    API_URL_FORMAT = "https://nhentai.net/api/v2/galleries/{id_onpage}"
     KW_LOOKP_RE_FORMAT = r"(?:\[|\(){keyword}[^)\]\n]*(?:\]|\))"
+
+    DEFAULT_THUMB_MIRROR = "https://t1.nhentai.net/"
 
     def __init__(self, url: str):
         super().__init__(url)
@@ -52,68 +54,25 @@ class NhentaiExtractor(BaseMangaExtractor):
     def read_url_from_ext_info(cls, ext_info):
         return cls.READ_URL_FORMAT.format(id_onpage=ext_info.id_onpage)
 
-    def build_cover_url(self, html: str) -> Optional[str]:
-        soup = bs4.BeautifulSoup(html, "html.parser")
-        cover_img = soup.select_one("#cover img").get("data-src")
+    def build_cover_url(self) -> str:
+        assert self.json
 
-        if cover_img is not None:
-            if cover_img.startswith("//"):
-                cover_img = f"https:{cover_img}"
-            return cover_img
-
-        if not self.json:
-            return None
-
-        img_type = self.json["images"]["cover"]["t"]
-        if img_type == "j":
-            img_ext = "jpg"
-        elif img_type == "p":
-            img_ext = "png"
-        elif img_type == "w":
-            img_ext = "webp"
-        else:
-            logger.error("Didn't recognize nhentai's image type: %s", img_type)
-            return None
-        return self.THUMB_URL_FORMAT.format(media_id=self.json["media_id"], img_ext=img_ext)
-
-    def get_json_from_html(self, html: str) -> Optional[str]:
-        result: Optional[str] = None
-
-        try:
-            json_str = html.split(
-                    "window._gallery = JSON.parse(\"")[1].split("\");")[0]
-            # unicode characters, but also json special characters like
-            # \ and " are escaped with unicode sequences, which
-            # json.loads can't deal with
-            # there can also be double quotes in the json string,
-            # but unicode_escape would remove and ignore them,
-            # so return them (\u005C) to backslashes again
-            result = (json_str
-                        # keep backslash escapes, which would otherwise be
-                        # lost when decoding with unicode-escape
-                        .replace('\\u005C', '\\')
-                        .encode('utf-8')
-                        .decode('unicode-escape'))
-        except IndexError:
-            pass
-        if not result:
-            logger.warning("Couldn't extract JSON string from html on %s", self.url)
-        return result
+        path = self.json["cover"]["path"]
+        return f"{self.DEFAULT_THUMB_MIRROR}{path}"
 
     def extract(self) -> Optional[MangaExtractorData]:
         if self.data is None:
             if self.json is None:
-                html = NhentaiExtractor.get_html(
-                        self.INFO_URL_FORMAT.format(id_onpage=self.id_onpage))
-                if not html:
-                    logger.warning(
-                            "Extraction failed! HTML response was empty for url '%s'", self.url)
-                    return None
-                json_str = self.get_json_from_html(html)
+                json_str = NhentaiExtractor.get_html(
+                        self.API_URL_FORMAT.format(id_onpage=self.id_onpage))
                 if not json_str:
+                    logger.warning(
+                            "Extraction failed! JSON response was empty for url '%s'", self.url)
                     return None
+
                 self.json = json.loads(json_str)
-            self.thumb_url = self.build_cover_url(html)
+
+            self.thumb_url = self.build_cover_url()
             self.data = self.transform_data(self.json)
         return self.data
 
@@ -131,14 +90,10 @@ class NhentaiExtractor(BaseMangaExtractor):
         """
         Transform data parsed from tsumino.com into DB format
         """
-        if "upload_date" in data:
-            upload_date = data["upload_date"]
-        else:
-            # else instead elif since we want it to fail if its not in images either
-            upload_date = data["images"]["upload_date"]
+        upload_date = data["upload_date"]
 
         title_eng = data["title"]["english"]
-        title_eng_cleaned = title_eng
+        title_eng_cleaned = data["title"]["pretty"]
         title_foreign = data["title"]["japanese"]
         title_foreign_cleaned = title_foreign
         # extract titles, full title inlcuding artist, group etc. will be saved as note

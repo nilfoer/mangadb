@@ -199,6 +199,8 @@ manual_nhentai = {
 
 
 def test_extr_nhent(monkeypatch, caplog):
+    # TODO broken after switching to api usage!
+
     # decensored, ongoing in title
     url = "https://nhentai.net/g/77052/"
     t = NhentaiExtractor(url)
